@@ -41,7 +41,7 @@ jobs:
 
       - name: Build Electron (Linux)
         if: matrix.platform == 'linux'
-        run: npx electron-builder --linux AppImage deb pacman --publish never
+        run: npx electron-builder --linux AppImage deb --publish never
 
       - name: Build Electron (Windows)
         if: matrix.platform == 'windows'
@@ -58,7 +58,6 @@ jobs:
           path: |
             dist-electron/*.AppImage
             dist-electron/*.deb
-            dist-electron/*.pacman
             dist-electron/*.exe
             dist-electron/*.dmg
           if-no-files-found: error
