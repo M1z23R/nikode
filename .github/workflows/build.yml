@@ -67,7 +67,7 @@ jobs:
       - name: Install dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm git nodejs npm base-devel
+          pacman -S --noconfirm git nodejs npm base-devel libxcrypt-compat
 
       - name: Checkout
         uses: actions/checkout@v4
