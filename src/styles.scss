@@ -465,6 +465,11 @@ html, body {
   }
 }
 
+// Ghost buttons brighter in dark mode
+.dark .ui-button--ghost {
+  --_btn-color: #d1d5db !important; // Gray-300 - more visible on dark background
+}
+
 // Dynamic tabs full height
 ui-dynamic-tabs {
   display: block;

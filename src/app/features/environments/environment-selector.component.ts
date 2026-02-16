@@ -17,6 +17,7 @@ import { EnvironmentEditorDialogComponent, EnvironmentEditorDialogData } from '.
     @if (activeCollection(); as col) {
       <div class="env-selector">
         <ui-select
+          size="sm"
           [value]="col.collection.activeEnvironmentId"
           (valueChange)="onEnvironmentChange($event?.toString() || '')">
           @for (env of col.collection.environments; track env.id) {
