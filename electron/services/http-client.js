@@ -19,13 +19,30 @@ class HttpClient {
       });
 
       const elapsed = Math.round(performance.now() - startTime);
-      const body = await response.text();
 
       // Extract headers
       const headers = {};
       response.headers.forEach((value, key) => {
         headers[key] = value;
       });
+
+      // Parse content type and determine encoding
+      const contentTypeHeader = response.headers.get('content-type') || '';
+      const contentType = this.parseContentType(contentTypeHeader);
+
+      // Read response as arrayBuffer to handle both text and binary
+      const buffer = await response.arrayBuffer();
+
+      let body, bodyEncoding, size;
+      if (this.isTextContent(contentType)) {
+        body = new TextDecoder(contentType.charset || 'utf-8').decode(buffer);
+        bodyEncoding = 'text';
+        size = body.length;
+      } else {
+        body = Buffer.from(buffer).toString('base64');
+        bodyEncoding = 'base64';
+        size = buffer.byteLength;
+      }
 
       // Extract cookies from Set-Cookie header
       const cookies = this.parseCookies(response.headers.getSetCookie?.() || []);
@@ -38,7 +55,8 @@ class HttpClient {
         statusText: response.statusText,
         headers,
         body,
-        size: body.length,
+        bodyEncoding,
+        size,
         time: elapsed,
         cookies,
         sentRequest: {
@@ -51,6 +69,52 @@ class HttpClient {
     } finally {
       clearTimeout(timeoutId);
     }
+  }
+
+  parseContentType(header) {
+    if (!header) return { type: '', subtype: '', charset: null };
+
+    const parts = header.split(';').map((p) => p.trim());
+    const [mimeType, ...params] = parts;
+    const [type, subtype] = mimeType.split('/');
+
+    let charset = null;
+    for (const param of params) {
+      const [key, value] = param.split('=').map((s) => s.trim());
+      if (key.toLowerCase() === 'charset') {
+        charset = value.replace(/['"]/g, '');
+      }
+    }
+
+    return { type: type || '', subtype: subtype || '', charset };
+  }
+
+  isTextContent(contentType) {
+    const { type, subtype } = contentType;
+
+    // Text types
+    if (type === 'text') return true;
+
+    // JSON
+    if (type === 'application' && subtype === 'json') return true;
+    if (subtype.endsWith('+json')) return true;
+
+    // XML
+    if (type === 'application' && subtype === 'xml') return true;
+    if (subtype.endsWith('+xml')) return true;
+
+    // Other common text application types
+    if (type === 'application') {
+      const textSubtypes = [
+        'javascript',
+        'x-javascript',
+        'ecmascript',
+        'x-www-form-urlencoded',
+      ];
+      if (textSubtypes.includes(subtype)) return true;
+    }
+
+    return false;
   }
 
   parseCookies(setCookieHeaders) {

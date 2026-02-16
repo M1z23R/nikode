@@ -16,6 +16,7 @@ import { variableTooltip, variableTooltipTheme, VariableTooltipConfig } from './
 import { scriptCompletions } from './script-completions.extension';
 import { json } from '@codemirror/lang-json';
 import { javascript } from '@codemirror/lang-javascript';
+import { xml } from '@codemirror/lang-xml';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 import { syntaxHighlighting, HighlightStyle, foldGutter, foldKeymap } from '@codemirror/language';
@@ -131,7 +132,7 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy, OnChanges 
   @ViewChild('editorContainer', { static: true }) editorContainer!: ElementRef<HTMLDivElement>;
 
   @Input() value = '';
-  @Input() language: 'json' | 'javascript' | 'text' = 'json';
+  @Input() language: 'json' | 'javascript' | 'xml' | 'html' | 'text' = 'json';
   @Input() placeholder = '';
   @Input() readonly = false;
   @Input() showLineNumbers = true;
@@ -241,6 +242,8 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy, OnChanges 
           override: [scriptCompletions],
         })
       );
+    } else if (this.language === 'xml' || this.language === 'html') {
+      extensions.push(xml());
     }
 
     if (this.placeholder) {

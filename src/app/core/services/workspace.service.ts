@@ -283,7 +283,15 @@ export class WorkspaceService {
 
     // Build body
     let body: string | undefined;
-    if (request.body.type === 'json' || request.body.type === 'raw') {
+    if (request.body.type === 'json') {
+      if (request.body.content) {
+        body = resolveVariables(request.body.content, variables);
+      }
+      // Auto-set Content-Type for JSON
+      if (!headers['Content-Type'] && !headers['content-type']) {
+        headers['Content-Type'] = 'application/json';
+      }
+    } else if (request.body.type === 'raw') {
       if (request.body.content) {
         body = resolveVariables(request.body.content, variables);
       }
