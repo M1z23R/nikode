@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "A modern API client for developers",
   "author": {
-    "name": "Dimitrije",
-    "email": "dimitrije@example.com"
+    "name": "Dimitrije Randjelovic",
+    "email": "m1z23r@gmail.com"
   },
-  "homepage": "https://github.com/dimitrije/nikode",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/m1z23r/nikode",
   "main": "electron/main.js",
   "scripts": {
     "ng": "ng",
@@ -77,7 +78,7 @@
         "deb",
         "pacman"
       ],
-      "maintainer": "dimitrije@example.com"
+      "maintainer": "m1z23r@gmail.com"
     },
     "mac": {
       "target": [

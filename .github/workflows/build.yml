@@ -41,15 +41,15 @@ jobs:
 
       - name: Build Electron (Linux)
         if: matrix.platform == 'linux'
-        run: npx electron-builder --linux AppImage deb pacman
+        run: npx electron-builder --linux AppImage deb pacman --publish never
 
       - name: Build Electron (Windows)
         if: matrix.platform == 'windows'
-        run: npx electron-builder --win nsis
+        run: npx electron-builder --win nsis --publish never
 
       - name: Build Electron (macOS)
         if: matrix.platform == 'mac'
-        run: npx electron-builder --mac dmg
+        run: npx electron-builder --mac dmg --publish never
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
