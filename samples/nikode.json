@@ -1,0 +1,83 @@
+{
+  "name": "Sample API Collection",
+  "version": "1.0.0",
+  "environments": [
+    {
+      "id": "env-dev",
+      "name": "Development",
+      "variables": [
+        { "key": "baseUrl", "value": "http://localhost:3000", "enabled": true },
+        { "key": "apiVersion", "value": "v1", "enabled": true },
+        { "key": "timeout", "value": "5000", "enabled": true }
+      ]
+    },
+    {
+      "id": "env-prod",
+      "name": "Production",
+      "variables": [
+        { "key": "baseUrl", "value": "https://api.example.com", "enabled": true },
+        { "key": "apiVersion", "value": "v1", "enabled": true },
+        { "key": "apiKey", "value": "", "enabled": true, "secret": true }
+      ]
+    }
+  ],
+  "activeEnvironmentId": "env-dev",
+  "items": [
+    {
+      "id": "folder-users",
+      "type": "folder",
+      "name": "Users",
+      "items": [
+        {
+          "id": "req-get-user",
+          "type": "request",
+          "name": "Get User by ID",
+          "method": "GET",
+          "url": "{{baseUrl}}/{{apiVersion}}/users/{{userId}}",
+          "params": [],
+          "headers": [
+            { "key": "Authorization", "value": "Bearer {{token}}", "enabled": true },
+            { "key": "Accept", "value": "application/json", "enabled": true }
+          ],
+          "body": { "type": "none" },
+          "scripts": {
+            "pre": "",
+            "post": "nk.test('Status is 200', () => {\n  nk.assert(nk.response.statusCode === 200, 'Expected 200');\n});\n\nnk.test('Has user data', () => {\n  const body = JSON.parse(nk.response.body);\n  nk.assert(body.id, 'Missing user id');\n  nk.assert(body.email, 'Missing email');\n});"
+          },
+          "docs": "Fetches a user by their ID. Uses `{{userId}}` from data file."
+        },
+        {
+          "id": "req-create-user",
+          "type": "request",
+          "name": "Create User",
+          "method": "POST",
+          "url": "{{baseUrl}}/{{apiVersion}}/users",
+          "params": [],
+          "headers": [
+            { "key": "Authorization", "value": "Bearer {{token}}", "enabled": true },
+            { "key": "Content-Type", "value": "application/json", "enabled": true }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"name\": \"{{userName}}\",\n  \"email\": \"{{userEmail}}\",\n  \"role\": \"{{userRole}}\"\n}"
+          },
+          "scripts": {
+            "pre": "console.log('Creating user:', nk.getVar('userName'));",
+            "post": "nk.test('User created', () => {\n  nk.assert(nk.response.statusCode === 201, 'Expected 201 Created');\n});"
+          }
+        }
+      ]
+    },
+    {
+      "id": "req-health",
+      "type": "request",
+      "name": "Health Check",
+      "method": "GET",
+      "url": "{{baseUrl}}/health",
+      "params": [],
+      "headers": [],
+      "body": { "type": "none" },
+      "scripts": { "pre": "", "post": "" }
+    }
+  ]
+}

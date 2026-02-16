@@ -1,0 +1,93 @@
+{
+  "name": "nikode",
+  "version": "1.0.0",
+  "description": "A modern API client for developers",
+  "author": {
+    "name": "Dimitrije",
+    "email": "dimitrije@example.com"
+  },
+  "homepage": "https://github.com/dimitrije/nikode",
+  "main": "electron/main.js",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "electron:dev": "NODE_ENV=development electron .",
+    "electron:build": "ng build --configuration production --base-href ./ && electron-builder",
+    "electron:start": "ng build --configuration production --base-href ./ && electron ."
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "packageManager": "npm@10.9.4",
+  "dependencies": {
+    "@angular/common": "^21.1.0",
+    "@angular/compiler": "^21.1.0",
+    "@angular/core": "^21.1.0",
+    "@angular/forms": "^21.1.0",
+    "@angular/platform-browser": "^21.1.0",
+    "@angular/router": "^21.1.0",
+    "@apidevtools/swagger-parser": "^12.1.0",
+    "@codemirror/autocomplete": "^6.20.0",
+    "@codemirror/commands": "^6.10.2",
+    "@codemirror/lang-javascript": "^6.2.4",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/language": "^6.12.1",
+    "@codemirror/state": "^6.5.4",
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "@codemirror/view": "^6.39.14",
+    "@m1z23r/ngx-ui": "^1.1.25",
+    "codemirror": "^6.0.2",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.1.4",
+    "@angular/cli": "^21.1.4",
+    "@angular/compiler-cli": "^21.1.0",
+    "electron": "^40.4.1",
+    "electron-builder": "^26.0.12",
+    "typescript": "~5.9.2"
+  },
+  "build": {
+    "appId": "com.nikode.app",
+    "productName": "Nikode",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/frontend/browser/**/*",
+      "electron/**/*"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "pacman"
+      ],
+      "maintainer": "dimitrije@example.com"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
+  }
+}

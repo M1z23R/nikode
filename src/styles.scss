@@ -1,0 +1,529 @@
+// Import ngx-ui styles
+@use '@m1z23r/ngx-ui/styles' as ui;
+
+// Nikode Theme - Grayish with Dark Mode Support
+
+:root {
+  --ui-primary: #6b7280;      // Gray-500
+  --ui-primary-hover: #4b5563; // Gray-600
+  --ui-primary-active: #374151; // Gray-700
+  --ui-primary-text: #ffffff;
+  --ui-secondary: #9ca3af;    // Gray-400
+  --ui-secondary-hover: #6b7280; // Gray-500
+  --ui-secondary-active: #4b5563; // Gray-600
+  --ui-secondary-text: #ffffff;
+  --ui-accent: #3b82f6;       // Blue-500
+  --ui-success: #10b981;      // Green-500
+  --ui-warning: #f59e0b;      // Amber-500
+  --ui-error: #ef4444;        // Red-500
+  --ui-bg: #f9fafb;           // Gray-50
+  --ui-bg-secondary: #f3f4f6; // Gray-100
+  --ui-bg-tertiary: #e5e7eb;  // Gray-200
+  --ui-text: #111827;         // Gray-900
+  --ui-text-secondary: #4b5563; // Gray-600
+  --ui-text-muted: #9ca3af;   // Gray-400
+  --ui-border: #e5e7eb;       // Gray-200
+  --ui-border-strong: #d1d5db; // Gray-300
+  --ui-shadow: rgba(0, 0, 0, 0.1);
+
+  // Method colors
+  --method-get: #10b981;
+  --method-post: #f59e0b;
+  --method-put: #3b82f6;
+  --method-patch: #8b5cf6;
+  --method-delete: #ef4444;
+  --method-head: #6b7280;
+  --method-options: #6b7280;
+}
+
+.dark {
+  --ui-primary: #9ca3af;      // Gray-400
+  --ui-primary-hover: #d1d5db; // Gray-300
+  --ui-primary-active: #e5e7eb; // Gray-200
+  --ui-primary-text: #111827;  // Gray-900
+  --ui-secondary: #6b7280;    // Gray-500
+  --ui-secondary-hover: #9ca3af; // Gray-400
+  --ui-secondary-active: #d1d5db; // Gray-300
+  --ui-secondary-text: #111827; // Gray-900
+  --ui-bg: #181d28;           // Softer base (lifted from pure Gray-900)
+  --ui-bg-secondary: #242b38; // Hover state - visible but not harsh
+  --ui-bg-tertiary: #2e3644;  // Active/selected state
+  --ui-bg-hover: rgba(255, 255, 255, 0.08); // Light overlay for dark mode hovers
+  --ui-text: #f9fafb;         // Gray-50
+  --ui-text-secondary: #d1d5db; // Gray-300
+  --ui-text-muted: #6b7280;   // Gray-500
+  --ui-border: #2a323f;       // Softer border (closer to bg-tertiary)
+  --ui-border-hover: #454f5f;  // Visible hover border
+  --ui-border-strong: #3a4350; // Gentler strong border
+  --ui-shadow: rgba(0, 0, 0, 0.25);
+
+  // Dropdown/menu specific
+  --ui-dropdown-bg: #1e2530;
+  --ui-option-hover-bg: rgba(255, 255, 255, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  background-color: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+// Scrollbar styling
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--ui-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ui-border-strong);
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--ui-primary);
+  }
+}
+
+// Common components
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  background-color: var(--ui-bg);
+  color: var(--ui-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background-color: var(--ui-bg-secondary);
+    border-color: var(--ui-border-strong);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.btn-primary {
+    background-color: var(--ui-primary);
+    border-color: var(--ui-primary);
+    color: white;
+
+    &:hover {
+      background-color: var(--ui-secondary);
+      border-color: var(--ui-secondary);
+    }
+  }
+
+  &.btn-icon {
+    padding: 0.5rem;
+    min-width: 2rem;
+    min-height: 2rem;
+  }
+
+  &.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+}
+
+.input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  background-color: var(--ui-bg);
+  color: var(--ui-text);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+
+  &:focus {
+    border-color: var(--ui-accent);
+  }
+
+  &::placeholder {
+    color: var(--ui-text-muted);
+  }
+}
+
+.select {
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  background-color: var(--ui-bg);
+  color: var(--ui-text);
+  font-size: 0.875rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+
+  &:focus {
+    border-color: var(--ui-accent);
+    outline: none;
+  }
+}
+
+// Tabs
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--ui-border);
+
+  .tab {
+    padding: 0.5rem 1rem;
+    border-bottom: 2px solid transparent;
+    color: var(--ui-text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      color: var(--ui-text);
+    }
+
+    &.active {
+      color: var(--ui-accent);
+      border-bottom-color: var(--ui-accent);
+    }
+  }
+}
+
+// Panel
+.panel {
+  background-color: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+}
+
+// Method badge colors
+.method {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+
+  &.GET { color: var(--method-get); }
+  &.POST { color: var(--method-post); }
+  &.PUT { color: var(--method-put); }
+  &.PATCH { color: var(--method-patch); }
+  &.DELETE { color: var(--method-delete); }
+  &.HEAD { color: var(--method-head); }
+  &.OPTIONS { color: var(--method-options); }
+
+  // Chip variant with background
+  &.method-chip {
+    padding: 0.125rem 0.375rem;
+    border-radius: 4px;
+
+    &.GET { background-color: rgba(16, 185, 129, 0.15); }
+    &.POST { background-color: rgba(245, 158, 11, 0.15); }
+    &.PUT { background-color: rgba(59, 130, 246, 0.15); }
+    &.PATCH { background-color: rgba(139, 92, 246, 0.15); }
+    &.DELETE { background-color: rgba(239, 68, 68, 0.15); }
+    &.HEAD { background-color: rgba(107, 114, 128, 0.15); }
+    &.OPTIONS { background-color: rgba(107, 114, 128, 0.15); }
+  }
+}
+
+// Dialog/Modal
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background-color: var(--ui-bg);
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px var(--ui-shadow);
+  min-width: 400px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+
+  .dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--ui-border);
+
+    h2 {
+      font-size: 1.125rem;
+      font-weight: 600;
+    }
+  }
+
+  .dialog-body {
+    padding: 1.5rem;
+  }
+
+  .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--ui-border);
+    background-color: var(--ui-bg-secondary);
+  }
+}
+
+// Form field
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+
+  label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--ui-text-secondary);
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+// Status codes
+.status-code {
+  font-weight: 600;
+
+  &.status-2xx { color: var(--ui-success); }
+  &.status-3xx { color: var(--ui-accent); }
+  &.status-4xx { color: var(--ui-warning); }
+  &.status-5xx { color: var(--ui-error); }
+}
+
+// Tree view
+.tree {
+  .tree-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+      background-color: var(--ui-bg-secondary);
+    }
+
+    &.selected {
+      background-color: var(--ui-bg-tertiary);
+    }
+
+    .tree-icon {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ui-text-muted);
+    }
+
+    .tree-label {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.875rem;
+    }
+  }
+
+  .tree-children {
+    margin-left: 1.25rem;
+  }
+}
+
+// Accordion
+.accordion {
+  .accordion-item {
+    border-bottom: 1px solid var(--ui-border);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  .accordion-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    user-select: none;
+
+    &:hover {
+      background-color: var(--ui-bg-secondary);
+    }
+
+    .accordion-icon {
+      transition: transform 0.2s ease;
+    }
+
+    &.expanded .accordion-icon {
+      transform: rotate(90deg);
+    }
+
+    .accordion-title {
+      flex: 1;
+      font-weight: 500;
+    }
+  }
+
+  .accordion-content {
+    overflow: hidden;
+  }
+}
+
+// Key-value editor
+.kv-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  .kv-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+
+    .kv-checkbox {
+      width: 1rem;
+      height: 1rem;
+      cursor: pointer;
+    }
+
+    .kv-key, .kv-value {
+      flex: 1;
+    }
+
+    .kv-actions {
+      display: flex;
+      gap: 0.25rem;
+    }
+  }
+}
+
+
+// Context menu
+.context-menu {
+  position: fixed;
+  background-color: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px var(--ui-shadow);
+  min-width: 160px;
+  padding: 0.25rem 0;
+  z-index: 1001;
+
+  .context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--ui-bg-secondary);
+    }
+
+    &.danger {
+      color: var(--ui-error);
+    }
+  }
+
+  .context-menu-separator {
+    height: 1px;
+    background-color: var(--ui-border);
+    margin: 0.25rem 0;
+  }
+}
+
+// Dynamic tabs full height
+ui-dynamic-tabs {
+  display: block;
+  height: 100%;
+
+  .ui-tabs {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .ui-tabs__list {
+    flex-shrink: 0;
+  }
+
+  .ui-tabs__panels {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .ui-tab-panel {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  app-request-tab-content {
+    display: block;
+    height: 100%;
+  }
+}
+
+
+// Fix split pane overflow: panes use flex: 0 0 N% which doesn't account for gutter width
+// Allow panes to shrink so they fit within container minus gutter space
+ui-split > ui-split-pane {
+  flex-shrink: 1 !important;
+}
+
+// Static tabs full height within panels
+.request-panels,
+.response-panels {
+  ui-tabs {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
+    .ui-tabs-header,
+    .tabs-header {
+      flex-shrink: 0;
+    }
+
+    .ui-tabs-content,
+    .tabs-content {
+      flex: 1;
+      overflow: auto;
+      min-height: 0;
+    }
+  }
+}
+
+
