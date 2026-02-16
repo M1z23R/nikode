@@ -58,3 +58,19 @@ export interface OpenCollection {
   expanded: boolean;
   dirty: boolean;
 }
+
+export type CollectionSource = 'local' | 'cloud';
+
+export interface UnifiedCollection {
+  id: string;                    // For local: path, for cloud: cloud:workspaceId:collectionId
+  source: CollectionSource;
+  name: string;
+  collection: Collection;
+  expanded: boolean;
+  dirty: boolean;
+  path?: string;                 // Local only
+  cloudId?: string;              // Cloud only
+  workspaceId?: string;          // Cloud only
+  version?: number;              // Cloud only (for conflict detection)
+  isReadOnly?: boolean;          // True when offline
+}

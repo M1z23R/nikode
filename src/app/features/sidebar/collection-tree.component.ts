@@ -16,6 +16,23 @@ import { TreeNodeData } from './collections-to-tree.pipe';
               </svg>
             </span>
           }
+          @if (getNodeType(node) === 'collection') {
+            @if (isCloud(node)) {
+              <span class="tree-node-source-icon" title="Cloud collection">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+                </svg>
+              </span>
+            }
+            @if (isReadOnly(node)) {
+              <span class="tree-node-lock-icon" title="Read-only (offline)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </span>
+            }
+          }
           @if (node.icon) {
             <span [class]="'tree-node-icon method method-chip ' + node.icon">{{ node.icon }}</span>
           }
@@ -32,22 +49,28 @@ import { TreeNodeData } from './collections-to-tree.pipe';
                 <circle cx="19" cy="12" r="2"/>
               </svg>
             </span>
-            <ui-dropdown-item (clicked)="action.emit({ type: 'run', node })">Run</ui-dropdown-item>
-            @if (getNodeType(node) === 'request') {
-              <ui-dropdown-item (clicked)="action.emit({ type: 'copyAsCurl', node })">Copy as cURL</ui-dropdown-item>
+            @if (!isReadOnly(node)) {
+              <ui-dropdown-item (clicked)="action.emit({ type: 'run', node })">Run</ui-dropdown-item>
+              @if (getNodeType(node) === 'request') {
+                <ui-dropdown-item (clicked)="action.emit({ type: 'copyAsCurl', node })">Copy as cURL</ui-dropdown-item>
+              }
+              <ui-dropdown-divider />
             }
-            <ui-dropdown-divider />
-            @if (getNodeType(node) === 'collection' || getNodeType(node) === 'folder') {
+            @if (!isReadOnly(node) && (getNodeType(node) === 'collection' || getNodeType(node) === 'folder')) {
               <ui-dropdown-item (clicked)="action.emit({ type: 'newFolder', node })">New Folder</ui-dropdown-item>
               <ui-dropdown-item (clicked)="action.emit({ type: 'newRequest', node })">New Request</ui-dropdown-item>
               <ui-dropdown-divider />
             }
             @if (getNodeType(node) === 'collection') {
               <ui-dropdown-item (clicked)="action.emit({ type: 'save', node })">Save</ui-dropdown-item>
-              <ui-dropdown-item (clicked)="action.emit({ type: 'export', node })">Export</ui-dropdown-item>
-              <ui-dropdown-item (clicked)="action.emit({ type: 'pushToCloud', node })">Push to Cloud...</ui-dropdown-item>
+              @if (isCloud(node)) {
+                <ui-dropdown-item (clicked)="action.emit({ type: 'sync', node })">Sync</ui-dropdown-item>
+              } @else {
+                <ui-dropdown-item (clicked)="action.emit({ type: 'export', node })">Export</ui-dropdown-item>
+                <ui-dropdown-item (clicked)="action.emit({ type: 'pushToCloud', node })">Push to Cloud...</ui-dropdown-item>
+              }
               <ui-dropdown-item (clicked)="action.emit({ type: 'close', node })">Close</ui-dropdown-item>
-            } @else {
+            } @else if (!isReadOnly(node)) {
               <ui-dropdown-item (clicked)="action.emit({ type: 'rename', node })">Rename</ui-dropdown-item>
               <ui-dropdown-item (clicked)="action.emit({ type: 'delete', node })">Delete</ui-dropdown-item>
             }
@@ -64,7 +87,11 @@ import { TreeNodeData } from './collections-to-tree.pipe';
             />
           } @else {
             <div class="tree-node-placeholder" [style.padding-left.px]="(level() + 1) * indent()">
-              <span class="placeholder-text" (click)="action.emit({ type: 'newRequest', node })">+ New request</span>
+              @if (!isReadOnly(node)) {
+                <span class="placeholder-text" (click)="action.emit({ type: 'newRequest', node })">+ New request</span>
+              } @else {
+                <span class="placeholder-text readonly">No items</span>
+              }
             </div>
           }
         }
@@ -101,6 +128,18 @@ import { TreeNodeData } from './collections-to-tree.pipe';
         transform: rotate(90deg);
       }
 
+    }
+
+    .tree-node-source-icon {
+      display: flex;
+      align-items: center;
+      color: var(--ui-text-muted);
+    }
+
+    .tree-node-lock-icon {
+      display: flex;
+      align-items: center;
+      color: var(--ui-warning, #f59e0b);
     }
 
     .tree-node-icon {
@@ -147,8 +186,13 @@ import { TreeNodeData } from './collections-to-tree.pipe';
       font-size: 0.8125rem;
       cursor: pointer;
 
-      &:hover {
+      &:hover:not(.readonly) {
         color: var(--ui-text);
+      }
+
+      &.readonly {
+        cursor: default;
+        font-style: italic;
       }
     }
   `]
@@ -173,6 +217,14 @@ export class CollectionTreeComponent {
   isExpandable(node: TreeNode): boolean {
     const type = this.getNodeType(node);
     return type === 'collection' || type === 'folder';
+  }
+
+  isCloud(node: TreeNode): boolean {
+    return (node.data as TreeNodeData)?.source === 'cloud';
+  }
+
+  isReadOnly(node: TreeNode): boolean {
+    return (node.data as TreeNodeData)?.isReadOnly ?? false;
   }
 
   onNodeClick(node: TreeNode): void {

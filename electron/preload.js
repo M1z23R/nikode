@@ -10,6 +10,7 @@ const ALLOWED_CHANNELS = [
   'create-collection',
   'get-collection',
   'save-collection',
+  'delete-collection',
   'collection-exists',
   'export-collection',
   'import-collection',
@@ -34,6 +35,7 @@ const ALLOWED_CHANNELS = [
 const ALLOWED_RECEIVE_CHANNELS = [
   'collection-changed',
   'auth-callback',
+  'auth-error',
 ];
 
 // Store active listeners for cleanup

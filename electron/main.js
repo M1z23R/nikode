@@ -27,45 +27,75 @@ if (!gotTheLock) {
 
 let mainWindow;
 
-// Parse nikode:// auth callback URL and extract tokens
+// Get API base URL based on environment
+function getApiBaseUrl() {
+  const isDev = process.env.NODE_ENV === 'development';
+  return isDev ? 'http://localhost:8080/api/v1' : 'https://nikode.dimitrije.dev/api/v1';
+}
+
+// Parse nikode:// auth callback URL and extract auth code
 function parseAuthCallback(url) {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'nikode:' || parsed.hostname !== 'auth' || parsed.pathname !== '/callback') {
       return null;
     }
-    const accessToken = parsed.searchParams.get('access_token');
-    const refreshToken = parsed.searchParams.get('refresh_token');
-    const expiresIn = parsed.searchParams.get('expires_in');
-
-    if (!accessToken || !refreshToken) {
+    const code = parsed.searchParams.get('code');
+    if (!code) {
       return null;
     }
-
-    return {
-      accessToken,
-      refreshToken,
-      expiresIn: expiresIn ? parseInt(expiresIn, 10) : null,
-    };
+    return { code };
   } catch {
     return null;
   }
 }
 
-// Handle deep link URL
-function handleDeepLink(url) {
-  console.log('[DEBUG] handleDeepLink called with:', url);
-  const authData = parseAuthCallback(url);
-  console.log('[DEBUG] parsed authData:', authData);
-  if (authData && mainWindow) {
-    console.log('[DEBUG] sending auth-callback to renderer');
-    mainWindow.webContents.send('auth-callback', authData);
-    // Focus the window when auth callback is received
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
-    }
-    mainWindow.focus();
+// Exchange auth code for tokens
+async function exchangeAuthCode(code) {
+  const response = await fetch(`${getApiBaseUrl()}/auth/exchange`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Auth exchange failed: ${response.status}`);
   }
+
+  const data = await response.json();
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresIn: data.expires_in || null,
+  };
+}
+
+// Handle deep link URL
+async function handleDeepLink(url) {
+  console.log('[DEBUG] handleDeepLink called with:', url);
+  const parsed = parseAuthCallback(url);
+  console.log('[DEBUG] parsed auth callback:', parsed);
+
+  if (!parsed || !mainWindow) {
+    return;
+  }
+
+  try {
+    // Exchange the code for tokens
+    console.log('[DEBUG] exchanging auth code for tokens');
+    const authData = await exchangeAuthCode(parsed.code);
+    console.log('[DEBUG] exchange successful, sending auth-callback to renderer');
+    mainWindow.webContents.send('auth-callback', authData);
+  } catch (error) {
+    console.error('[ERROR] Auth code exchange failed:', error.message);
+    mainWindow.webContents.send('auth-error', { message: error.message });
+  }
+
+  // Focus the window when auth callback is received
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  mainWindow.focus();
 }
 
 async function createWindow() {
@@ -186,6 +216,16 @@ ipcMain.handle(
   'collection-exists',
   wrapHandler(async (event, collectionPath) => {
     return await fileService.collectionExists(collectionPath);
+  }),
+);
+
+// Delete collection
+ipcMain.handle(
+  'delete-collection',
+  wrapHandler(async (event, collectionPath) => {
+    await fileService.deleteCollection(collectionPath);
+    await secretsService.removeRecentPath(collectionPath);
+    return { status: 'ok' };
   }),
 );
 

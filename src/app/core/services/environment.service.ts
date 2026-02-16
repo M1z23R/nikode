@@ -1,18 +1,44 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, effect } from '@angular/core';
 import { ToastService } from '@m1z23r/ngx-ui';
 import { isIpcError } from '@shared/ipc-types';
 import { ApiService } from './api.service';
 import { CollectionService } from './collection.service';
+import { UnifiedCollectionService } from './unified-collection.service';
 import { Secrets, ResolvedVariables } from '../models/environment.model';
-import { Environment, Variable } from '../models/collection.model';
+import { Environment, Variable, UnifiedCollection } from '../models/collection.model';
 
 @Injectable({ providedIn: 'root' })
 export class EnvironmentService {
   private api = inject(ApiService);
   private collectionService = inject(CollectionService);
+  private unifiedCollectionService = inject(UnifiedCollectionService);
   private toastService = inject(ToastService);
 
   private secretsCache = signal<Map<string, Secrets>>(new Map());
+  private pendingLoads = new Set<string>();
+
+  constructor() {
+    // Auto-load secrets when local collections are opened
+    // (cloud collections don't have local secrets)
+    effect(() => {
+      const collections = this.collectionService.collections();
+      const cache = this.secretsCache();
+
+      for (const col of collections) {
+        if (!cache.has(col.path) && !this.pendingLoads.has(col.path)) {
+          this.pendingLoads.add(col.path);
+          this.loadSecrets(col.path).finally(() => {
+            this.pendingLoads.delete(col.path);
+          });
+        }
+      }
+    });
+  }
+
+  // Helper to get unified collection (works for both local and cloud)
+  private getUnifiedCollection(collectionPath: string): UnifiedCollection | undefined {
+    return this.unifiedCollectionService.getCollection(collectionPath);
+  }
 
   async loadSecrets(collectionPath: string): Promise<void> {
     const result = await this.api.getSecrets(collectionPath);
@@ -60,7 +86,7 @@ export class EnvironmentService {
   }
 
   getActiveEnvironment(collectionPath: string): Environment | undefined {
-    const col = this.collectionService.getCollection(collectionPath);
+    const col = this.getUnifiedCollection(collectionPath);
     if (!col) return undefined;
 
     return col.collection.environments.find(
@@ -69,19 +95,31 @@ export class EnvironmentService {
   }
 
   setActiveEnvironment(collectionPath: string, envId: string): void {
-    const col = this.collectionService.getCollection(collectionPath);
+    const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
-    this.collectionService.updateCollection(collectionPath, {
-      ...col.collection,
-      activeEnvironmentId: envId
-    });
+    // For local collections, use the original method
+    // For cloud collections, we need different handling
+    if (col.source === 'local' && col.path) {
+      this.collectionService.updateCollection(col.path, {
+        ...col.collection,
+        activeEnvironmentId: envId
+      });
+    } else {
+      // Cloud collections: update via unified service
+      // The environment is stored in the collection data
+      // This will be handled when we sync/save
+      // For now, just update the local state
+      this.unifiedCollectionService.updateItem(collectionPath, '', {});
+    }
   }
 
   resolveVariables(collectionPath: string): ResolvedVariables {
     const env = this.getActiveEnvironment(collectionPath);
-    const secrets = this.getSecrets(collectionPath);
-    const col = this.collectionService.getCollection(collectionPath);
+    const col = this.getUnifiedCollection(collectionPath);
+
+    // Only get secrets for local collections
+    const secrets = col?.source === 'local' ? this.getSecrets(collectionPath) : undefined;
 
     if (!env || !col) return {};
 
@@ -109,6 +147,7 @@ export class EnvironmentService {
    */
   getVariableInfo(collectionPath: string, key: string): { value: string | undefined; isSecret: boolean } | undefined {
     const env = this.getActiveEnvironment(collectionPath);
+    const col = this.getUnifiedCollection(collectionPath);
     if (!env) return undefined;
 
     const variable = env.variables.find(v => v.key === key && v.enabled);
@@ -117,16 +156,20 @@ export class EnvironmentService {
     const isSecret = variable.secret ?? false;
 
     if (isSecret) {
-      const secrets = this.getSecrets(collectionPath);
-      const value = secrets?.[env.id]?.[variable.key];
-      return { value, isSecret: true };
+      // Only get secrets for local collections
+      if (col?.source === 'local') {
+        const secrets = this.getSecrets(collectionPath);
+        const value = secrets?.[env.id]?.[variable.key];
+        return { value, isSecret: true };
+      }
+      return { value: undefined, isSecret: true };
     }
 
     return { value: variable.value, isSecret: false };
   }
 
   addEnvironment(collectionPath: string, name: string): void {
-    const col = this.collectionService.getCollection(collectionPath);
+    const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
     const newEnv: Environment = {
@@ -135,84 +178,97 @@ export class EnvironmentService {
       variables: []
     };
 
-    this.collectionService.updateCollection(collectionPath, {
-      ...col.collection,
-      environments: [...col.collection.environments, newEnv]
-    });
+    if (col.source === 'local' && col.path) {
+      this.collectionService.updateCollection(col.path, {
+        ...col.collection,
+        environments: [...col.collection.environments, newEnv]
+      });
+    }
+    // Cloud collections would need similar handling via unified service
   }
 
   updateEnvironment(collectionPath: string, envId: string, updates: Partial<Environment>): void {
-    const col = this.collectionService.getCollection(collectionPath);
+    const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
-    this.collectionService.updateCollection(collectionPath, {
-      ...col.collection,
-      environments: col.collection.environments.map(e =>
-        e.id === envId ? { ...e, ...updates } : e
-      )
-    });
+    if (col.source === 'local' && col.path) {
+      this.collectionService.updateCollection(col.path, {
+        ...col.collection,
+        environments: col.collection.environments.map(e =>
+          e.id === envId ? { ...e, ...updates } : e
+        )
+      });
+    }
   }
 
   deleteEnvironment(collectionPath: string, envId: string): void {
-    const col = this.collectionService.getCollection(collectionPath);
+    const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
     const remainingEnvs = col.collection.environments.filter(e => e.id !== envId);
 
-    this.collectionService.updateCollection(collectionPath, {
-      ...col.collection,
-      environments: remainingEnvs,
-      activeEnvironmentId: col.collection.activeEnvironmentId === envId
-        ? (remainingEnvs[0]?.id || '')
-        : col.collection.activeEnvironmentId
-    });
+    if (col.source === 'local' && col.path) {
+      this.collectionService.updateCollection(col.path, {
+        ...col.collection,
+        environments: remainingEnvs,
+        activeEnvironmentId: col.collection.activeEnvironmentId === envId
+          ? (remainingEnvs[0]?.id || '')
+          : col.collection.activeEnvironmentId
+      });
+    }
   }
 
   addVariable(collectionPath: string, envId: string, variable: Variable): void {
-    const col = this.collectionService.getCollection(collectionPath);
+    const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
-    this.collectionService.updateCollection(collectionPath, {
-      ...col.collection,
-      environments: col.collection.environments.map(e =>
-        e.id === envId
-          ? { ...e, variables: [...e.variables, variable] }
-          : e
-      )
-    });
+    if (col.source === 'local' && col.path) {
+      this.collectionService.updateCollection(col.path, {
+        ...col.collection,
+        environments: col.collection.environments.map(e =>
+          e.id === envId
+            ? { ...e, variables: [...e.variables, variable] }
+            : e
+        )
+      });
+    }
   }
 
   updateVariable(collectionPath: string, envId: string, key: string, updates: Partial<Variable>): void {
-    const col = this.collectionService.getCollection(collectionPath);
+    const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
-    this.collectionService.updateCollection(collectionPath, {
-      ...col.collection,
-      environments: col.collection.environments.map(e =>
-        e.id === envId
-          ? {
-              ...e,
-              variables: e.variables.map(v =>
-                v.key === key ? { ...v, ...updates } : v
-              )
-            }
-          : e
-      )
-    });
+    if (col.source === 'local' && col.path) {
+      this.collectionService.updateCollection(col.path, {
+        ...col.collection,
+        environments: col.collection.environments.map(e =>
+          e.id === envId
+            ? {
+                ...e,
+                variables: e.variables.map(v =>
+                  v.key === key ? { ...v, ...updates } : v
+                )
+              }
+            : e
+        )
+      });
+    }
   }
 
   deleteVariable(collectionPath: string, envId: string, key: string): void {
-    const col = this.collectionService.getCollection(collectionPath);
+    const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
-    this.collectionService.updateCollection(collectionPath, {
-      ...col.collection,
-      environments: col.collection.environments.map(e =>
-        e.id === envId
-          ? { ...e, variables: e.variables.filter(v => v.key !== key) }
-          : e
-      )
-    });
+    if (col.source === 'local' && col.path) {
+      this.collectionService.updateCollection(col.path, {
+        ...col.collection,
+        environments: col.collection.environments.map(e =>
+          e.id === envId
+            ? { ...e, variables: e.variables.filter(v => v.key !== key) }
+            : e
+        )
+      });
+    }
   }
 
   /**
@@ -224,7 +280,7 @@ export class EnvironmentService {
     envId: string,
     includeSecrets: boolean
   ): ExportedEnvironment | undefined {
-    const col = this.collectionService.getCollection(collectionPath);
+    const col = this.getUnifiedCollection(collectionPath);
     if (!col) return undefined;
 
     const env = col.collection.environments.find(e => e.id === envId);
@@ -259,7 +315,7 @@ export class EnvironmentService {
     collectionPath: string,
     data: ExportedEnvironment
   ): string {
-    const col = this.collectionService.getCollection(collectionPath);
+    const col = this.getUnifiedCollection(collectionPath);
     if (!col) throw new Error('Collection not found');
 
     const newEnvId = `env-${Date.now()}`;
@@ -274,19 +330,21 @@ export class EnvironmentService {
       }))
     };
 
-    this.collectionService.updateCollection(collectionPath, {
-      ...col.collection,
-      environments: [...col.collection.environments, newEnv]
-    });
+    if (col.source === 'local' && col.path) {
+      this.collectionService.updateCollection(col.path, {
+        ...col.collection,
+        environments: [...col.collection.environments, newEnv]
+      });
 
-    // Import secrets if provided
-    if (data.secrets) {
-      const currentSecrets = this.getSecrets(collectionPath) || {};
-      const updatedSecrets: Secrets = {
-        ...currentSecrets,
-        [newEnvId]: { ...data.secrets }
-      };
-      this.saveSecrets(collectionPath, updatedSecrets);
+      // Import secrets if provided (only for local collections)
+      if (data.secrets) {
+        const currentSecrets = this.getSecrets(collectionPath) || {};
+        const updatedSecrets: Secrets = {
+          ...currentSecrets,
+          [newEnvId]: { ...data.secrets }
+        };
+        this.saveSecrets(collectionPath, updatedSecrets);
+      }
     }
 
     return newEnvId;

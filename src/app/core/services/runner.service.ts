@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { isIpcError } from '@shared/ipc-types';
 import { ApiService } from './api.service';
-import { CollectionService } from './collection.service';
+import { UnifiedCollectionService } from './unified-collection.service';
 import { EnvironmentService } from './environment.service';
 import { HttpLogService } from './http-log.service';
 import { ScriptExecutorService } from './script-executor.service';
@@ -24,7 +24,7 @@ import { ResolvedVariables } from '../models/environment.model';
 @Injectable({ providedIn: 'root' })
 export class RunnerService {
   private api = inject(ApiService);
-  private collectionService = inject(CollectionService);
+  private unifiedCollectionService = inject(UnifiedCollectionService);
   private environmentService = inject(EnvironmentService);
   private httpLogService = inject(HttpLogService);
   private scriptExecutor = inject(ScriptExecutorService);
@@ -74,7 +74,7 @@ export class RunnerService {
     targetId: string | null, // null for entire collection, or folder/request id
     targetType: 'collection' | 'folder' | 'request'
   ): void {
-    const col = this.collectionService.getCollection(collectionPath);
+    const col = this.unifiedCollectionService.getCollection(collectionPath);
     if (!col) return;
 
     let items: CollectionItem[];
@@ -349,7 +349,7 @@ export class RunnerService {
     let variables: ResolvedVariables;
     if (config.environmentId) {
       // Use the specified environment
-      const col = this.collectionService.getCollection(collectionPath);
+      const col = this.unifiedCollectionService.getCollection(collectionPath);
       const env = col?.collection.environments.find(e => e.id === config.environmentId);
       const secrets = this.environmentService.getSecrets(collectionPath);
 

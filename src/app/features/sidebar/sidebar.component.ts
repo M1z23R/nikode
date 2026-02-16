@@ -6,6 +6,7 @@ import {
   ToastService
 } from '@m1z23r/ngx-ui';
 import { CollectionService } from '../../core/services/collection.service';
+import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { EnvironmentService } from '../../core/services/environment.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -16,7 +17,6 @@ import { InputDialogComponent, InputDialogData } from '../../shared/dialogs/inpu
 import { ExportCollectionDialogComponent, ExportFormat, ExportCollectionDialogData } from '../../shared/dialogs/export-collection.dialog';
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
 import { PushToCloudDialogComponent, PushToCloudDialogData } from '../workspaces/push-to-cloud.dialog';
-import { CloudCollectionsComponent } from '../workspaces/cloud-collections.component';
 import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
 import { CollectionsToTreePipe, TreeNodeData } from './collections-to-tree.pipe';
 import { CollectionTreeComponent } from './collection-tree.component';
@@ -29,8 +29,7 @@ import { createOpenRequest } from '../../core/models/request.model';
   imports: [
     ButtonComponent,
     CollectionsToTreePipe,
-    CollectionTreeComponent,
-    CloudCollectionsComponent
+    CollectionTreeComponent
   ],
   template: `
     <div class="sidebar">
@@ -52,22 +51,19 @@ import { createOpenRequest } from '../../core/models/request.model';
       </div>
 
       <div class="sidebar-content">
-        @if (collectionService.collections().length === 0) {
+        @if (unifiedCollectionService.collections().length === 0) {
           <div class="empty-collections">
             <p>No collections open</p>
           </div>
         } @else {
           <app-collection-tree
-            [nodes]="collectionService.collections() | collectionsToTree:expandedFolders()"
+            [nodes]="unifiedCollectionService.collections() | collectionsToTree:expandedFolders()"
             [indent]="16"
             (nodeClick)="onNodeClick($event)"
             (action)="onTreeAction($event)"
           />
         }
       </div>
-      @if (cloudWorkspaceService.activeWorkspace()) {
-        <app-cloud-collections />
-      }
     </div>
   `,
   styles: [`
@@ -115,6 +111,7 @@ import { createOpenRequest } from '../../core/models/request.model';
 })
 export class SidebarComponent {
   protected collectionService = inject(CollectionService);
+  protected unifiedCollectionService = inject(UnifiedCollectionService);
   protected workspace = inject(WorkspaceService);
   private dialogService = inject(DialogService);
   private environmentService = inject(EnvironmentService);
@@ -128,7 +125,7 @@ export class SidebarComponent {
     const nodeData = node.data as TreeNodeData;
 
     if (nodeData.type === 'collection') {
-      this.collectionService.toggleExpanded(nodeData.collectionPath);
+      this.unifiedCollectionService.toggleExpanded(nodeData.collectionPath);
     } else if (nodeData.type === 'folder') {
       this.toggleFolder(nodeData.itemId!);
     } else if (nodeData.type === 'request') {
@@ -165,7 +162,10 @@ export class SidebarComponent {
         this.addRequest(nodeData);
         break;
       case 'save':
-        this.collectionService.saveCollection(nodeData.collectionPath);
+        this.unifiedCollectionService.save(nodeData.collectionPath);
+        break;
+      case 'sync':
+        this.unifiedCollectionService.syncCloudCollection(nodeData.collectionPath);
         break;
       case 'export':
         this.exportCollection(nodeData);
@@ -174,7 +174,7 @@ export class SidebarComponent {
         this.pushToCloud(nodeData);
         break;
       case 'close':
-        this.collectionService.closeCollection(nodeData.collectionPath);
+        this.unifiedCollectionService.close(nodeData.collectionPath);
         break;
       case 'rename':
         this.renameItem(nodeData);
@@ -195,17 +195,27 @@ export class SidebarComponent {
     );
     const result = await ref.afterClosed();
     if (result) {
-      this.collectionService.createCollection(result.path, result.name);
+      if (result.type === 'cloud' && result.workspaceId) {
+        await this.unifiedCollectionService.createCloudCollection(result.workspaceId, result.name);
+      } else if (result.path) {
+        await this.collectionService.createCollection(result.path, result.name);
+      }
     }
   }
 
   async exportCollection(nodeData: TreeNodeData): Promise<void> {
-    const col = this.collectionService.getCollection(nodeData.collectionPath);
+    // Only local collections can be exported
+    if (nodeData.source === 'cloud') {
+      this.toastService.error('Cloud collections cannot be exported directly');
+      return;
+    }
+
+    const col = this.unifiedCollectionService.getCollection(nodeData.collectionPath);
     if (!col) return;
 
     const ref = this.dialogService.open<ExportCollectionDialogComponent, ExportCollectionDialogData, ExportFormat | undefined>(
       ExportCollectionDialogComponent,
-      { data: { collectionName: col.collection.name } }
+      { data: { collectionName: col.name } }
     );
     const format = await ref.afterClosed();
 
@@ -249,7 +259,7 @@ export class SidebarComponent {
         name,
         items: []
       };
-      this.collectionService.addItem(target.collectionPath, target.itemId, item);
+      this.unifiedCollectionService.addItem(target.collectionPath, target.itemId, item);
     }
   }
 
@@ -279,7 +289,7 @@ export class SidebarComponent {
         body: result.body ?? { type: 'none' as const },
         scripts: { pre: '', post: '' }
       };
-      this.collectionService.addItem(target.collectionPath, target.itemId, item);
+      this.unifiedCollectionService.addItem(target.collectionPath, target.itemId, item);
     }
   }
 
@@ -297,13 +307,13 @@ export class SidebarComponent {
     );
     const newName = await ref.afterClosed();
     if (newName && target.itemId) {
-      this.collectionService.updateItem(target.collectionPath, target.itemId, { name: newName });
+      this.unifiedCollectionService.updateItem(target.collectionPath, target.itemId, { name: newName });
     }
   }
 
   private deleteItem(target: TreeNodeData): void {
     if (target.itemId && confirm('Are you sure you want to delete this item?')) {
-      this.collectionService.deleteItem(target.collectionPath, target.itemId);
+      this.unifiedCollectionService.deleteItem(target.collectionPath, target.itemId);
     }
   }
 
@@ -328,7 +338,7 @@ export class SidebarComponent {
       return;
     }
 
-    const col = this.collectionService.getCollection(target.collectionPath);
+    const col = this.unifiedCollectionService.getCollection(target.collectionPath);
     if (!col) return;
 
     this.dialogService.open<PushToCloudDialogComponent, PushToCloudDialogData, void>(
@@ -336,7 +346,7 @@ export class SidebarComponent {
       {
         data: {
           collectionPath: target.collectionPath,
-          collectionName: col.collection.name
+          collectionName: col.name
         }
       }
     );

@@ -1,7 +1,7 @@
 import { Component, inject, output, computed } from '@angular/core';
 import { ButtonComponent, DialogService } from '@m1z23r/ngx-ui';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { CollectionService } from '../../core/services/collection.service';
+import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { APP_VERSION } from '../../core/tokens/version.token';
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
 import { SettingsDialogComponent } from '../settings/settings.dialog';
@@ -110,7 +110,7 @@ export class FooterComponent {
   protected workspace = inject(WorkspaceService);
   protected version = inject(APP_VERSION);
   private dialogService = inject(DialogService);
-  private collectionService = inject(CollectionService);
+  private unifiedCollectionService = inject(UnifiedCollectionService);
 
   consoleToggle = output();
   historyToggle = output();
@@ -125,7 +125,7 @@ export class FooterComponent {
     const activeRequest = this.workspace.activeRequest();
     if (!activeRequest) return;
 
-    const collection = this.collectionService.getCollection(activeRequest.collectionPath);
+    const collection = this.unifiedCollectionService.getCollection(activeRequest.collectionPath);
     if (!collection) return;
 
     this.dialogService.open<RunnerDialogComponent, RunnerDialogData, void>(
@@ -135,7 +135,7 @@ export class FooterComponent {
           collectionPath: activeRequest.collectionPath,
           targetId: null,
           targetType: 'collection',
-          targetName: collection.collection.name,
+          targetName: collection.name,
         },
       }
     );

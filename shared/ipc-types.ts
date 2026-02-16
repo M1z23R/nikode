@@ -11,6 +11,7 @@ export const IPC_CHANNELS = {
   CREATE_COLLECTION: 'create-collection',
   GET_COLLECTION: 'get-collection',
   SAVE_COLLECTION: 'save-collection',
+  DELETE_COLLECTION: 'delete-collection',
   COLLECTION_EXISTS: 'collection-exists',
   EXPORT_COLLECTION: 'export-collection',
   IMPORT_COLLECTION: 'import-collection',
@@ -47,6 +48,7 @@ export const IPC_CHANNELS = {
   AUTH_SAVE_TOKENS: 'auth-save-tokens',
   AUTH_CLEAR_TOKENS: 'auth-clear-tokens',
   AUTH_CALLBACK: 'auth-callback',
+  AUTH_ERROR: 'auth-error',
 } as const;
 
 // Union type of all valid channel names
@@ -58,7 +60,8 @@ export type IpcInvokeChannel = Exclude<IpcChannel, typeof IPC_CHANNELS.COLLECTIO
 // Channels that can be received (main -> renderer)
 export type IpcReceiveChannel =
   | typeof IPC_CHANNELS.COLLECTION_CHANGED
-  | typeof IPC_CHANNELS.AUTH_CALLBACK;
+  | typeof IPC_CHANNELS.AUTH_CALLBACK
+  | typeof IPC_CHANNELS.AUTH_ERROR;
 
 // Error codes for IPC operations
 export type IpcErrorCode =
@@ -103,6 +106,7 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.CREATE_COLLECTION]: { path: string; name: string };
   [IPC_CHANNELS.GET_COLLECTION]: string; // path
   [IPC_CHANNELS.SAVE_COLLECTION]: { path: string; collection: Collection };
+  [IPC_CHANNELS.DELETE_COLLECTION]: string; // path
   [IPC_CHANNELS.COLLECTION_EXISTS]: string; // path
   [IPC_CHANNELS.EXPORT_COLLECTION]: { path: string; format: 'json' | 'yaml' };
   [IPC_CHANNELS.IMPORT_COLLECTION]: { sourcePath: string; targetPath: string };
@@ -123,6 +127,7 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.AUTH_SAVE_TOKENS]: AuthTokens;
   [IPC_CHANNELS.AUTH_CLEAR_TOKENS]: void;
   [IPC_CHANNELS.AUTH_CALLBACK]: void; // Not invokable
+  [IPC_CHANNELS.AUTH_ERROR]: void; // Not invokable
 }
 
 // Response type mapping for each channel
@@ -133,6 +138,7 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.CREATE_COLLECTION]: { path: string; collection: Collection };
   [IPC_CHANNELS.GET_COLLECTION]: Collection;
   [IPC_CHANNELS.SAVE_COLLECTION]: { status: 'ok' };
+  [IPC_CHANNELS.DELETE_COLLECTION]: { status: 'ok' };
   [IPC_CHANNELS.COLLECTION_EXISTS]: boolean;
   [IPC_CHANNELS.EXPORT_COLLECTION]: { filePath: string };
   [IPC_CHANNELS.IMPORT_COLLECTION]: { path: string; collection: Collection };
@@ -153,6 +159,7 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.AUTH_SAVE_TOKENS]: { status: 'ok' };
   [IPC_CHANNELS.AUTH_CLEAR_TOKENS]: { status: 'ok' };
   [IPC_CHANNELS.AUTH_CALLBACK]: AuthCallbackData;
+  [IPC_CHANNELS.AUTH_ERROR]: AuthErrorData;
 }
 
 // File format detection result
@@ -196,4 +203,8 @@ export interface AuthCallbackData {
   accessToken: string;
   refreshToken: string;
   expiresIn: number | null;
+}
+
+export interface AuthErrorData {
+  message: string;
 }

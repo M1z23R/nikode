@@ -3,6 +3,7 @@ import { TabsService, ToastService } from '@m1z23r/ngx-ui';
 import { isIpcError } from '@shared/ipc-types';
 import { ApiService } from './api.service';
 import { CollectionService } from './collection.service';
+import { UnifiedCollectionService } from './unified-collection.service';
 import { EnvironmentService } from './environment.service';
 import { HttpLogService } from './http-log.service';
 import { ScriptExecutorService, ScriptRequest } from './script-executor.service';
@@ -17,6 +18,7 @@ import { SettingsService } from './settings.service';
 export class WorkspaceService {
   private api = inject(ApiService);
   private collectionService = inject(CollectionService);
+  private unifiedCollectionService = inject(UnifiedCollectionService);
   private environmentService = inject(EnvironmentService);
   private httpLogService = inject(HttpLogService);
   private toastService = inject(ToastService);
@@ -58,7 +60,8 @@ export class WorkspaceService {
   }
 
   openRequest(collectionPath: string, itemId: string): void {
-    const item = this.collectionService.findItem(collectionPath, itemId);
+    // Use unified service to find item (works for both local and cloud)
+    const item = this.unifiedCollectionService.findItem(collectionPath, itemId);
     if (!item || item.type !== 'request') return;
 
     const requestId = `${collectionPath}:${itemId}`;
@@ -158,8 +161,10 @@ export class WorkspaceService {
       docs: request.docs
     };
 
-    this.collectionService.updateItem(request.collectionPath, request.itemId, updates);
-    this.collectionService.saveCollection(request.collectionPath);
+    // Use unified service to update and save (handles both local and cloud)
+    this.unifiedCollectionService.updateItem(request.collectionPath, request.itemId, updates);
+    this.unifiedCollectionService.save(request.collectionPath);
+
     this.openRequests.update(reqs =>
       reqs.map(r => r.id === requestId ? { ...r, dirty: false } : r)
     );

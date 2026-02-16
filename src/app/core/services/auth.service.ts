@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, NgZone, inject } from '@angular/core';
-import { IPC_CHANNELS, AuthTokens, AuthCallbackData, isIpcError } from '@shared/ipc-types';
+import { IPC_CHANNELS, AuthTokens, AuthCallbackData, AuthErrorData, isIpcError } from '@shared/ipc-types';
 import { User, AuthProvider } from '../models/auth.model';
 import { environment } from '../../../environments/environment';
 
@@ -18,6 +18,7 @@ export class AuthService {
   private refreshTimeout: ReturnType<typeof setTimeout> | null = null;
   private tokens: AuthTokens | null = null;
   private authCallbackHandler: ((data: AuthCallbackData) => void) | null = null;
+  private authErrorHandler: ((data: AuthErrorData) => void) | null = null;
   private onLoginCallbacks: AuthCallback[] = [];
   private onLogoutCallbacks: AuthCallback[] = [];
 
@@ -42,6 +43,14 @@ export class AuthService {
       });
     };
     window.electronAPI.on(IPC_CHANNELS.AUTH_CALLBACK, this.authCallbackHandler);
+
+    this.authErrorHandler = (data: AuthErrorData) => {
+      this.ngZone.run(() => {
+        this._isLoading.set(false);
+        this._error.set(data.message);
+      });
+    };
+    window.electronAPI.on(IPC_CHANNELS.AUTH_ERROR, this.authErrorHandler);
   }
 
   private async handleAuthCallback(data: AuthCallbackData): Promise<void> {

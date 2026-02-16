@@ -58,8 +58,38 @@ jobs:
             dist-electron/*.dmg
           if-no-files-found: error
 
+  build-pacman:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm git nodejs npm base-devel
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build Angular
+        run: npm run build -- --configuration production --base-href ./
+
+      - name: Build Electron (pacman)
+        run: npx electron-builder --linux pacman --publish never
+
+      - name: Upload pacman artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nikode-pacman
+          path: dist-electron/*.pacman
+          if-no-files-found: error
+
   release:
-    needs: build
+    needs: [build, build-pacman]
     runs-on: ubuntu-latest
     permissions:
       contents: write

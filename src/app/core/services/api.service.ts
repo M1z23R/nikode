@@ -48,6 +48,10 @@ export class ApiService {
     return window.electronAPI.invoke(IPC_CHANNELS.COLLECTION_EXISTS, path);
   }
 
+  async deleteCollection(path: string): Promise<IpcResult<{ status: 'ok' }>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.DELETE_COLLECTION, path);
+  }
+
   async exportCollection(path: string, format: 'json' | 'yaml'): Promise<IpcResult<{ filePath: string }>> {
     return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_COLLECTION, { path, format });
   }

@@ -14,7 +14,7 @@ import {
   ToastService,
 } from '@m1z23r/ngx-ui';
 import { RunnerService } from '../../core/services/runner.service';
-import { CollectionService } from '../../core/services/collection.service';
+import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { ApiService } from '../../core/services/api.service';
 import { ReportGeneratorService } from '../../core/services/report-generator.service';
 import { DataFile } from '../../core/models/runner.model';
@@ -616,7 +616,7 @@ export class RunnerDialogComponent {
   readonly dialogRef = inject(DIALOG_REF) as DialogRef<void>;
   readonly data = inject(DIALOG_DATA) as RunnerDialogData;
   readonly runner = inject(RunnerService);
-  private collectionService = inject(CollectionService);
+  private unifiedCollectionService = inject(UnifiedCollectionService);
   private dialogService = inject(DialogService);
   private api = inject(ApiService);
   private toastService = inject(ToastService);
@@ -652,7 +652,7 @@ export class RunnerDialogComponent {
   });
 
   readonly environments = computed(() => {
-    const col = this.collectionService.getCollection(this.data.collectionPath);
+    const col = this.unifiedCollectionService.getCollection(this.data.collectionPath);
     return col?.collection.environments || [];
   });
 

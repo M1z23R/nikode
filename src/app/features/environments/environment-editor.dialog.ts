@@ -10,7 +10,7 @@ import {
   DialogRef,
   ToastService
 } from '@m1z23r/ngx-ui';
-import { CollectionService } from '../../core/services/collection.service';
+import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { EnvironmentService, ExportedEnvironment } from '../../core/services/environment.service';
 import { ApiService } from '../../core/services/api.service';
 import { Environment, Variable } from '../../core/models/collection.model';
@@ -247,7 +247,7 @@ export class EnvironmentEditorDialogComponent implements OnInit {
   readonly dialogRef = inject(DIALOG_REF) as DialogRef<void>;
   readonly data = inject(DIALOG_DATA) as EnvironmentEditorDialogData;
 
-  private collectionService = inject(CollectionService);
+  private unifiedCollectionService = inject(UnifiedCollectionService);
   private environmentService = inject(EnvironmentService);
   private apiService = inject(ApiService);
   private toastService = inject(ToastService);
@@ -257,19 +257,24 @@ export class EnvironmentEditorDialogComponent implements OnInit {
   secrets = signal<Record<string, string>>({});
 
   ngOnInit(): void {
-    this.environmentService.loadSecrets(this.data.collectionPath);
-    const collection = this.collectionService.getCollection(this.data.collectionPath);
+    // Only load secrets for local collections
+    const collection = this.unifiedCollectionService.getCollection(this.data.collectionPath);
+    if (collection?.source === 'local') {
+      this.environmentService.loadSecrets(this.data.collectionPath);
+    }
     if (collection) {
       this.selectedEnvId.set(collection.collection.activeEnvironmentId);
-      const loadedSecrets = this.environmentService.getSecrets(this.data.collectionPath);
-      if (loadedSecrets && loadedSecrets[this.selectedEnvId()]) {
-        this.secrets.set({ ...loadedSecrets[this.selectedEnvId()] });
+      if (collection.source === 'local') {
+        const loadedSecrets = this.environmentService.getSecrets(this.data.collectionPath);
+        if (loadedSecrets && loadedSecrets[this.selectedEnvId()]) {
+          this.secrets.set({ ...loadedSecrets[this.selectedEnvId()] });
+        }
       }
     }
   }
 
   environments = computed(() => {
-    const collection = this.collectionService.getCollection(this.data.collectionPath);
+    const collection = this.unifiedCollectionService.getCollection(this.data.collectionPath);
     return collection?.collection.environments || [];
   });
 
@@ -480,10 +485,14 @@ export class EnvironmentEditorDialogComponent implements OnInit {
   }
 
   save(): void {
-    this.collectionService.saveCollection(this.data.collectionPath);
-    this.environmentService.saveSecrets(this.data.collectionPath, {
-      [this.selectedEnvId()]: this.secrets()
-    });
+    this.unifiedCollectionService.save(this.data.collectionPath);
+    // Only save secrets for local collections
+    const collection = this.unifiedCollectionService.getCollection(this.data.collectionPath);
+    if (collection?.source === 'local') {
+      this.environmentService.saveSecrets(this.data.collectionPath, {
+        [this.selectedEnvId()]: this.secrets()
+      });
+    }
     this.dialogRef.close();
   }
 }

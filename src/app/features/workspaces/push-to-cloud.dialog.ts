@@ -8,11 +8,16 @@ import {
   DIALOG_DATA,
   DIALOG_REF,
   DialogRef,
+  DialogService,
   ToastService
 } from '@m1z23r/ngx-ui';
 import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
+import { CollectionService } from '../../core/services/collection.service';
+import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { TeamService } from '../../core/services/team.service';
+import { ApiService } from '../../core/services/api.service';
 import { Workspace, CloudCollection } from '../../core/models/cloud.model';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/dialogs/confirm.dialog';
 
 export interface PushToCloudDialogData {
   collectionPath: string;
@@ -82,8 +87,12 @@ export class PushToCloudDialogComponent implements OnInit {
   readonly dialogRef = inject(DIALOG_REF) as DialogRef<CloudCollection | undefined>;
   readonly data = inject(DIALOG_DATA) as PushToCloudDialogData;
   private cloudWorkspaceService = inject(CloudWorkspaceService);
+  private collectionService = inject(CollectionService);
+  private unifiedCollectionService = inject(UnifiedCollectionService);
   private teamService = inject(TeamService);
+  private dialogService = inject(DialogService);
   private toastService = inject(ToastService);
+  private api = inject(ApiService);
 
   selectedWorkspaceId = signal('');
   collectionName = signal('');
@@ -131,12 +140,46 @@ export class PushToCloudDialogComponent implements OnInit {
     this.error.set(null);
 
     try {
+      // Push the collection to cloud
       const collection = await this.cloudWorkspaceService.pushLocalToCloud(
         this.data.collectionPath,
         this.selectedWorkspaceId(),
         this.collectionName().trim()
       );
+
       this.toastService.success('Collection pushed to cloud');
+
+      // Close the local collection (removes from recent)
+      await this.collectionService.closeCollection(this.data.collectionPath);
+
+      // Ask user if they want to delete the local file
+      const confirmRef = this.dialogService.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+        ConfirmDialogComponent,
+        {
+          data: {
+            title: 'Delete Local Collection?',
+            message: 'The collection has been pushed to cloud. Would you like to delete the local collection file?',
+            confirmLabel: 'Delete Local',
+            cancelLabel: 'Keep Local'
+          }
+        }
+      );
+
+      const deleteLocal = await confirmRef.afterClosed();
+
+      if (deleteLocal) {
+        // Delete the local collection file
+        await this.api.deleteCollection(this.data.collectionPath);
+        this.toastService.info('Local collection file deleted');
+      }
+
+      // Expand the new cloud collection in the sidebar
+      const newCloudId = this.unifiedCollectionService.buildCloudId(
+        this.selectedWorkspaceId(),
+        collection.id
+      );
+      this.unifiedCollectionService.setExpanded(newCloudId, true);
+
       this.dialogRef.close(collection);
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Failed to push collection');

@@ -26,6 +26,11 @@ class FileService {
     }
   }
 
+  async deleteCollection(dirPath) {
+    const filePath = path.join(dirPath, COLLECTION_FILE_NAME);
+    await fs.unlink(filePath);
+  }
+
   async createCollection(dirPath, name) {
     await fs.mkdir(dirPath, { recursive: true });
 

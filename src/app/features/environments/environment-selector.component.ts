@@ -5,7 +5,7 @@ import {
   SelectComponent,
   OptionComponent
 } from '@m1z23r/ngx-ui';
-import { CollectionService } from '../../core/services/collection.service';
+import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { EnvironmentService } from '../../core/services/environment.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { EnvironmentEditorDialogComponent, EnvironmentEditorDialogData } from './environment-editor.dialog';
@@ -55,7 +55,7 @@ import { EnvironmentEditorDialogComponent, EnvironmentEditorDialogData } from '.
   `]
 })
 export class EnvironmentSelectorComponent {
-  private collectionService = inject(CollectionService);
+  private unifiedCollectionService = inject(UnifiedCollectionService);
   private environmentService = inject(EnvironmentService);
   private workspace = inject(WorkspaceService);
   private dialogService = inject(DialogService);
@@ -63,16 +63,16 @@ export class EnvironmentSelectorComponent {
   activeCollection = computed(() => {
     const activeRequest = this.workspace.activeRequest();
     if (activeRequest) {
-      return this.collectionService.getCollection(activeRequest.collectionPath);
+      return this.unifiedCollectionService.getCollection(activeRequest.collectionPath);
     }
-    const collections = this.collectionService.collections();
+    const collections = this.unifiedCollectionService.collections();
     return collections.length > 0 ? collections[0] : undefined;
   });
 
   onEnvironmentChange(envId: string): void {
     const collection = this.activeCollection();
     if (collection) {
-      this.environmentService.setActiveEnvironment(collection.path, envId);
+      this.environmentService.setActiveEnvironment(collection.id, envId);
     }
   }
 
@@ -82,7 +82,7 @@ export class EnvironmentSelectorComponent {
       this.dialogService.open<EnvironmentEditorDialogComponent, EnvironmentEditorDialogData, void>(
         EnvironmentEditorDialogComponent,
         {
-          data: { collectionPath: collection.path }
+          data: { collectionPath: collection.id }
         }
       );
     }
