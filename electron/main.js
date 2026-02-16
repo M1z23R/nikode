@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron')
 const path = require('path');
 const { FileService } = require('./services/file-service');
 const { SecretsService } = require('./services/secrets-service');
+const { AuthService } = require('./services/auth-service');
 const { HttpClient } = require('./services/http-client');
 const { FileWatcherService } = require('./services/file-watcher');
 const { OpenApiConverter } = require('./services/openapi-converter');
@@ -9,14 +10,69 @@ const { wrapHandler } = require('./utils/ipc-helpers');
 
 const fileService = new FileService();
 const secretsService = new SecretsService();
+const authService = new AuthService();
 const httpClient = new HttpClient();
 const fileWatcher = new FileWatcherService();
 const openApiConverter = new OpenApiConverter();
 
+// Request single instance lock for deep link handling on Windows/Linux
+const gotTheLock = app.requestSingleInstanceLock();
+console.log('[DEBUG] gotTheLock:', gotTheLock);
+console.log('[DEBUG] process.argv:', process.argv);
+
+if (!gotTheLock) {
+  console.log('[DEBUG] Another instance is running, quitting...');
+  app.quit();
+}
+
 let mainWindow;
+
+// Parse nikode:// auth callback URL and extract tokens
+function parseAuthCallback(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'nikode:' || parsed.hostname !== 'auth' || parsed.pathname !== '/callback') {
+      return null;
+    }
+    const accessToken = parsed.searchParams.get('access_token');
+    const refreshToken = parsed.searchParams.get('refresh_token');
+    const expiresIn = parsed.searchParams.get('expires_in');
+
+    if (!accessToken || !refreshToken) {
+      return null;
+    }
+
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: expiresIn ? parseInt(expiresIn, 10) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Handle deep link URL
+function handleDeepLink(url) {
+  console.log('[DEBUG] handleDeepLink called with:', url);
+  const authData = parseAuthCallback(url);
+  console.log('[DEBUG] parsed authData:', authData);
+  if (authData && mainWindow) {
+    console.log('[DEBUG] sending auth-callback to renderer');
+    mainWindow.webContents.send('auth-callback', authData);
+    // Focus the window when auth callback is received
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.focus();
+  }
+}
 
 async function createWindow() {
   await secretsService.init();
+  await authService.init();
+
+  const isDev = process.env.NODE_ENV === 'development';
 
   // Disable the application menu
   Menu.setApplicationMenu(null);
@@ -28,7 +84,7 @@ async function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      devTools: false,
+      devTools: isDev,
     },
   });
 
@@ -37,11 +93,11 @@ async function createWindow() {
 
   // In development, load from Angular dev server
   // In production, load from built files
-  const isDev = process.env.NODE_ENV === 'development';
   console.log('Running in', isDev ? 'DEVELOPMENT' : 'PRODUCTION', 'mode');
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:4200');
+    mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/frontend/browser/index.html'));
   }
@@ -292,6 +348,32 @@ ipcMain.handle(
   }),
 );
 
+// Auth - Get tokens
+ipcMain.handle(
+  'auth-get-tokens',
+  wrapHandler(async () => {
+    return await authService.getTokens();
+  }),
+);
+
+// Auth - Save tokens
+ipcMain.handle(
+  'auth-save-tokens',
+  wrapHandler(async (event, tokens) => {
+    await authService.saveTokens(tokens);
+    return { status: 'ok' };
+  }),
+);
+
+// Auth - Clear tokens
+ipcMain.handle(
+  'auth-clear-tokens',
+  wrapHandler(async () => {
+    await authService.clearTokens();
+    return { status: 'ok' };
+  }),
+);
+
 // Export to OpenAPI
 ipcMain.handle(
   'export-openapi',
@@ -335,6 +417,43 @@ ipcMain.handle(
     return { filePath: result.filePath };
   }),
 );
+
+// Register nikode:// protocol handler
+if (process.defaultApp) {
+  // Dev mode: pass the script path
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient('nikode', process.execPath, [path.resolve(process.argv[1])]);
+  }
+} else {
+  // Production: just register
+  app.setAsDefaultProtocolClient('nikode');
+}
+
+// Handle second instance (Windows/Linux deep link)
+app.on('second-instance', (event, commandLine) => {
+  console.log('[DEBUG] second-instance event fired');
+  console.log('[DEBUG] commandLine:', commandLine);
+  // Find the deep link URL in command line args
+  const url = commandLine.find((arg) => arg.startsWith('nikode://'));
+  console.log('[DEBUG] found url:', url);
+  if (url) {
+    handleDeepLink(url);
+  }
+
+  // Focus window if it exists
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.focus();
+  }
+});
+
+// Handle open-url event (macOS deep link)
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  handleDeepLink(url);
+});
 
 app.whenReady().then(createWindow);
 

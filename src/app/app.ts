@@ -4,6 +4,7 @@ import { CollectionService } from './core/services/collection.service';
 import { WorkspaceService } from './core/services/workspace.service';
 import { KeyboardShortcutService } from './core/services/keyboard-shortcut.service';
 import { SettingsService } from './core/services/settings.service';
+import { AuthService } from './core/services/auth.service';
 import { SidebarComponent } from './features/sidebar/sidebar.component';
 import { RequestEditorComponent } from './features/request-editor/request-editor.component';
 import { EnvironmentSelectorComponent } from './features/environments/environment-selector.component';
@@ -11,6 +12,8 @@ import { FooterComponent } from './features/footer/footer.component';
 import { ConsolePanelComponent } from './features/console/console-panel.component';
 import { HistoryPanelComponent } from './features/history/history-panel.component';
 import { SettingsDialogComponent } from './features/settings/settings.dialog';
+import { UserMenuComponent } from './features/auth/user-menu.component';
+import { WorkspaceSwitcherComponent } from './features/workspaces/workspace-switcher.component';
 
 @Component({
   selector: 'app-root',
@@ -22,12 +25,20 @@ import { SettingsDialogComponent } from './features/settings/settings.dialog';
     ConsolePanelComponent,
     HistoryPanelComponent,
     SplitComponent,
-    SplitPaneComponent
+    SplitPaneComponent,
+    UserMenuComponent,
+    WorkspaceSwitcherComponent
   ],
   template: `
     <div class="app-shell">
       <header class="app-header">
         <div class="header-left">
+          <app-user-menu />
+          @if (auth.isAuthenticated()) {
+            <app-workspace-switcher />
+          }
+        </div>
+        <div class="header-center">
           <h1 class="logo">Nikode</h1>
         </div>
         <div class="header-right">
@@ -73,15 +84,27 @@ import { SettingsDialogComponent } from './features/settings/settings.dialog';
     }
 
     .app-header {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      justify-content: space-between;
       padding: 0 1rem;
       background-color: var(--ui-bg-secondary);
       border-bottom: 1px solid var(--ui-border);
     }
 
-    .header-left, .header-right {
+    .header-left {
+      justify-self: start;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .header-center {
+      justify-self: center;
+    }
+
+    .header-right {
+      justify-self: end;
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -111,6 +134,7 @@ export class App implements OnInit, OnDestroy {
   private keyboardShortcutService = inject(KeyboardShortcutService);
   private dialogService = inject(DialogService);
   private tabsService = inject(TabsService);
+  protected auth = inject(AuthService);
 
   consoleVisible = signal(false);
   historyVisible = signal(false);

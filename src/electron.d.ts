@@ -5,6 +5,7 @@ import {
   IpcResponseMap,
   IpcResult,
   OpenDialogOptions,
+  AuthCallbackData,
 } from '@shared/ipc-types';
 
 export interface ElectronAPI {

@@ -2,17 +2,22 @@ import { Component, inject, signal } from '@angular/core';
 import {
   DialogService,
   ButtonComponent,
-  TreeNode
+  TreeNode,
+  ToastService
 } from '@m1z23r/ngx-ui';
 import { CollectionService } from '../../core/services/collection.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { EnvironmentService } from '../../core/services/environment.service';
+import { AuthService } from '../../core/services/auth.service';
 import { NewCollectionDialogComponent, NewCollectionDialogResult } from './dialogs/new-collection.dialog';
 import { NewFolderDialogComponent } from './dialogs/new-folder.dialog';
 import { NewRequestDialogComponent, NewRequestDialogResult } from './dialogs/new-request.dialog';
 import { InputDialogComponent, InputDialogData } from '../../shared/dialogs/input.dialog';
 import { ExportCollectionDialogComponent, ExportFormat, ExportCollectionDialogData } from '../../shared/dialogs/export-collection.dialog';
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
+import { PushToCloudDialogComponent, PushToCloudDialogData } from '../workspaces/push-to-cloud.dialog';
+import { CloudCollectionsComponent } from '../workspaces/cloud-collections.component';
+import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
 import { CollectionsToTreePipe, TreeNodeData } from './collections-to-tree.pipe';
 import { CollectionTreeComponent } from './collection-tree.component';
 import { generateCurl } from '../../core/utils/curl';
@@ -24,7 +29,8 @@ import { createOpenRequest } from '../../core/models/request.model';
   imports: [
     ButtonComponent,
     CollectionsToTreePipe,
-    CollectionTreeComponent
+    CollectionTreeComponent,
+    CloudCollectionsComponent
   ],
   template: `
     <div class="sidebar">
@@ -59,6 +65,9 @@ import { createOpenRequest } from '../../core/models/request.model';
           />
         }
       </div>
+      @if (cloudWorkspaceService.activeWorkspace()) {
+        <app-cloud-collections />
+      }
     </div>
   `,
   styles: [`
@@ -109,6 +118,9 @@ export class SidebarComponent {
   protected workspace = inject(WorkspaceService);
   private dialogService = inject(DialogService);
   private environmentService = inject(EnvironmentService);
+  private authService = inject(AuthService);
+  private toastService = inject(ToastService);
+  protected cloudWorkspaceService = inject(CloudWorkspaceService);
 
   expandedFolders = signal<Set<string>>(new Set());
 
@@ -157,6 +169,9 @@ export class SidebarComponent {
         break;
       case 'export':
         this.exportCollection(nodeData);
+        break;
+      case 'pushToCloud':
+        this.pushToCloud(nodeData);
         break;
       case 'close':
         this.collectionService.closeCollection(nodeData.collectionPath);
@@ -305,5 +320,25 @@ export class SidebarComponent {
     } catch (e) {
       console.error('Failed to copy to clipboard:', e);
     }
+  }
+
+  private pushToCloud(target: TreeNodeData): void {
+    if (!this.authService.isAuthenticated()) {
+      this.toastService.error('Please sign in to push collections to cloud');
+      return;
+    }
+
+    const col = this.collectionService.getCollection(target.collectionPath);
+    if (!col) return;
+
+    this.dialogService.open<PushToCloudDialogComponent, PushToCloudDialogData, void>(
+      PushToCloudDialogComponent,
+      {
+        data: {
+          collectionPath: target.collectionPath,
+          collectionName: col.collection.name
+        }
+      }
+    );
   }
 }

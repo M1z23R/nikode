@@ -41,6 +41,12 @@ export const IPC_CHANNELS = {
 
   // File format detection
   DETECT_FILE_FORMAT: 'detect-file-format',
+
+  // Auth
+  AUTH_GET_TOKENS: 'auth-get-tokens',
+  AUTH_SAVE_TOKENS: 'auth-save-tokens',
+  AUTH_CLEAR_TOKENS: 'auth-clear-tokens',
+  AUTH_CALLBACK: 'auth-callback',
 } as const;
 
 // Union type of all valid channel names
@@ -50,7 +56,9 @@ export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
 export type IpcInvokeChannel = Exclude<IpcChannel, typeof IPC_CHANNELS.COLLECTION_CHANGED>;
 
 // Channels that can be received (main -> renderer)
-export type IpcReceiveChannel = typeof IPC_CHANNELS.COLLECTION_CHANGED;
+export type IpcReceiveChannel =
+  | typeof IPC_CHANNELS.COLLECTION_CHANGED
+  | typeof IPC_CHANNELS.AUTH_CALLBACK;
 
 // Error codes for IPC operations
 export type IpcErrorCode =
@@ -111,6 +119,10 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.IMPORT_OPENAPI]: { sourcePath: string; targetPath: string };
   [IPC_CHANNELS.EXPORT_OPENAPI]: { path: string; format: 'yaml' | 'json' };
   [IPC_CHANNELS.DETECT_FILE_FORMAT]: string; // path
+  [IPC_CHANNELS.AUTH_GET_TOKENS]: void;
+  [IPC_CHANNELS.AUTH_SAVE_TOKENS]: AuthTokens;
+  [IPC_CHANNELS.AUTH_CLEAR_TOKENS]: void;
+  [IPC_CHANNELS.AUTH_CALLBACK]: void; // Not invokable
 }
 
 // Response type mapping for each channel
@@ -137,6 +149,10 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.IMPORT_OPENAPI]: { path: string; collection: Collection };
   [IPC_CHANNELS.EXPORT_OPENAPI]: { filePath: string | null };
   [IPC_CHANNELS.DETECT_FILE_FORMAT]: FileFormat;
+  [IPC_CHANNELS.AUTH_GET_TOKENS]: AuthTokens | null;
+  [IPC_CHANNELS.AUTH_SAVE_TOKENS]: { status: 'ok' };
+  [IPC_CHANNELS.AUTH_CLEAR_TOKENS]: { status: 'ok' };
+  [IPC_CHANNELS.AUTH_CALLBACK]: AuthCallbackData;
 }
 
 // File format detection result
@@ -167,4 +183,17 @@ export interface SaveDialogOptions {
 // Event callback type for collection changes
 export interface CollectionChangedEvent {
   path: string;
+}
+
+// Auth types
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number; // Unix timestamp in milliseconds
+}
+
+export interface AuthCallbackData {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number | null;
 }

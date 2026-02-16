@@ -1,0 +1,147 @@
+import { Component, inject, signal, OnInit } from '@angular/core';
+import {
+  ModalComponent,
+  ButtonComponent,
+  InputComponent,
+  SelectComponent,
+  OptionComponent,
+  DIALOG_DATA,
+  DIALOG_REF,
+  DialogRef,
+  ToastService
+} from '@m1z23r/ngx-ui';
+import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
+import { TeamService } from '../../core/services/team.service';
+import { Workspace, CloudCollection } from '../../core/models/cloud.model';
+
+export interface PushToCloudDialogData {
+  collectionPath: string;
+  collectionName: string;
+}
+
+@Component({
+  selector: 'app-push-to-cloud-dialog',
+  imports: [ModalComponent, ButtonComponent, InputComponent, SelectComponent, OptionComponent],
+  template: `
+    <ui-modal title="Push to Cloud" size="sm">
+      <div class="form-group">
+        <ui-select label="Workspace" [(value)]="selectedWorkspaceId">
+          @if (personalWorkspaces().length > 0) {
+            @for (workspace of personalWorkspaces(); track workspace.id) {
+              <ui-option [value]="workspace.id">{{ workspace.name }}</ui-option>
+            }
+          }
+          @for (group of teamWorkspaceGroups(); track group.teamId) {
+            @for (workspace of group.workspaces; track workspace.id) {
+              <ui-option [value]="workspace.id">{{ group.teamName }} / {{ workspace.name }}</ui-option>
+            }
+          }
+        </ui-select>
+      </div>
+
+      <div class="form-group">
+        <ui-input
+          label="Collection Name"
+          [(value)]="collectionName"
+          placeholder="My Collection"
+          (keydown.enter)="submit()" />
+      </div>
+
+      @if (error()) {
+        <div class="error-message">{{ error() }}</div>
+      }
+
+      <ng-container footer>
+        <ui-button variant="ghost" (clicked)="cancel()" [disabled]="isLoading()">Cancel</ui-button>
+        <ui-button
+          color="primary"
+          (clicked)="submit()"
+          [disabled]="!canSubmit() || isLoading()">
+          @if (isLoading()) {
+            Pushing...
+          } @else {
+            Push to Cloud
+          }
+        </ui-button>
+      </ng-container>
+    </ui-modal>
+  `,
+  styles: [`
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .error-message {
+      color: var(--ui-danger);
+      font-size: 0.8125rem;
+      margin-top: 0.5rem;
+    }
+  `]
+})
+export class PushToCloudDialogComponent implements OnInit {
+  readonly dialogRef = inject(DIALOG_REF) as DialogRef<CloudCollection | undefined>;
+  readonly data = inject(DIALOG_DATA) as PushToCloudDialogData;
+  private cloudWorkspaceService = inject(CloudWorkspaceService);
+  private teamService = inject(TeamService);
+  private toastService = inject(ToastService);
+
+  selectedWorkspaceId = signal('');
+  collectionName = signal('');
+  isLoading = signal(false);
+  error = signal<string | null>(null);
+
+  ngOnInit(): void {
+    this.collectionName.set(this.data.collectionName);
+
+    const workspaces = this.cloudWorkspaceService.workspaces();
+    if (workspaces.length > 0) {
+      this.selectedWorkspaceId.set(workspaces[0].id);
+    }
+  }
+
+  personalWorkspaces(): Workspace[] {
+    return this.cloudWorkspaceService.workspaces().filter(w => w.type === 'personal');
+  }
+
+  teamWorkspaceGroups(): { teamId: string; teamName: string; workspaces: Workspace[] }[] {
+    const teams = this.teamService.teams();
+    const workspaces = this.cloudWorkspaceService.workspaces().filter(w => w.type === 'team');
+
+    return teams
+      .map(team => ({
+        teamId: team.id,
+        teamName: team.name,
+        workspaces: workspaces.filter(w => w.team_id === team.id)
+      }))
+      .filter(group => group.workspaces.length > 0);
+  }
+
+  canSubmit(): boolean {
+    return this.selectedWorkspaceId().length > 0 && this.collectionName().trim().length > 0;
+  }
+
+  cancel(): void {
+    this.dialogRef.close(undefined);
+  }
+
+  async submit(): Promise<void> {
+    if (!this.canSubmit() || this.isLoading()) return;
+
+    this.isLoading.set(true);
+    this.error.set(null);
+
+    try {
+      const collection = await this.cloudWorkspaceService.pushLocalToCloud(
+        this.data.collectionPath,
+        this.selectedWorkspaceId(),
+        this.collectionName().trim()
+      );
+      this.toastService.success('Collection pushed to cloud');
+      this.dialogRef.close(collection);
+    } catch (err) {
+      this.error.set(err instanceof Error ? err.message : 'Failed to push collection');
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+}

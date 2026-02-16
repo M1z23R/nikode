@@ -25,11 +25,15 @@ const ALLOWED_CHANNELS = [
   'import-openapi',
   'export-openapi',
   'detect-file-format',
+  'auth-get-tokens',
+  'auth-save-tokens',
+  'auth-clear-tokens',
 ];
 
 // Allowlist of valid channels for receiving events (main -> renderer)
 const ALLOWED_RECEIVE_CHANNELS = [
   'collection-changed',
+  'auth-callback',
 ];
 
 // Store active listeners for cleanup

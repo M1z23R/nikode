@@ -45,6 +45,7 @@ import { TreeNodeData } from './collections-to-tree.pipe';
             @if (getNodeType(node) === 'collection') {
               <ui-dropdown-item (clicked)="action.emit({ type: 'save', node })">Save</ui-dropdown-item>
               <ui-dropdown-item (clicked)="action.emit({ type: 'export', node })">Export</ui-dropdown-item>
+              <ui-dropdown-item (clicked)="action.emit({ type: 'pushToCloud', node })">Push to Cloud...</ui-dropdown-item>
               <ui-dropdown-item (clicked)="action.emit({ type: 'close', node })">Close</ui-dropdown-item>
             } @else {
               <ui-dropdown-item (clicked)="action.emit({ type: 'rename', node })">Rename</ui-dropdown-item>
