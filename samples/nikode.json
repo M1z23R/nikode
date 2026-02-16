@@ -1,83 +1,695 @@
 {
-  "name": "Sample API Collection",
+  "name": "DummyJSON API",
   "version": "1.0.0",
   "environments": [
     {
-      "id": "env-dev",
-      "name": "Development",
+      "id": "env-dummyjson",
+      "name": "DummyJSON",
       "variables": [
-        { "key": "baseUrl", "value": "http://localhost:3000", "enabled": true },
-        { "key": "apiVersion", "value": "v1", "enabled": true },
-        { "key": "timeout", "value": "5000", "enabled": true }
+        { "key": "baseUrl", "value": "https://dummyjson.com", "enabled": true },
+        { "key": "userId", "value": "1", "enabled": true },
+        { "key": "productId", "value": "1", "enabled": true },
+        { "key": "cartId", "value": "1", "enabled": true },
+        { "key": "postId", "value": "1", "enabled": true },
+        { "key": "recipeId", "value": "1", "enabled": true },
+        { "key": "limit", "value": "10", "enabled": true },
+        { "key": "skip", "value": "0", "enabled": true }
       ]
     },
     {
-      "id": "env-prod",
-      "name": "Production",
+      "id": "env-authenticated",
+      "name": "Authenticated",
       "variables": [
-        { "key": "baseUrl", "value": "https://api.example.com", "enabled": true },
-        { "key": "apiVersion", "value": "v1", "enabled": true },
-        { "key": "apiKey", "value": "", "enabled": true, "secret": true }
+        { "key": "baseUrl", "value": "https://dummyjson.com", "enabled": true },
+        { "key": "userId", "value": "1", "enabled": true },
+        { "key": "productId", "value": "1", "enabled": true },
+        { "key": "cartId", "value": "1", "enabled": true },
+        { "key": "postId", "value": "1", "enabled": true },
+        { "key": "recipeId", "value": "1", "enabled": true },
+        { "key": "limit", "value": "10", "enabled": true },
+        { "key": "skip", "value": "0", "enabled": true },
+        { "key": "username", "value": "emilys", "enabled": true },
+        { "key": "password", "value": "", "enabled": true, "secret": true },
+        { "key": "accessToken", "value": "", "enabled": true, "secret": true }
       ]
     }
   ],
-  "activeEnvironmentId": "env-dev",
+  "activeEnvironmentId": "env-dummyjson",
   "items": [
+    {
+      "id": "folder-auth",
+      "type": "folder",
+      "name": "Authentication",
+      "items": [
+        {
+          "id": "req-login",
+          "type": "request",
+          "name": "Login",
+          "method": "POST",
+          "url": "{{baseUrl}}/auth/login",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "enabled": true }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\",\n  \"expiresInMins\": 30\n}"
+          },
+          "scripts": {
+            "pre": "console.log('Logging in as:', nk.getVar('username'));",
+            "post": "nk.test('Login successful', () => {\n  nk.assert(nk.response.statusCode === 200, 'Expected 200');\n});\n\nnk.test('Has access token', () => {\n  const body = JSON.parse(nk.response.body);\n  nk.assert(body.accessToken, 'Missing accessToken');\n  nk.setVar('accessToken', body.accessToken);\n});"
+          },
+          "docs": "Authenticates user and returns JWT tokens. Sets `accessToken` variable for subsequent requests."
+        },
+        {
+          "id": "req-current-user",
+          "type": "request",
+          "name": "Get Current User",
+          "method": "GET",
+          "url": "{{baseUrl}}/auth/me",
+          "params": [],
+          "headers": [
+            { "key": "Authorization", "value": "Bearer {{accessToken}}", "enabled": true }
+          ],
+          "body": { "type": "none" },
+          "scripts": {
+            "pre": "",
+            "post": "nk.test('Authenticated request works', () => {\n  nk.assert(nk.response.statusCode === 200, 'Expected 200');\n  const user = JSON.parse(nk.response.body);\n  nk.assert(user.id, 'Missing user id');\n  console.log('Logged in as:', user.firstName, user.lastName);\n});"
+          },
+          "docs": "Returns the currently authenticated user. Requires valid `accessToken`."
+        },
+        {
+          "id": "req-refresh-token",
+          "type": "request",
+          "name": "Refresh Token",
+          "method": "POST",
+          "url": "{{baseUrl}}/auth/refresh",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "enabled": true }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"refreshToken\": \"{{refreshToken}}\",\n  \"expiresInMins\": 30\n}"
+          },
+          "scripts": { "pre": "", "post": "" }
+        }
+      ]
+    },
+    {
+      "id": "folder-products",
+      "type": "folder",
+      "name": "Products",
+      "items": [
+        {
+          "id": "req-get-products",
+          "type": "request",
+          "name": "Get All Products",
+          "method": "GET",
+          "url": "{{baseUrl}}/products",
+          "params": [
+            { "key": "limit", "value": "{{limit}}", "enabled": true },
+            { "key": "skip", "value": "{{skip}}", "enabled": true },
+            { "key": "select", "value": "title,price,brand,thumbnail", "enabled": false }
+          ],
+          "headers": [
+            { "key": "Accept", "value": "application/json", "enabled": true }
+          ],
+          "body": { "type": "none" },
+          "scripts": {
+            "pre": "",
+            "post": "nk.test('Returns products array', () => {\n  const body = JSON.parse(nk.response.body);\n  nk.assert(Array.isArray(body.products), 'Expected products array');\n  nk.assert(body.total > 0, 'Expected total count');\n  console.log('Found', body.total, 'products');\n});"
+          }
+        },
+        {
+          "id": "req-get-product",
+          "type": "request",
+          "name": "Get Product by ID",
+          "method": "GET",
+          "url": "{{baseUrl}}/products/{{productId}}",
+          "params": [],
+          "headers": [
+            { "key": "Accept", "value": "application/json", "enabled": true }
+          ],
+          "body": { "type": "none" },
+          "scripts": {
+            "pre": "",
+            "post": "nk.test('Product has required fields', () => {\n  const product = JSON.parse(nk.response.body);\n  nk.assert(product.id, 'Missing id');\n  nk.assert(product.title, 'Missing title');\n  nk.assert(product.price, 'Missing price');\n  nk.assert(product.brand, 'Missing brand');\n});"
+          }
+        },
+        {
+          "id": "req-search-products",
+          "type": "request",
+          "name": "Search Products",
+          "method": "GET",
+          "url": "{{baseUrl}}/products/search",
+          "params": [
+            { "key": "q", "value": "phone", "enabled": true },
+            { "key": "limit", "value": "5", "enabled": true }
+          ],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-products-categories",
+          "type": "request",
+          "name": "Get Categories",
+          "method": "GET",
+          "url": "{{baseUrl}}/products/categories",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-products-by-category",
+          "type": "request",
+          "name": "Get by Category",
+          "method": "GET",
+          "url": "{{baseUrl}}/products/category/smartphones",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-add-product",
+          "type": "request",
+          "name": "Add Product",
+          "method": "POST",
+          "url": "{{baseUrl}}/products/add",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "enabled": true }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"title\": \"New Product\",\n  \"description\": \"A sample product for testing\",\n  \"price\": 99.99,\n  \"discountPercentage\": 10,\n  \"rating\": 4.5,\n  \"stock\": 50,\n  \"brand\": \"Sample Brand\",\n  \"category\": \"electronics\"\n}"
+          },
+          "scripts": {
+            "pre": "",
+            "post": "nk.test('Product created', () => {\n  nk.assert(nk.response.statusCode === 201, 'Expected 201 Created');\n  const product = JSON.parse(nk.response.body);\n  nk.assert(product.id, 'New product should have an id');\n});"
+          }
+        },
+        {
+          "id": "req-update-product",
+          "type": "request",
+          "name": "Update Product",
+          "method": "PUT",
+          "url": "{{baseUrl}}/products/{{productId}}",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "enabled": true }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"title\": \"Updated Product Title\",\n  \"price\": 149.99\n}"
+          },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-delete-product",
+          "type": "request",
+          "name": "Delete Product",
+          "method": "DELETE",
+          "url": "{{baseUrl}}/products/{{productId}}",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": {
+            "pre": "",
+            "post": "nk.test('Product deleted', () => {\n  const body = JSON.parse(nk.response.body);\n  nk.assert(body.isDeleted === true, 'Expected isDeleted to be true');\n});"
+          }
+        }
+      ]
+    },
     {
       "id": "folder-users",
       "type": "folder",
       "name": "Users",
       "items": [
         {
+          "id": "req-get-users",
+          "type": "request",
+          "name": "Get All Users",
+          "method": "GET",
+          "url": "{{baseUrl}}/users",
+          "params": [
+            { "key": "limit", "value": "{{limit}}", "enabled": true },
+            { "key": "skip", "value": "{{skip}}", "enabled": true }
+          ],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": {
+            "pre": "",
+            "post": "nk.test('Returns users', () => {\n  const body = JSON.parse(nk.response.body);\n  nk.assert(body.users.length > 0, 'Expected users array');\n});"
+          }
+        },
+        {
           "id": "req-get-user",
           "type": "request",
           "name": "Get User by ID",
           "method": "GET",
-          "url": "{{baseUrl}}/{{apiVersion}}/users/{{userId}}",
+          "url": "{{baseUrl}}/users/{{userId}}",
           "params": [],
-          "headers": [
-            { "key": "Authorization", "value": "Bearer {{token}}", "enabled": true },
-            { "key": "Accept", "value": "application/json", "enabled": true }
-          ],
+          "headers": [],
           "body": { "type": "none" },
           "scripts": {
             "pre": "",
-            "post": "nk.test('Status is 200', () => {\n  nk.assert(nk.response.statusCode === 200, 'Expected 200');\n});\n\nnk.test('Has user data', () => {\n  const body = JSON.parse(nk.response.body);\n  nk.assert(body.id, 'Missing user id');\n  nk.assert(body.email, 'Missing email');\n});"
-          },
-          "docs": "Fetches a user by their ID. Uses `{{userId}}` from data file."
+            "post": "nk.test('User has profile data', () => {\n  const user = JSON.parse(nk.response.body);\n  nk.assert(user.firstName, 'Missing firstName');\n  nk.assert(user.lastName, 'Missing lastName');\n  nk.assert(user.email, 'Missing email');\n  console.log('User:', user.firstName, user.lastName);\n});"
+          }
         },
         {
-          "id": "req-create-user",
+          "id": "req-search-users",
           "type": "request",
-          "name": "Create User",
+          "name": "Search Users",
+          "method": "GET",
+          "url": "{{baseUrl}}/users/search",
+          "params": [
+            { "key": "q", "value": "John", "enabled": true }
+          ],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-filter-users",
+          "type": "request",
+          "name": "Filter by Key",
+          "method": "GET",
+          "url": "{{baseUrl}}/users/filter",
+          "params": [
+            { "key": "key", "value": "gender", "enabled": true },
+            { "key": "value", "value": "female", "enabled": true }
+          ],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-user-carts",
+          "type": "request",
+          "name": "Get User's Carts",
+          "method": "GET",
+          "url": "{{baseUrl}}/users/{{userId}}/carts",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-user-posts",
+          "type": "request",
+          "name": "Get User's Posts",
+          "method": "GET",
+          "url": "{{baseUrl}}/users/{{userId}}/posts",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-add-user",
+          "type": "request",
+          "name": "Add User",
           "method": "POST",
-          "url": "{{baseUrl}}/{{apiVersion}}/users",
+          "url": "{{baseUrl}}/users/add",
           "params": [],
           "headers": [
-            { "key": "Authorization", "value": "Bearer {{token}}", "enabled": true },
             { "key": "Content-Type", "value": "application/json", "enabled": true }
           ],
           "body": {
             "type": "json",
-            "content": "{\n  \"name\": \"{{userName}}\",\n  \"email\": \"{{userEmail}}\",\n  \"role\": \"{{userRole}}\"\n}"
+            "content": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"username\": \"johndoe\",\n  \"password\": \"securePassword123\",\n  \"age\": 28,\n  \"phone\": \"+1-555-0123\"\n}"
           },
-          "scripts": {
-            "pre": "console.log('Creating user:', nk.getVar('userName'));",
-            "post": "nk.test('User created', () => {\n  nk.assert(nk.response.statusCode === 201, 'Expected 201 Created');\n});"
-          }
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-update-user",
+          "type": "request",
+          "name": "Update User",
+          "method": "PATCH",
+          "url": "{{baseUrl}}/users/{{userId}}",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "enabled": true }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"firstName\": \"Jane\",\n  \"age\": 30\n}"
+          },
+          "scripts": { "pre": "", "post": "" }
         }
       ]
     },
     {
-      "id": "req-health",
+      "id": "folder-carts",
+      "type": "folder",
+      "name": "Carts",
+      "items": [
+        {
+          "id": "req-get-carts",
+          "type": "request",
+          "name": "Get All Carts",
+          "method": "GET",
+          "url": "{{baseUrl}}/carts",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-get-cart",
+          "type": "request",
+          "name": "Get Cart by ID",
+          "method": "GET",
+          "url": "{{baseUrl}}/carts/{{cartId}}",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": {
+            "pre": "",
+            "post": "nk.test('Cart has products', () => {\n  const cart = JSON.parse(nk.response.body);\n  nk.assert(cart.products.length > 0, 'Cart should have products');\n  nk.assert(cart.total > 0, 'Cart should have a total');\n  console.log('Cart total:', cart.total);\n});"
+          }
+        },
+        {
+          "id": "req-add-cart",
+          "type": "request",
+          "name": "Add Cart",
+          "method": "POST",
+          "url": "{{baseUrl}}/carts/add",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "enabled": true }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"userId\": {{userId}},\n  \"products\": [\n    {\n      \"id\": 1,\n      \"quantity\": 2\n    },\n    {\n      \"id\": 50,\n      \"quantity\": 1\n    }\n  ]\n}"
+          },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-update-cart",
+          "type": "request",
+          "name": "Update Cart",
+          "method": "PUT",
+          "url": "{{baseUrl}}/carts/{{cartId}}",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "enabled": true }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"merge\": true,\n  \"products\": [\n    {\n      \"id\": 1,\n      \"quantity\": 5\n    }\n  ]\n}"
+          },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-delete-cart",
+          "type": "request",
+          "name": "Delete Cart",
+          "method": "DELETE",
+          "url": "{{baseUrl}}/carts/{{cartId}}",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        }
+      ]
+    },
+    {
+      "id": "folder-posts",
+      "type": "folder",
+      "name": "Posts & Comments",
+      "items": [
+        {
+          "id": "req-get-posts",
+          "type": "request",
+          "name": "Get All Posts",
+          "method": "GET",
+          "url": "{{baseUrl}}/posts",
+          "params": [
+            { "key": "limit", "value": "{{limit}}", "enabled": true }
+          ],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-get-post",
+          "type": "request",
+          "name": "Get Post by ID",
+          "method": "GET",
+          "url": "{{baseUrl}}/posts/{{postId}}",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": {
+            "pre": "",
+            "post": "nk.test('Post has content', () => {\n  const post = JSON.parse(nk.response.body);\n  nk.assert(post.title, 'Post should have title');\n  nk.assert(post.body, 'Post should have body');\n  nk.assert(post.tags.length > 0, 'Post should have tags');\n});"
+          }
+        },
+        {
+          "id": "req-post-comments",
+          "type": "request",
+          "name": "Get Post Comments",
+          "method": "GET",
+          "url": "{{baseUrl}}/posts/{{postId}}/comments",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-add-post",
+          "type": "request",
+          "name": "Add Post",
+          "method": "POST",
+          "url": "{{baseUrl}}/posts/add",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "enabled": true }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"title\": \"My New Post\",\n  \"body\": \"This is the content of my new blog post. It contains interesting information.\",\n  \"userId\": {{userId}},\n  \"tags\": [\"technology\", \"coding\", \"api\"]\n}"
+          },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-add-comment",
+          "type": "request",
+          "name": "Add Comment",
+          "method": "POST",
+          "url": "{{baseUrl}}/comments/add",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "enabled": true }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"body\": \"This is a great post! Very informative.\",\n  \"postId\": {{postId}},\n  \"userId\": {{userId}}\n}"
+          },
+          "scripts": { "pre": "", "post": "" }
+        }
+      ]
+    },
+    {
+      "id": "folder-recipes",
+      "type": "folder",
+      "name": "Recipes",
+      "items": [
+        {
+          "id": "req-get-recipes",
+          "type": "request",
+          "name": "Get All Recipes",
+          "method": "GET",
+          "url": "{{baseUrl}}/recipes",
+          "params": [
+            { "key": "limit", "value": "5", "enabled": true }
+          ],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-get-recipe",
+          "type": "request",
+          "name": "Get Recipe by ID",
+          "method": "GET",
+          "url": "{{baseUrl}}/recipes/{{recipeId}}",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": {
+            "pre": "",
+            "post": "nk.test('Recipe has ingredients', () => {\n  const recipe = JSON.parse(nk.response.body);\n  nk.assert(recipe.name, 'Recipe should have name');\n  nk.assert(recipe.ingredients.length > 0, 'Should have ingredients');\n  nk.assert(recipe.instructions.length > 0, 'Should have instructions');\n  console.log('Recipe:', recipe.name);\n});"
+          }
+        },
+        {
+          "id": "req-search-recipes",
+          "type": "request",
+          "name": "Search Recipes",
+          "method": "GET",
+          "url": "{{baseUrl}}/recipes/search",
+          "params": [
+            { "key": "q", "value": "pizza", "enabled": true }
+          ],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-recipes-by-tag",
+          "type": "request",
+          "name": "Get by Meal Type",
+          "method": "GET",
+          "url": "{{baseUrl}}/recipes/meal-type/snack",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        }
+      ]
+    },
+    {
+      "id": "folder-todos",
+      "type": "folder",
+      "name": "Todos",
+      "items": [
+        {
+          "id": "req-get-todos",
+          "type": "request",
+          "name": "Get All Todos",
+          "method": "GET",
+          "url": "{{baseUrl}}/todos",
+          "params": [
+            { "key": "limit", "value": "10", "enabled": true }
+          ],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-random-todo",
+          "type": "request",
+          "name": "Get Random Todo",
+          "method": "GET",
+          "url": "{{baseUrl}}/todos/random",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-add-todo",
+          "type": "request",
+          "name": "Add Todo",
+          "method": "POST",
+          "url": "{{baseUrl}}/todos/add",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "enabled": true }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"todo\": \"Learn about REST APIs\",\n  \"completed\": false,\n  \"userId\": {{userId}}\n}"
+          },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-complete-todo",
+          "type": "request",
+          "name": "Complete Todo",
+          "method": "PATCH",
+          "url": "{{baseUrl}}/todos/1",
+          "params": [],
+          "headers": [
+            { "key": "Content-Type", "value": "application/json", "enabled": true }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"completed\": true\n}"
+          },
+          "scripts": { "pre": "", "post": "" }
+        }
+      ]
+    },
+    {
+      "id": "folder-quotes",
+      "type": "folder",
+      "name": "Quotes",
+      "items": [
+        {
+          "id": "req-get-quotes",
+          "type": "request",
+          "name": "Get All Quotes",
+          "method": "GET",
+          "url": "{{baseUrl}}/quotes",
+          "params": [
+            { "key": "limit", "value": "5", "enabled": true }
+          ],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        },
+        {
+          "id": "req-random-quote",
+          "type": "request",
+          "name": "Get Random Quote",
+          "method": "GET",
+          "url": "{{baseUrl}}/quotes/random",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": {
+            "pre": "",
+            "post": "nk.test('Quote has author', () => {\n  const quote = JSON.parse(nk.response.body);\n  nk.assert(quote.quote, 'Should have quote text');\n  nk.assert(quote.author, 'Should have author');\n  console.log('\"' + quote.quote + '\"', '-', quote.author);\n});"
+          }
+        },
+        {
+          "id": "req-random-quotes",
+          "type": "request",
+          "name": "Get Random Quotes (Bulk)",
+          "method": "GET",
+          "url": "{{baseUrl}}/quotes/random/5",
+          "params": [],
+          "headers": [],
+          "body": { "type": "none" },
+          "scripts": { "pre": "", "post": "" }
+        }
+      ]
+    },
+    {
+      "id": "req-test-delay",
       "type": "request",
-      "name": "Health Check",
+      "name": "Test Delay (2s)",
       "method": "GET",
-      "url": "{{baseUrl}}/health",
+      "url": "{{baseUrl}}/test?delay=2000",
       "params": [],
       "headers": [],
       "body": { "type": "none" },
-      "scripts": { "pre": "", "post": "" }
+      "scripts": {
+        "pre": "console.log('Testing delayed response...');",
+        "post": "nk.test('Response received after delay', () => {\n  const time = nk.response.time;\n  nk.assert(time >= 2000, 'Response should take at least 2000ms');\n  console.log('Response time:', time, 'ms');\n});"
+      },
+      "docs": "Tests the delay feature. The response will be delayed by the specified milliseconds."
+    },
+    {
+      "id": "req-http-statuses",
+      "type": "request",
+      "name": "Test HTTP Status",
+      "method": "GET",
+      "url": "{{baseUrl}}/http/404",
+      "params": [],
+      "headers": [],
+      "body": { "type": "none" },
+      "scripts": {
+        "pre": "",
+        "post": "nk.test('Returns expected status', () => {\n  nk.assert(nk.response.statusCode === 404, 'Expected 404 status');\n});"
+      },
+      "docs": "Tests HTTP status code responses. Change the URL path to test different status codes (200, 201, 400, 401, 403, 404, 500, etc.)."
     }
   ]
 }

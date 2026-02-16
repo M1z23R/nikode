@@ -1,72 +1,37 @@
 [
   {
     "userId": "1",
-    "userName": "Alice Johnson",
-    "userEmail": "alice@example.com",
-    "userRole": "admin",
-    "token": "eyJhbGciOiJIUzI1NiJ9.alice"
+    "productId": "1",
+    "cartId": "1",
+    "postId": "1",
+    "recipeId": "1"
   },
   {
     "userId": "2",
-    "userName": "Bob Smith",
-    "userEmail": "bob@example.com",
-    "userRole": "user",
-    "token": "eyJhbGciOiJIUzI1NiJ9.bob"
-  },
-  {
-    "userId": "3",
-    "userName": "Carol White",
-    "userEmail": "carol@example.com",
-    "userRole": "user",
-    "token": "eyJhbGciOiJIUzI1NiJ9.carol"
-  },
-  {
-    "userId": "4",
-    "userName": "David Brown",
-    "userEmail": "david@example.com",
-    "userRole": "moderator",
-    "token": "eyJhbGciOiJIUzI1NiJ9.david"
+    "productId": "5",
+    "cartId": "2",
+    "postId": "10",
+    "recipeId": "3"
   },
   {
     "userId": "5",
-    "userName": "Eve Davis",
-    "userEmail": "eve@example.com",
-    "userRole": "user",
-    "token": "eyJhbGciOiJIUzI1NiJ9.eve"
-  },
-  {
-    "userId": "6",
-    "userName": "Frank Miller",
-    "userEmail": "frank@example.com",
-    "userRole": "user",
-    "token": "eyJhbGciOiJIUzI1NiJ9.frank"
-  },
-  {
-    "userId": "7",
-    "userName": "Grace Wilson",
-    "userEmail": "grace@example.com",
-    "userRole": "admin",
-    "token": "eyJhbGciOiJIUzI1NiJ9.grace"
-  },
-  {
-    "userId": "8",
-    "userName": "Henry Moore",
-    "userEmail": "henry@example.com",
-    "userRole": "user",
-    "token": "eyJhbGciOiJIUzI1NiJ9.henry"
-  },
-  {
-    "userId": "9",
-    "userName": "Ivy Taylor",
-    "userEmail": "ivy@example.com",
-    "userRole": "moderator",
-    "token": "eyJhbGciOiJIUzI1NiJ9.ivy"
+    "productId": "10",
+    "cartId": "5",
+    "postId": "25",
+    "recipeId": "7"
   },
   {
     "userId": "10",
-    "userName": "Jack Anderson",
-    "userEmail": "jack@example.com",
-    "userRole": "user",
-    "token": "eyJhbGciOiJIUzI1NiJ9.jack"
+    "productId": "50",
+    "cartId": "10",
+    "postId": "50",
+    "recipeId": "15"
+  },
+  {
+    "userId": "15",
+    "productId": "75",
+    "cartId": "15",
+    "postId": "100",
+    "recipeId": "20"
   }
 ]

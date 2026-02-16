@@ -2,6 +2,14 @@
 
 A modern API client for developers, built with Angular 21 + Electron.
 
+## Screenshots
+
+![Main interface - Light theme](docs/screenshots/main-light.png)
+
+![Main interface - Dark theme](docs/screenshots/main-dark.png)
+
+![Collection Runner](docs/screenshots/runner.png)
+
 ## Features
 
 - **Multi-collection support**: Open and work with multiple collections simultaneously
