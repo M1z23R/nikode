@@ -86,6 +86,15 @@ export class UnifiedCollectionService {
     return this.collections().find(c => c.id === id);
   }
 
+  // Update collection data (works for both local and cloud)
+  updateCollection(id: string, collection: Collection): void {
+    if (this.isCloudId(id)) {
+      this.updateCloudCollectionLocally(id, collection);
+    } else {
+      this.collectionService.updateCollection(id, collection);
+    }
+  }
+
   toggleExpanded(id: string): void {
     if (this.isCloudId(id)) {
       this.openCloudCollections.update(cols => {

@@ -98,20 +98,10 @@ export class EnvironmentService {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
-    // For local collections, use the original method
-    // For cloud collections, we need different handling
-    if (col.source === 'local' && col.path) {
-      this.collectionService.updateCollection(col.path, {
-        ...col.collection,
-        activeEnvironmentId: envId
-      });
-    } else {
-      // Cloud collections: update via unified service
-      // The environment is stored in the collection data
-      // This will be handled when we sync/save
-      // For now, just update the local state
-      this.unifiedCollectionService.updateItem(collectionPath, '', {});
-    }
+    this.unifiedCollectionService.updateCollection(collectionPath, {
+      ...col.collection,
+      activeEnvironmentId: envId
+    });
   }
 
   resolveVariables(collectionPath: string): ResolvedVariables {
@@ -178,27 +168,22 @@ export class EnvironmentService {
       variables: []
     };
 
-    if (col.source === 'local' && col.path) {
-      this.collectionService.updateCollection(col.path, {
-        ...col.collection,
-        environments: [...col.collection.environments, newEnv]
-      });
-    }
-    // Cloud collections would need similar handling via unified service
+    this.unifiedCollectionService.updateCollection(collectionPath, {
+      ...col.collection,
+      environments: [...col.collection.environments, newEnv]
+    });
   }
 
   updateEnvironment(collectionPath: string, envId: string, updates: Partial<Environment>): void {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
-    if (col.source === 'local' && col.path) {
-      this.collectionService.updateCollection(col.path, {
-        ...col.collection,
-        environments: col.collection.environments.map(e =>
-          e.id === envId ? { ...e, ...updates } : e
-        )
-      });
-    }
+    this.unifiedCollectionService.updateCollection(collectionPath, {
+      ...col.collection,
+      environments: col.collection.environments.map(e =>
+        e.id === envId ? { ...e, ...updates } : e
+      )
+    });
   }
 
   deleteEnvironment(collectionPath: string, envId: string): void {
@@ -207,68 +192,82 @@ export class EnvironmentService {
 
     const remainingEnvs = col.collection.environments.filter(e => e.id !== envId);
 
-    if (col.source === 'local' && col.path) {
-      this.collectionService.updateCollection(col.path, {
-        ...col.collection,
-        environments: remainingEnvs,
-        activeEnvironmentId: col.collection.activeEnvironmentId === envId
-          ? (remainingEnvs[0]?.id || '')
-          : col.collection.activeEnvironmentId
-      });
-    }
+    this.unifiedCollectionService.updateCollection(collectionPath, {
+      ...col.collection,
+      environments: remainingEnvs,
+      activeEnvironmentId: col.collection.activeEnvironmentId === envId
+        ? (remainingEnvs[0]?.id || '')
+        : col.collection.activeEnvironmentId
+    });
   }
 
-  addVariable(collectionPath: string, envId: string, variable: Variable): void {
+  addVariable(collectionPath: string, envId: string, variable: Variable): boolean {
     const col = this.getUnifiedCollection(collectionPath);
-    if (!col) return;
+    if (!col) return false;
 
-    if (col.source === 'local' && col.path) {
-      this.collectionService.updateCollection(col.path, {
-        ...col.collection,
-        environments: col.collection.environments.map(e =>
-          e.id === envId
-            ? { ...e, variables: [...e.variables, variable] }
-            : e
-        )
-      });
+    const env = col.collection.environments.find(e => e.id === envId);
+    if (!env) return false;
+
+    // Check for duplicate key (only if key is non-empty)
+    if (variable.key && env.variables.some(v => v.key === variable.key)) {
+      this.toastService.error(`Variable "${variable.key}" already exists`);
+      return false;
     }
+
+    this.unifiedCollectionService.updateCollection(collectionPath, {
+      ...col.collection,
+      environments: col.collection.environments.map(e =>
+        e.id === envId
+          ? { ...e, variables: [...e.variables, variable] }
+          : e
+      )
+    });
+    return true;
   }
 
-  updateVariable(collectionPath: string, envId: string, key: string, updates: Partial<Variable>): void {
+  updateVariable(collectionPath: string, envId: string, key: string, updates: Partial<Variable>): boolean {
     const col = this.getUnifiedCollection(collectionPath);
-    if (!col) return;
+    if (!col) return false;
 
-    if (col.source === 'local' && col.path) {
-      this.collectionService.updateCollection(col.path, {
-        ...col.collection,
-        environments: col.collection.environments.map(e =>
-          e.id === envId
-            ? {
-                ...e,
-                variables: e.variables.map(v =>
-                  v.key === key ? { ...v, ...updates } : v
-                )
-              }
-            : e
-        )
-      });
+    const env = col.collection.environments.find(e => e.id === envId);
+    if (!env) return false;
+
+    // Check for duplicate key if key is being changed
+    if (updates.key !== undefined && updates.key !== key && updates.key !== '') {
+      if (env.variables.some(v => v.key === updates.key)) {
+        this.toastService.error(`Variable "${updates.key}" already exists`);
+        return false;
+      }
     }
+
+    this.unifiedCollectionService.updateCollection(collectionPath, {
+      ...col.collection,
+      environments: col.collection.environments.map(e =>
+        e.id === envId
+          ? {
+              ...e,
+              variables: e.variables.map(v =>
+                v.key === key ? { ...v, ...updates } : v
+              )
+            }
+          : e
+      )
+    });
+    return true;
   }
 
   deleteVariable(collectionPath: string, envId: string, key: string): void {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
-    if (col.source === 'local' && col.path) {
-      this.collectionService.updateCollection(col.path, {
-        ...col.collection,
-        environments: col.collection.environments.map(e =>
-          e.id === envId
-            ? { ...e, variables: e.variables.filter(v => v.key !== key) }
-            : e
-        )
-      });
-    }
+    this.unifiedCollectionService.updateCollection(collectionPath, {
+      ...col.collection,
+      environments: col.collection.environments.map(e =>
+        e.id === envId
+          ? { ...e, variables: e.variables.filter(v => v.key !== key) }
+          : e
+      )
+    });
   }
 
   /**
@@ -330,21 +329,19 @@ export class EnvironmentService {
       }))
     };
 
-    if (col.source === 'local' && col.path) {
-      this.collectionService.updateCollection(col.path, {
-        ...col.collection,
-        environments: [...col.collection.environments, newEnv]
-      });
+    this.unifiedCollectionService.updateCollection(collectionPath, {
+      ...col.collection,
+      environments: [...col.collection.environments, newEnv]
+    });
 
-      // Import secrets if provided (only for local collections)
-      if (data.secrets) {
-        const currentSecrets = this.getSecrets(collectionPath) || {};
-        const updatedSecrets: Secrets = {
-          ...currentSecrets,
-          [newEnvId]: { ...data.secrets }
-        };
-        this.saveSecrets(collectionPath, updatedSecrets);
-      }
+    // Import secrets if provided (only for local collections)
+    if (col.source === 'local' && data.secrets) {
+      const currentSecrets = this.getSecrets(collectionPath) || {};
+      const updatedSecrets: Secrets = {
+        ...currentSecrets,
+        [newEnvId]: { ...data.secrets }
+      };
+      this.saveSecrets(collectionPath, updatedSecrets);
     }
 
     return newEnvId;

@@ -14,7 +14,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage",
     "electron:dev": "NODE_ENV=development electron .",
     "electron:build": "ng build --configuration production --base-href ./ && electron-builder",
     "electron:start": "ng build --configuration production --base-href ./ && electron ."
@@ -59,9 +60,12 @@
     "@angular/build": "^21.1.4",
     "@angular/cli": "^21.1.4",
     "@angular/compiler-cli": "^21.1.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "electron": "^40.4.1",
     "electron-builder": "^26.0.12",
-    "typescript": "~5.9.2"
+    "jsdom": "^28.1.0",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.18"
   },
   "build": {
     "appId": "com.nikode.app",

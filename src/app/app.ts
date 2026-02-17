@@ -1,6 +1,7 @@
 import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { SplitComponent, SplitPaneComponent, DialogService, TabsService } from '@m1z23r/ngx-ui';
 import { CollectionService } from './core/services/collection.service';
+import { UnifiedCollectionService } from './core/services/unified-collection.service';
 import { WorkspaceService } from './core/services/workspace.service';
 import { KeyboardShortcutService } from './core/services/keyboard-shortcut.service';
 import { SettingsService } from './core/services/settings.service';
@@ -39,7 +40,13 @@ import { WorkspaceSwitcherComponent } from './features/workspaces/workspace-swit
           }
         </div>
         <div class="header-center">
-          <h1 class="logo">Nikode</h1>
+          <h1 class="logo">
+            <svg width="24" height="24" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+              <rect x="0" y="0" width="512" height="512" rx="80" ry="80" fill="#374151"/>
+              <text x="256" y="380" font-family="Arial, Helvetica, sans-serif" font-size="360" font-weight="bold" fill="#f3f4f6" text-anchor="middle">N</text>
+            </svg>
+            Nikode
+          </h1>
         </div>
         <div class="header-right">
           <app-environment-selector />
@@ -111,6 +118,9 @@ import { WorkspaceSwitcherComponent } from './features/workspaces/workspace-swit
     }
 
     .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
       font-size: 1.125rem;
       font-weight: 700;
       color: var(--ui-text);
@@ -129,6 +139,7 @@ import { WorkspaceSwitcherComponent } from './features/workspaces/workspace-swit
 })
 export class App implements OnInit, OnDestroy {
   private collectionService = inject(CollectionService);
+  private unifiedCollectionService = inject(UnifiedCollectionService);
   private workspaceService = inject(WorkspaceService);
   private settingsService = inject(SettingsService);
   private keyboardShortcutService = inject(KeyboardShortcutService);
@@ -169,7 +180,7 @@ export class App implements OnInit, OnDestroy {
     this.keyboardShortcutService.registerHandler('saveCollection', () => {
       const activeRequest = this.workspaceService.activeRequest();
       if (activeRequest) {
-        this.collectionService.saveCollection(activeRequest.collectionPath);
+        this.unifiedCollectionService.save(activeRequest.collectionPath);
       }
     });
 

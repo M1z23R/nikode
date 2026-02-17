@@ -364,9 +364,16 @@ export class EnvironmentEditorDialogComponent implements OnInit {
   toggleSecret(index: number): void {
     const variable = this.selectedEnv()?.variables[index];
     if (variable) {
-      this.environmentService.updateVariable(this.data.collectionPath, this.selectedEnvId(), variable.key, {
-        secret: !variable.secret
-      });
+      const becomingSecret = !variable.secret;
+      const updates: Partial<Variable> = { secret: becomingSecret };
+
+      // When converting to secret, clear the value from collection data
+      // (the actual secret value should be entered fresh in the secrets store)
+      if (becomingSecret) {
+        updates.value = '';
+      }
+
+      this.environmentService.updateVariable(this.data.collectionPath, this.selectedEnvId(), variable.key, updates);
     }
   }
 
