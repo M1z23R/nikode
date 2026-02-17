@@ -1,16 +1,22 @@
-import { Injectable, inject, computed, signal, effect } from '@angular/core';
-import { ToastService } from '@m1z23r/ngx-ui';
+import { Injectable, inject, computed, signal } from '@angular/core';
+import { ToastService, DialogService } from '@m1z23r/ngx-ui';
 import { CollectionService } from './collection.service';
 import { CloudWorkspaceService } from './cloud-workspace.service';
 import { NetworkStatusService } from './network-status.service';
-import { AuthService } from './auth.service';
+import { CollectionMergeService } from './collection-merge.service';
+import { CloudSyncStatusService } from './cloud-sync-status.service';
 import { UnifiedCollection, CollectionItem, Collection } from '../models/collection.model';
-import { CloudCollection } from '../models/cloud.model';
+import {
+  MergeConflictDialogComponent,
+  MergeConflictDialogData,
+  MergeConflictDialogResult
+} from '../../shared/dialogs/merge-conflict.dialog';
 
 interface OpenCloudCollectionState {
   id: string;
   expanded: boolean;
   dirty: boolean;
+  baseSnapshot?: Collection;  // Snapshot when loaded/saved for 3-way merge
 }
 
 @Injectable({ providedIn: 'root' })
@@ -18,8 +24,10 @@ export class UnifiedCollectionService {
   private collectionService = inject(CollectionService);
   private cloudWorkspaceService = inject(CloudWorkspaceService);
   private networkStatusService = inject(NetworkStatusService);
-  private authService = inject(AuthService);
   private toastService = inject(ToastService);
+  private dialogService = inject(DialogService);
+  private mergeService = inject(CollectionMergeService);
+  private cloudSyncStatus = inject(CloudSyncStatusService);
 
   // Local state for open cloud collections (expanded/dirty state)
   private openCloudCollections = signal<OpenCloudCollectionState[]>([]);
@@ -47,6 +55,11 @@ export class UnifiedCollectionService {
     const cloudUnified: UnifiedCollection[] = cloudCollections.map(col => {
       const unifiedId = this.buildCloudId(activeWorkspace!.id, col.id);
       const state = openCloudState.find(s => s.id === unifiedId);
+
+      // Capture base snapshot on first access if not already captured
+      if (!state?.baseSnapshot) {
+        this.captureBaseSnapshot(unifiedId, col.data);
+      }
 
       return {
         id: unifiedId,
@@ -80,6 +93,33 @@ export class UnifiedCollectionService {
 
   isCloudId(id: string): boolean {
     return id.startsWith('cloud:');
+  }
+
+  private captureBaseSnapshot(collectionId: string, data: Collection): void {
+    this.openCloudCollections.update(cols => {
+      const existing = cols.find(c => c.id === collectionId);
+      if (existing) {
+        if (!existing.baseSnapshot) {
+          return cols.map(c =>
+            c.id === collectionId
+              ? { ...c, baseSnapshot: structuredClone(data) }
+              : c
+          );
+        }
+        return cols;
+      } else {
+        return [...cols, {
+          id: collectionId,
+          expanded: false,
+          dirty: false,
+          baseSnapshot: structuredClone(data)
+        }];
+      }
+    });
+  }
+
+  private getBaseSnapshot(collectionId: string): Collection | undefined {
+    return this.openCloudCollections().find(c => c.id === collectionId)?.baseSnapshot;
   }
 
   getCollection(id: string): UnifiedCollection | undefined {
@@ -308,26 +348,174 @@ export class UnifiedCollectionService {
     const parsed = this.parseCloudId(collectionId);
     if (!parsed) return false;
 
+    this.cloudSyncStatus.syncing('Saving...');
+
     try {
-      await this.cloudWorkspaceService.updateCollection(
+      const savedCollection = await this.cloudWorkspaceService.updateCollection(
         parsed.workspaceId,
         parsed.collectionId,
         unified.collection,
         unified.version ?? 1
       );
 
-      // Clear dirty flag
+      // Update base snapshot after successful save and clear dirty flag
       this.openCloudCollections.update(cols =>
-        cols.map(c => c.id === collectionId ? { ...c, dirty: false } : c)
+        cols.map(c => c.id === collectionId
+          ? { ...c, dirty: false, baseSnapshot: structuredClone(savedCollection.data) }
+          : c
+        )
       );
 
+      this.cloudSyncStatus.success('Saved');
       return true;
     } catch (err: any) {
       if (err?.status === 409) {
-        this.toastService.error('Conflict: Collection was modified by another user. Please refresh.');
+        return this.handleSaveConflict(collectionId, parsed.workspaceId, parsed.collectionId);
       } else {
+        this.cloudSyncStatus.error('Save failed');
         this.toastService.error(err?.message ?? 'Failed to save collection');
       }
+      return false;
+    }
+  }
+
+  private async handleSaveConflict(
+    collectionId: string,
+    workspaceId: string,
+    cloudCollectionId: string
+  ): Promise<boolean> {
+    const unified = this.getCollection(collectionId);
+    if (!unified) return false;
+
+    const baseSnapshot = this.getBaseSnapshot(collectionId);
+    if (!baseSnapshot) {
+      this.cloudSyncStatus.error('Conflict resolution failed');
+      this.toastService.error('Cannot resolve conflict: base snapshot unavailable. Please refresh and try again.');
+      return false;
+    }
+
+    this.cloudSyncStatus.syncing('Resolving conflict...');
+
+    // Fetch latest remote version
+    try {
+      await this.cloudWorkspaceService.loadCollections(workspaceId);
+    } catch (err: any) {
+      this.cloudSyncStatus.error('Sync failed');
+      this.toastService.error('Failed to fetch latest version for conflict resolution');
+      return false;
+    }
+
+    const remoteCollection = this.cloudWorkspaceService.collections()
+      .find(c => c.id === cloudCollectionId);
+
+    if (!remoteCollection) {
+      this.cloudSyncStatus.error('Collection deleted');
+      this.toastService.error('Collection no longer exists on server');
+      return false;
+    }
+
+    const local = unified.collection;
+    const remote = remoteCollection.data;
+
+    // Perform 3-way merge
+    const mergeResult = this.mergeService.threeWayMerge(baseSnapshot, local, remote);
+
+    if (mergeResult.conflicts.length === 0) {
+      // No conflicts - auto-save merged result
+      try {
+        const savedCollection = await this.cloudWorkspaceService.updateCollection(
+          workspaceId,
+          cloudCollectionId,
+          mergeResult.merged,
+          remoteCollection.version
+        );
+
+        // Update local state with merged result
+        this.cloudWorkspaceService.collections.update(cols =>
+          cols.map(c => c.id === cloudCollectionId ? savedCollection : c)
+        );
+
+        this.openCloudCollections.update(cols =>
+          cols.map(c => c.id === collectionId
+            ? { ...c, dirty: false, baseSnapshot: structuredClone(savedCollection.data) }
+            : c
+          )
+        );
+
+        this.cloudSyncStatus.success(`Merged ${mergeResult.autoMergedCount} changes`);
+        return true;
+      } catch (err: any) {
+        if (err?.status === 409) {
+          // Another conflict occurred during merge save - retry
+          return this.handleSaveConflict(collectionId, workspaceId, cloudCollectionId);
+        }
+        this.cloudSyncStatus.error('Merge failed');
+        this.toastService.error(err?.message ?? 'Failed to save merged changes');
+        return false;
+      }
+    }
+
+    // Show conflict resolution dialog
+    this.cloudSyncStatus.idle();
+    const dialogRef = this.dialogService.open<
+      MergeConflictDialogComponent,
+      MergeConflictDialogData,
+      MergeConflictDialogResult | undefined
+    >(MergeConflictDialogComponent, {
+      data: { result: mergeResult }
+    });
+
+    const result = await dialogRef.afterClosed();
+
+    if (!result || result.cancelled) {
+      this.cloudSyncStatus.idle();
+      return false;
+    }
+
+    // Apply resolutions and save
+    this.cloudSyncStatus.syncing('Saving resolved changes...');
+    const finalCollection = this.mergeService.applyResolutions(mergeResult, result.resolutions);
+
+    try {
+      // Re-fetch to get latest version in case it changed during dialog
+      await this.cloudWorkspaceService.loadCollections(workspaceId);
+      const latestRemote = this.cloudWorkspaceService.collections()
+        .find(c => c.id === cloudCollectionId);
+
+      if (!latestRemote) {
+        this.cloudSyncStatus.error('Collection deleted');
+        this.toastService.error('Collection no longer exists on server');
+        return false;
+      }
+
+      const savedCollection = await this.cloudWorkspaceService.updateCollection(
+        workspaceId,
+        cloudCollectionId,
+        finalCollection,
+        latestRemote.version
+      );
+
+      // Update local state with resolved result
+      this.cloudWorkspaceService.collections.update(cols =>
+        cols.map(c => c.id === cloudCollectionId ? savedCollection : c)
+      );
+
+      this.openCloudCollections.update(cols =>
+        cols.map(c => c.id === collectionId
+          ? { ...c, dirty: false, baseSnapshot: structuredClone(savedCollection.data) }
+          : c
+        )
+      );
+
+      this.cloudSyncStatus.success('Conflicts resolved');
+      return true;
+    } catch (err: any) {
+      if (err?.status === 409) {
+        // Version changed during dialog - retry entire process
+        return this.handleSaveConflict(collectionId, workspaceId, cloudCollectionId);
+      }
+      this.cloudSyncStatus.error('Save failed');
+      this.toastService.error(err?.message ?? 'Failed to save resolved changes');
       return false;
     }
   }
@@ -352,10 +540,12 @@ export class UnifiedCollectionService {
       return;
     }
 
+    this.cloudSyncStatus.syncing('Syncing...');
     try {
       await this.cloudWorkspaceService.loadCollections(parsed.workspaceId);
-      this.toastService.success('Collection synced');
+      this.cloudSyncStatus.success('Synced');
     } catch (err: any) {
+      this.cloudSyncStatus.error('Sync failed');
       this.toastService.error(err?.message ?? 'Failed to sync collection');
     }
   }
@@ -367,6 +557,7 @@ export class UnifiedCollectionService {
       return false;
     }
 
+    this.cloudSyncStatus.syncing('Creating collection...');
     try {
       const emptyCollection: Collection = {
         name,
@@ -391,8 +582,10 @@ export class UnifiedCollectionService {
         { id: newId, expanded: true, dirty: false }
       ]);
 
+      this.cloudSyncStatus.success('Collection created');
       return true;
     } catch (err: any) {
+      this.cloudSyncStatus.error('Creation failed');
       this.toastService.error(err?.message ?? 'Failed to create collection');
       return false;
     }
