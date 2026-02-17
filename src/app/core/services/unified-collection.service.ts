@@ -1,7 +1,8 @@
-import { Injectable, inject, computed, signal } from '@angular/core';
+import { Injectable, inject, computed, signal, effect, untracked } from '@angular/core';
 import { ToastService, DialogService } from '@m1z23r/ngx-ui';
 import { CollectionService } from './collection.service';
 import { CloudWorkspaceService } from './cloud-workspace.service';
+import { AuthService } from './auth.service';
 import { NetworkStatusService } from './network-status.service';
 import { CollectionMergeService } from './collection-merge.service';
 import { CloudSyncStatusService } from './cloud-sync-status.service';
@@ -23,6 +24,7 @@ interface OpenCloudCollectionState {
 export class UnifiedCollectionService {
   private collectionService = inject(CollectionService);
   private cloudWorkspaceService = inject(CloudWorkspaceService);
+  private authService = inject(AuthService);
   private networkStatusService = inject(NetworkStatusService);
   private toastService = inject(ToastService);
   private dialogService = inject(DialogService);
@@ -31,6 +33,71 @@ export class UnifiedCollectionService {
 
   // Local state for open cloud collections (expanded/dirty state)
   private openCloudCollections = signal<OpenCloudCollectionState[]>([]);
+
+  // Track previous workspace to detect changes
+  private previousWorkspaceId: string | null = null;
+
+  constructor() {
+    // Clear state on logout
+    this.authService.onLogout(() => {
+      this.openCloudCollections.set([]);
+      this.previousWorkspaceId = null;
+    });
+
+    // Clear state on workspace change and capture base snapshots for new collections
+    effect(() => {
+      const activeWorkspace = this.cloudWorkspaceService.activeWorkspace();
+      const cloudCollections = this.cloudWorkspaceService.collections();
+      const currentWorkspaceId = activeWorkspace?.id ?? null;
+
+      // Clear state when workspace changes
+      if (currentWorkspaceId !== this.previousWorkspaceId) {
+        this.openCloudCollections.set([]);
+        this.previousWorkspaceId = currentWorkspaceId;
+      }
+
+      // Capture base snapshots for any collections that don't have them
+      if (activeWorkspace && cloudCollections.length > 0) {
+        // Use untracked to avoid effect re-triggering when we update openCloudCollections
+        const currentState = untracked(() => this.openCloudCollections());
+        const updates: OpenCloudCollectionState[] = [];
+
+        for (const col of cloudCollections) {
+          const unifiedId = this.buildCloudId(activeWorkspace.id, col.id);
+          const existing = currentState.find(s => s.id === unifiedId);
+
+          if (!existing) {
+            updates.push({
+              id: unifiedId,
+              expanded: false,
+              dirty: false,
+              baseSnapshot: structuredClone(col.data)
+            });
+          } else if (!existing.baseSnapshot) {
+            updates.push({
+              ...existing,
+              baseSnapshot: structuredClone(col.data)
+            });
+          }
+        }
+
+        if (updates.length > 0) {
+          this.openCloudCollections.update(cols => {
+            const result = [...cols];
+            for (const update of updates) {
+              const idx = result.findIndex(c => c.id === update.id);
+              if (idx >= 0) {
+                result[idx] = update;
+              } else {
+                result.push(update);
+              }
+            }
+            return result;
+          });
+        }
+      }
+    });
+  }
 
   // Combined collections from local and cloud
   readonly collections = computed<UnifiedCollection[]>(() => {
@@ -55,11 +122,6 @@ export class UnifiedCollectionService {
     const cloudUnified: UnifiedCollection[] = cloudCollections.map(col => {
       const unifiedId = this.buildCloudId(activeWorkspace!.id, col.id);
       const state = openCloudState.find(s => s.id === unifiedId);
-
-      // Capture base snapshot on first access if not already captured
-      if (!state?.baseSnapshot) {
-        this.captureBaseSnapshot(unifiedId, col.data);
-      }
 
       return {
         id: unifiedId,
@@ -93,29 +155,6 @@ export class UnifiedCollectionService {
 
   isCloudId(id: string): boolean {
     return id.startsWith('cloud:');
-  }
-
-  private captureBaseSnapshot(collectionId: string, data: Collection): void {
-    this.openCloudCollections.update(cols => {
-      const existing = cols.find(c => c.id === collectionId);
-      if (existing) {
-        if (!existing.baseSnapshot) {
-          return cols.map(c =>
-            c.id === collectionId
-              ? { ...c, baseSnapshot: structuredClone(data) }
-              : c
-          );
-        }
-        return cols;
-      } else {
-        return [...cols, {
-          id: collectionId,
-          expanded: false,
-          dirty: false,
-          baseSnapshot: structuredClone(data)
-        }];
-      }
-    });
   }
 
   private getBaseSnapshot(collectionId: string): Collection | undefined {
