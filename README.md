@@ -128,8 +128,9 @@ Collections are stored as `nikode.json`:
 
 ## Tech Stack
 
-- **Frontend**: Angular 21, CodeMirror 6, ngx-ui
-- **Backend**: Electron 40
+- **Frontend**: Angular 21, CodeMirror 6
+- **UI Components**: [@m1z23r/ngx-ui](https://github.com/M1z23R/ngx-ui) - A modern, themeable Angular UI component library with standalone components and signals
+- **Desktop**: Electron 40
 - **Build**: electron-builder
 
 ## License
