@@ -9,6 +9,7 @@ import { CollectionService } from '../../core/services/collection.service';
 import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { WebSocketService } from '../../core/services/websocket.service';
+import { GraphQLService } from '../../core/services/graphql.service';
 import { EnvironmentService } from '../../core/services/environment.service';
 import { AuthService } from '../../core/services/auth.service';
 import { NewCollectionDialogComponent, NewCollectionDialogResult } from './dialogs/new-collection.dialog';
@@ -115,6 +116,7 @@ export class SidebarComponent {
   protected unifiedCollectionService = inject(UnifiedCollectionService);
   protected workspace = inject(WorkspaceService);
   protected webSocketService = inject(WebSocketService);
+  protected graphqlService = inject(GraphQLService);
   private dialogService = inject(DialogService);
   private environmentService = inject(EnvironmentService);
   private authService = inject(AuthService);
@@ -134,6 +136,8 @@ export class SidebarComponent {
       this.workspace.openRequest(nodeData.collectionPath, nodeData.itemId!);
     } else if (nodeData.type === 'websocket') {
       this.webSocketService.openWebSocket(nodeData.collectionPath, nodeData.itemId!);
+    } else if (nodeData.type === 'graphql') {
+      this.graphqlService.openGraphQL(nodeData.collectionPath, nodeData.itemId!);
     }
   }
 
@@ -284,6 +288,18 @@ export class SidebarComponent {
           wsAutoReconnect: false,
           wsReconnectInterval: 5000,
           wsSavedMessages: []
+        };
+        this.unifiedCollectionService.addItem(target.collectionPath, target.itemId, item);
+      } else if (result.type === 'graphql') {
+        const item = {
+          id: `gql-${Date.now()}`,
+          type: 'graphql' as const,
+          name: result.name,
+          url: result.url ?? '',
+          headers: [],
+          gqlQuery: '',
+          gqlVariables: '',
+          gqlOperationName: ''
         };
         this.unifiedCollectionService.addItem(target.collectionPath, target.itemId, item);
       } else {

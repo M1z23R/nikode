@@ -21,13 +21,13 @@ export interface Variable {
 
 export interface CollectionItem {
   id: string;
-  type: 'folder' | 'request' | 'websocket';
+  type: 'folder' | 'request' | 'websocket' | 'graphql';
   name: string;
   items?: CollectionItem[];  // For folders
   method?: HttpMethod;       // For requests
-  url?: string;              // For requests and websockets
+  url?: string;              // For requests, websockets, and graphql
   params?: KeyValue[];       // For requests - URL query parameters
-  headers?: KeyValue[];      // For requests and websockets
+  headers?: KeyValue[];      // For requests, websockets, and graphql
   body?: RequestBody;        // For requests
   scripts?: Scripts;         // For requests
   docs?: string;             // For requests - documentation/notes
@@ -36,6 +36,10 @@ export interface CollectionItem {
   wsAutoReconnect?: boolean;
   wsReconnectInterval?: number;
   wsSavedMessages?: WebSocketSavedMessage[];
+  // GraphQL-specific
+  gqlQuery?: string;
+  gqlVariables?: string;
+  gqlOperationName?: string;
 }
 
 export interface WebSocketSavedMessage {

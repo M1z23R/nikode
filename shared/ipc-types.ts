@@ -10,6 +10,7 @@ import {
   WebSocketCloseEvent,
   WebSocketErrorEvent,
 } from '../src/app/core/models/websocket.model';
+import { GraphQLRequest, GraphQLResponse } from '../src/app/core/models/graphql.model';
 
 // IPC Channel names as const object for type safety
 export const IPC_CHANNELS = {
@@ -32,6 +33,9 @@ export const IPC_CHANNELS = {
 
   // HTTP proxy
   EXECUTE_REQUEST: 'execute-request',
+
+  // GraphQL
+  EXECUTE_GRAPHQL: 'execute-graphql',
 
   // Secrets
   GET_SECRETS: 'get-secrets',
@@ -136,6 +140,7 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.UNWATCH_COLLECTION]: string; // path
   [IPC_CHANNELS.COLLECTION_CHANGED]: void; // Not invokable
   [IPC_CHANNELS.EXECUTE_REQUEST]: ProxyRequest;
+  [IPC_CHANNELS.EXECUTE_GRAPHQL]: GraphQLRequest;
   [IPC_CHANNELS.GET_SECRETS]: string; // path
   [IPC_CHANNELS.SAVE_SECRETS]: { path: string; secrets: Secrets };
   [IPC_CHANNELS.SHOW_OPEN_DIALOG]: OpenDialogOptions | undefined;
@@ -175,6 +180,7 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.UNWATCH_COLLECTION]: { status: 'ok' };
   [IPC_CHANNELS.COLLECTION_CHANGED]: { path: string };
   [IPC_CHANNELS.EXECUTE_REQUEST]: ProxyResponse;
+  [IPC_CHANNELS.EXECUTE_GRAPHQL]: GraphQLResponse;
   [IPC_CHANNELS.GET_SECRETS]: Secrets;
   [IPC_CHANNELS.SAVE_SECRETS]: { status: 'ok' };
   [IPC_CHANNELS.SHOW_OPEN_DIALOG]: { canceled: boolean; filePaths: string[] };

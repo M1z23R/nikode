@@ -1,0 +1,134 @@
+import { Component, inject, input } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ButtonComponent } from '@m1z23r/ngx-ui';
+import { GraphQLService } from '../../core/services/graphql.service';
+import { OpenGraphQLRequest } from '../../core/models/graphql.model';
+
+@Component({
+  selector: 'app-gql-url-bar',
+  imports: [FormsModule, ButtonComponent],
+  template: `
+    <div class="url-bar">
+      <div class="method-badge">GQL</div>
+      <div class="input-wrapper">
+        <input
+          type="text"
+          class="url-input"
+          [ngModel]="request().url"
+          (ngModelChange)="onUrlChange($event)"
+          placeholder="https://api.example.com/graphql"
+        />
+        <div class="floating-buttons">
+          <ui-button
+            variant="ghost"
+            size="sm"
+            (clicked)="save()"
+            [disabled]="!request().dirty"
+            title="Save">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+          </ui-button>
+          <ui-button
+            variant="ghost"
+            size="sm"
+            color="primary"
+            (clicked)="send()"
+            [disabled]="!request().url || !request().query || request().loading"
+            title="Send">
+            @if (request().loading) {
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spinner">
+                <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"/>
+              </svg>
+            } @else {
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            }
+          </ui-button>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .url-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .method-badge {
+      padding: 0.375rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+      background-color: color-mix(in srgb, var(--ui-primary) 15%, transparent);
+      color: var(--ui-primary);
+      flex-shrink: 0;
+    }
+
+    .input-wrapper {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .url-input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      padding-right: 4.5rem;
+      border: 1px solid var(--ui-border);
+      border-radius: 6px;
+      background-color: var(--ui-bg);
+      color: var(--ui-text);
+      font-family: var(--ui-font-mono, ui-monospace, monospace);
+      font-size: 0.875rem;
+      text-overflow: ellipsis;
+
+      &:focus {
+        outline: none;
+        border-color: var(--ui-accent);
+      }
+    }
+
+    .floating-buttons {
+      position: absolute;
+      right: 0.25rem;
+      display: flex;
+      gap: 0.25rem;
+      align-items: center;
+    }
+
+    .spinner {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  `]
+})
+export class GqlUrlBarComponent {
+  private graphqlService = inject(GraphQLService);
+
+  request = input.required<OpenGraphQLRequest>();
+
+  onUrlChange(url: string): void {
+    this.graphqlService.updateRequest(this.request().id, { url });
+  }
+
+  send(): void {
+    this.graphqlService.sendRequest(this.request().id);
+  }
+
+  save(): void {
+    this.graphqlService.saveRequest(this.request().id);
+  }
+}

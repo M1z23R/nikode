@@ -18,6 +18,7 @@ import {
   WebSocketCloseEvent,
   WebSocketErrorEvent,
 } from '../models/websocket.model';
+import { GraphQLRequest, GraphQLResponse } from '../models/graphql.model';
 import { Collection } from '../models/collection.model';
 import { ProxyRequest, ProxyResponse } from '../models/request.model';
 import { Secrets } from '../models/environment.model';
@@ -101,6 +102,11 @@ export class ApiService {
   // Proxy
   async executeRequest(request: ProxyRequest): Promise<IpcResult<ProxyResponse>> {
     return window.electronAPI.invoke(IPC_CHANNELS.EXECUTE_REQUEST, request);
+  }
+
+  // GraphQL
+  async executeGraphQL(request: GraphQLRequest): Promise<IpcResult<GraphQLResponse>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.EXECUTE_GRAPHQL, request);
   }
 
   // Secrets

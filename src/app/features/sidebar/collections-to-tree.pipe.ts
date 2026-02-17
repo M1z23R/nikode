@@ -3,7 +3,7 @@ import { TreeNode } from '@m1z23r/ngx-ui';
 import { CollectionItem, CollectionSource, UnifiedCollection } from '../../core/models/collection.model';
 
 export interface TreeNodeData {
-  type: 'collection' | 'folder' | 'request' | 'websocket';
+  type: 'collection' | 'folder' | 'request' | 'websocket' | 'graphql';
   collectionPath: string;
   itemId: string | null;
   item?: CollectionItem;
@@ -66,6 +66,12 @@ export class CollectionsToTreePipe implements PipeTransform {
       return {
         label: item.name,
         icon: 'WS',
+        data
+      };
+    } else if (item.type === 'graphql') {
+      return {
+        label: item.name,
+        icon: 'GQL',
         data
       };
     } else {

@@ -13,7 +13,7 @@ import { HttpMethod, KeyValue, RequestBody } from '../../../core/models/collecti
 import { parseCurl } from '../../../core/utils/curl';
 
 export interface NewRequestDialogResult {
-  type: 'request' | 'websocket';
+  type: 'request' | 'websocket' | 'graphql';
   name: string;
   method?: HttpMethod;
   url?: string;
@@ -39,6 +39,12 @@ export interface NewRequestDialogResult {
           [class.active]="mode() === 'websocket'"
           (click)="mode.set('websocket')">
           WebSocket
+        </button>
+        <button
+          class="mode-tab"
+          [class.active]="mode() === 'graphql'"
+          (click)="mode.set('graphql')">
+          GraphQL
         </button>
         <button
           class="mode-tab"
@@ -72,6 +78,17 @@ export interface NewRequestDialogResult {
             label="URL"
             [(value)]="wsUrl"
             placeholder="wss://example.com/socket" />
+        </div>
+      } @else if (mode() === 'graphql') {
+        <div class="form-fields">
+          <ui-input
+            label="Name"
+            [(value)]="name"
+            placeholder="My GraphQL Query" />
+          <ui-input
+            label="Endpoint URL"
+            [(value)]="gqlUrl"
+            placeholder="https://api.example.com/graphql" />
         </div>
       } @else {
         <div class="form-fields">
@@ -185,11 +202,12 @@ export interface NewRequestDialogResult {
 export class NewRequestDialogComponent {
   readonly dialogRef = inject(DIALOG_REF) as DialogRef<NewRequestDialogResult | undefined>;
 
-  mode = signal<'manual' | 'websocket' | 'curl'>('manual');
+  mode = signal<'manual' | 'websocket' | 'graphql' | 'curl'>('manual');
   name = signal('');
   method = signal<HttpMethod>('GET');
   methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
   wsUrl = signal('');
+  gqlUrl = signal('');
 
   curlCommand = signal('');
   curlError = signal('');
@@ -199,6 +217,8 @@ export class NewRequestDialogComponent {
     if (this.mode() === 'manual') {
       return this.name().trim().length > 0;
     } else if (this.mode() === 'websocket') {
+      return this.name().trim().length > 0;
+    } else if (this.mode() === 'graphql') {
       return this.name().trim().length > 0;
     } else {
       return this.name().trim().length > 0 && this.parsedCurl() !== null;
@@ -247,6 +267,12 @@ export class NewRequestDialogComponent {
         type: 'websocket',
         name: trimmedName,
         url: this.wsUrl()
+      });
+    } else if (this.mode() === 'graphql') {
+      this.dialogRef.close({
+        type: 'graphql',
+        name: trimmedName,
+        url: this.gqlUrl()
       });
     } else {
       const parsed = this.parsedCurl();

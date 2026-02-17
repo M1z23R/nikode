@@ -72,7 +72,7 @@ export class RunnerService {
   initialize(
     collectionPath: string,
     targetId: string | null, // null for entire collection, or folder/request id
-    targetType: 'collection' | 'folder' | 'request' | 'websocket'
+    targetType: 'collection' | 'folder' | 'request' | 'websocket' | 'graphql'
   ): void {
     const col = this.unifiedCollectionService.getCollection(collectionPath);
     if (!col) return;
@@ -89,6 +89,9 @@ export class RunnerService {
         items = item.items || [];
       } else if (targetType === 'request' && item.type === 'request') {
         items = [item];
+      } else if (targetType === 'graphql' && item.type === 'graphql') {
+        // GraphQL items are not yet supported in runner - treat as empty for now
+        items = [];
       } else {
         return;
       }

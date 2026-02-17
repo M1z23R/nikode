@@ -4,6 +4,7 @@ const { FileService } = require('./services/file-service');
 const { SecretsService } = require('./services/secrets-service');
 const { AuthService } = require('./services/auth-service');
 const { HttpClient } = require('./services/http-client');
+const { GraphQLClient } = require('./services/graphql-client');
 const { FileWatcherService } = require('./services/file-watcher');
 const { OpenApiConverter } = require('./services/openapi-converter');
 const { WebSocketClient } = require('./services/websocket-client');
@@ -13,6 +14,7 @@ const fileService = new FileService();
 const secretsService = new SecretsService();
 const authService = new AuthService();
 const httpClient = new HttpClient();
+const graphqlClient = new GraphQLClient();
 const fileWatcher = new FileWatcherService();
 const openApiConverter = new OpenApiConverter();
 const webSocketClient = new WebSocketClient();
@@ -300,6 +302,14 @@ ipcMain.handle(
   'execute-request',
   wrapHandler(async (event, request) => {
     return await httpClient.execute(request);
+  }),
+);
+
+// Execute GraphQL request
+ipcMain.handle(
+  'execute-graphql',
+  wrapHandler(async (event, request) => {
+    return await graphqlClient.execute(request);
   }),
 );
 

@@ -254,7 +254,11 @@ export class EnvironmentEditorDialogComponent implements OnInit {
   private dialogService = inject(DialogService);
 
   selectedEnvId = signal('');
-  secrets = signal<Record<string, string>>({});
+  // Track secrets for ALL environments, keyed by env ID
+  allSecrets = signal<Record<string, Record<string, string>>>({});
+
+  // Computed signal for the current environment's secrets
+  secrets = computed(() => this.allSecrets()[this.selectedEnvId()] || {});
 
   ngOnInit(): void {
     // Only load secrets for local collections
@@ -266,8 +270,9 @@ export class EnvironmentEditorDialogComponent implements OnInit {
       this.selectedEnvId.set(collection.collection.activeEnvironmentId);
       if (collection.source === 'local') {
         const loadedSecrets = this.environmentService.getSecrets(this.data.collectionPath);
-        if (loadedSecrets && loadedSecrets[this.selectedEnvId()]) {
-          this.secrets.set({ ...loadedSecrets[this.selectedEnvId()] });
+        if (loadedSecrets) {
+          // Load all environments' secrets, not just the selected one
+          this.allSecrets.set({ ...loadedSecrets });
         }
       }
     }
@@ -283,13 +288,14 @@ export class EnvironmentEditorDialogComponent implements OnInit {
   });
 
   selectEnvironment(envId: string): void {
-    this.selectedEnvId.set(envId);
-    const loadedSecrets = this.environmentService.getSecrets(this.data.collectionPath);
-    if (loadedSecrets && loadedSecrets[envId]) {
-      this.secrets.set({ ...loadedSecrets[envId] });
-    } else {
-      this.secrets.set({});
+    // If we don't have this env's secrets locally yet, load from service
+    if (!this.allSecrets()[envId]) {
+      const loadedSecrets = this.environmentService.getSecrets(this.data.collectionPath);
+      if (loadedSecrets && loadedSecrets[envId]) {
+        this.allSecrets.update(s => ({ ...s, [envId]: { ...loadedSecrets[envId] } }));
+      }
     }
+    this.selectedEnvId.set(envId);
   }
 
   async addEnvironment(): Promise<void> {
@@ -389,7 +395,11 @@ export class EnvironmentEditorDialogComponent implements OnInit {
   }
 
   updateSecretValue(key: string, value: string): void {
-    this.secrets.update(s => ({ ...s, [key]: value }));
+    const envId = this.selectedEnvId();
+    this.allSecrets.update(all => ({
+      ...all,
+      [envId]: { ...(all[envId] || {}), [key]: value }
+    }));
   }
 
   async exportEnvironment(): Promise<void> {
@@ -496,8 +506,11 @@ export class EnvironmentEditorDialogComponent implements OnInit {
     // Only save secrets for local collections
     const collection = this.unifiedCollectionService.getCollection(this.data.collectionPath);
     if (collection?.source === 'local') {
+      // Merge locally tracked secrets with existing ones to avoid wiping other environments
+      const existingSecrets = this.environmentService.getSecrets(this.data.collectionPath) || {};
       this.environmentService.saveSecrets(this.data.collectionPath, {
-        [this.selectedEnvId()]: this.secrets()
+        ...existingSecrets,
+        ...this.allSecrets()
       });
     }
     this.dialogRef.close();
