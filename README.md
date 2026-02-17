@@ -8,6 +8,8 @@ A modern API client for developers, built with Angular 21 + Electron.
 
 ![Main interface - Dark theme](docs/screenshots/main-dark.png)
 
+![Workspaces](docs/screenshots/workspaces.png)
+
 ![Collection Runner](docs/screenshots/runner.png)
 
 ## Features
