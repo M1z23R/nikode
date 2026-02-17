@@ -6,6 +6,7 @@ const { AuthService } = require('./services/auth-service');
 const { HttpClient } = require('./services/http-client');
 const { FileWatcherService } = require('./services/file-watcher');
 const { OpenApiConverter } = require('./services/openapi-converter');
+const { WebSocketClient } = require('./services/websocket-client');
 const { wrapHandler } = require('./utils/ipc-helpers');
 
 const fileService = new FileService();
@@ -14,6 +15,7 @@ const authService = new AuthService();
 const httpClient = new HttpClient();
 const fileWatcher = new FileWatcherService();
 const openApiConverter = new OpenApiConverter();
+const webSocketClient = new WebSocketClient();
 
 // Request single instance lock for deep link handling on Windows/Linux
 const gotTheLock = app.requestSingleInstanceLock();
@@ -120,6 +122,9 @@ async function createWindow() {
 
   // Set the main window reference for file watcher events
   fileWatcher.setWindow(mainWindow);
+
+  // Set the main window reference for WebSocket events
+  webSocketClient.setWindow(mainWindow);
 
   // In development, load from Angular dev server
   // In production, load from built files
@@ -414,6 +419,33 @@ ipcMain.handle(
   }),
 );
 
+// WebSocket - Connect
+ipcMain.handle(
+  'ws-connect',
+  wrapHandler(async (event, args) => {
+    const { connectionId, url, headers, protocols } = args;
+    return await webSocketClient.connect(connectionId, url, headers, protocols);
+  }),
+);
+
+// WebSocket - Disconnect
+ipcMain.handle(
+  'ws-disconnect',
+  wrapHandler(async (event, args) => {
+    const { connectionId, code, reason } = args;
+    return webSocketClient.disconnect(connectionId, code, reason);
+  }),
+);
+
+// WebSocket - Send
+ipcMain.handle(
+  'ws-send',
+  wrapHandler(async (event, args) => {
+    const { connectionId, type, data } = args;
+    return webSocketClient.send(connectionId, type, data);
+  }),
+);
+
 // Export to OpenAPI
 ipcMain.handle(
   'export-openapi',
@@ -512,4 +544,5 @@ app.on('activate', () => {
 // Clean up on app quit
 app.on('before-quit', () => {
   fileWatcher.unwatchAll();
+  webSocketClient.disconnectAll();
 });

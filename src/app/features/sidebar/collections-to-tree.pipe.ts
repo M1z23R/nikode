@@ -3,7 +3,7 @@ import { TreeNode } from '@m1z23r/ngx-ui';
 import { CollectionItem, CollectionSource, UnifiedCollection } from '../../core/models/collection.model';
 
 export interface TreeNodeData {
-  type: 'collection' | 'folder' | 'request';
+  type: 'collection' | 'folder' | 'request' | 'websocket';
   collectionPath: string;
   itemId: string | null;
   item?: CollectionItem;
@@ -60,6 +60,12 @@ export class CollectionsToTreePipe implements PipeTransform {
         label: item.name,
         expanded: expandedFolders.has(item.id),
         children: item.items?.map(child => this.itemToTreeNode(child, collectionPath, expandedFolders, source, isReadOnly)) || [],
+        data
+      };
+    } else if (item.type === 'websocket') {
+      return {
+        label: item.name,
+        icon: 'WS',
         data
       };
     } else {

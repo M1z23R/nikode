@@ -8,6 +8,7 @@ import {
 import { CollectionService } from '../../core/services/collection.service';
 import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { WebSocketService } from '../../core/services/websocket.service';
 import { EnvironmentService } from '../../core/services/environment.service';
 import { AuthService } from '../../core/services/auth.service';
 import { NewCollectionDialogComponent, NewCollectionDialogResult } from './dialogs/new-collection.dialog';
@@ -113,6 +114,7 @@ export class SidebarComponent {
   protected collectionService = inject(CollectionService);
   protected unifiedCollectionService = inject(UnifiedCollectionService);
   protected workspace = inject(WorkspaceService);
+  protected webSocketService = inject(WebSocketService);
   private dialogService = inject(DialogService);
   private environmentService = inject(EnvironmentService);
   private authService = inject(AuthService);
@@ -130,6 +132,8 @@ export class SidebarComponent {
       this.toggleFolder(nodeData.itemId!);
     } else if (nodeData.type === 'request') {
       this.workspace.openRequest(nodeData.collectionPath, nodeData.itemId!);
+    } else if (nodeData.type === 'websocket') {
+      this.webSocketService.openWebSocket(nodeData.collectionPath, nodeData.itemId!);
     }
   }
 
@@ -269,27 +273,42 @@ export class SidebarComponent {
     );
     const result = await ref.afterClosed();
     if (result) {
-      const defaultHeaders = [
-        { key: 'User-Agent', value: 'Nikode/1.0', enabled: true },
-        { key: '', value: '', enabled: true }
-      ];
+      if (result.type === 'websocket') {
+        const item = {
+          id: `ws-${Date.now()}`,
+          type: 'websocket' as const,
+          name: result.name,
+          url: result.url ?? '',
+          headers: [],
+          wsProtocols: [],
+          wsAutoReconnect: false,
+          wsReconnectInterval: 5000,
+          wsSavedMessages: []
+        };
+        this.unifiedCollectionService.addItem(target.collectionPath, target.itemId, item);
+      } else {
+        const defaultHeaders = [
+          { key: 'User-Agent', value: 'Nikode/1.0', enabled: true },
+          { key: '', value: '', enabled: true }
+        ];
 
-      const item = {
-        id: `req-${Date.now()}`,
-        type: 'request' as const,
-        name: result.name,
-        method: result.method,
-        url: result.url ?? '',
-        params: result.params?.length
-          ? [...result.params, { key: '', value: '', enabled: true }]
-          : [],
-        headers: result.headers?.length
-          ? [...result.headers, { key: '', value: '', enabled: true }]
-          : defaultHeaders,
-        body: result.body ?? { type: 'none' as const },
-        scripts: { pre: '', post: '' }
-      };
-      this.unifiedCollectionService.addItem(target.collectionPath, target.itemId, item);
+        const item = {
+          id: `req-${Date.now()}`,
+          type: 'request' as const,
+          name: result.name,
+          method: result.method,
+          url: result.url ?? '',
+          params: result.params?.length
+            ? [...result.params, { key: '', value: '', enabled: true }]
+            : [],
+          headers: result.headers?.length
+            ? [...result.headers, { key: '', value: '', enabled: true }]
+            : defaultHeaders,
+          body: result.body ?? { type: 'none' as const },
+          scripts: { pre: '', post: '' }
+        };
+        this.unifiedCollectionService.addItem(target.collectionPath, target.itemId, item);
+      }
     }
   }
 

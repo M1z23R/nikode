@@ -1,6 +1,15 @@
 import { Collection } from '../src/app/core/models/collection.model';
 import { ProxyRequest, ProxyResponse } from '../src/app/core/models/request.model';
 import { Secrets } from '../src/app/core/models/environment.model';
+import {
+  WebSocketConnectRequest,
+  WebSocketSendRequest,
+  WebSocketDisconnectRequest,
+  WebSocketConnectedEvent,
+  WebSocketMessageEvent,
+  WebSocketCloseEvent,
+  WebSocketErrorEvent,
+} from '../src/app/core/models/websocket.model';
 
 // IPC Channel names as const object for type safety
 export const IPC_CHANNELS = {
@@ -49,6 +58,15 @@ export const IPC_CHANNELS = {
   AUTH_CLEAR_TOKENS: 'auth-clear-tokens',
   AUTH_CALLBACK: 'auth-callback',
   AUTH_ERROR: 'auth-error',
+
+  // WebSocket
+  WS_CONNECT: 'ws-connect',
+  WS_DISCONNECT: 'ws-disconnect',
+  WS_SEND: 'ws-send',
+  WS_CONNECTED: 'ws-connected',
+  WS_MESSAGE: 'ws-message',
+  WS_CLOSE: 'ws-close',
+  WS_ERROR: 'ws-error',
 } as const;
 
 // Union type of all valid channel names
@@ -61,7 +79,11 @@ export type IpcInvokeChannel = Exclude<IpcChannel, typeof IPC_CHANNELS.COLLECTIO
 export type IpcReceiveChannel =
   | typeof IPC_CHANNELS.COLLECTION_CHANGED
   | typeof IPC_CHANNELS.AUTH_CALLBACK
-  | typeof IPC_CHANNELS.AUTH_ERROR;
+  | typeof IPC_CHANNELS.AUTH_ERROR
+  | typeof IPC_CHANNELS.WS_CONNECTED
+  | typeof IPC_CHANNELS.WS_MESSAGE
+  | typeof IPC_CHANNELS.WS_CLOSE
+  | typeof IPC_CHANNELS.WS_ERROR;
 
 // Error codes for IPC operations
 export type IpcErrorCode =
@@ -128,6 +150,13 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.AUTH_CLEAR_TOKENS]: void;
   [IPC_CHANNELS.AUTH_CALLBACK]: void; // Not invokable
   [IPC_CHANNELS.AUTH_ERROR]: void; // Not invokable
+  [IPC_CHANNELS.WS_CONNECT]: WebSocketConnectRequest;
+  [IPC_CHANNELS.WS_DISCONNECT]: WebSocketDisconnectRequest;
+  [IPC_CHANNELS.WS_SEND]: WebSocketSendRequest;
+  [IPC_CHANNELS.WS_CONNECTED]: void; // Not invokable
+  [IPC_CHANNELS.WS_MESSAGE]: void; // Not invokable
+  [IPC_CHANNELS.WS_CLOSE]: void; // Not invokable
+  [IPC_CHANNELS.WS_ERROR]: void; // Not invokable
 }
 
 // Response type mapping for each channel
@@ -160,6 +189,13 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.AUTH_CLEAR_TOKENS]: { status: 'ok' };
   [IPC_CHANNELS.AUTH_CALLBACK]: AuthCallbackData;
   [IPC_CHANNELS.AUTH_ERROR]: AuthErrorData;
+  [IPC_CHANNELS.WS_CONNECT]: { success: boolean; error?: string };
+  [IPC_CHANNELS.WS_DISCONNECT]: { success: boolean; error?: string };
+  [IPC_CHANNELS.WS_SEND]: { success: boolean; error?: string };
+  [IPC_CHANNELS.WS_CONNECTED]: WebSocketConnectedEvent;
+  [IPC_CHANNELS.WS_MESSAGE]: WebSocketMessageEvent;
+  [IPC_CHANNELS.WS_CLOSE]: WebSocketCloseEvent;
+  [IPC_CHANNELS.WS_ERROR]: WebSocketErrorEvent;
 }
 
 // File format detection result

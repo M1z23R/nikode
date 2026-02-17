@@ -24,7 +24,7 @@ import { isIpcError } from '@shared/ipc-types';
 export interface RunnerDialogData {
   collectionPath: string;
   targetId: string | null;
-  targetType: 'collection' | 'folder' | 'request';
+  targetType: 'collection' | 'folder' | 'request' | 'websocket';
   targetName: string;
 }
 

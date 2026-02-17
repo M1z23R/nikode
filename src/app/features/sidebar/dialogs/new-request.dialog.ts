@@ -13,8 +13,9 @@ import { HttpMethod, KeyValue, RequestBody } from '../../../core/models/collecti
 import { parseCurl } from '../../../core/utils/curl';
 
 export interface NewRequestDialogResult {
+  type: 'request' | 'websocket';
   name: string;
-  method: HttpMethod;
+  method?: HttpMethod;
   url?: string;
   headers?: KeyValue[];
   params?: KeyValue[];
@@ -31,7 +32,13 @@ export interface NewRequestDialogResult {
           class="mode-tab"
           [class.active]="mode() === 'manual'"
           (click)="mode.set('manual')">
-          Manual
+          HTTP Request
+        </button>
+        <button
+          class="mode-tab"
+          [class.active]="mode() === 'websocket'"
+          (click)="mode.set('websocket')">
+          WebSocket
         </button>
         <button
           class="mode-tab"
@@ -54,6 +61,17 @@ export interface NewRequestDialogResult {
               <ui-option [value]="m">{{ m }}</ui-option>
             }
           </ui-select>
+        </div>
+      } @else if (mode() === 'websocket') {
+        <div class="form-fields">
+          <ui-input
+            label="Name"
+            [(value)]="name"
+            placeholder="My WebSocket" />
+          <ui-input
+            label="URL"
+            [(value)]="wsUrl"
+            placeholder="wss://example.com/socket" />
         </div>
       } @else {
         <div class="form-fields">
@@ -167,10 +185,11 @@ export interface NewRequestDialogResult {
 export class NewRequestDialogComponent {
   readonly dialogRef = inject(DIALOG_REF) as DialogRef<NewRequestDialogResult | undefined>;
 
-  mode = signal<'manual' | 'curl'>('manual');
+  mode = signal<'manual' | 'websocket' | 'curl'>('manual');
   name = signal('');
   method = signal<HttpMethod>('GET');
   methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+  wsUrl = signal('');
 
   curlCommand = signal('');
   curlError = signal('');
@@ -178,6 +197,8 @@ export class NewRequestDialogComponent {
 
   canSubmit = computed(() => {
     if (this.mode() === 'manual') {
+      return this.name().trim().length > 0;
+    } else if (this.mode() === 'websocket') {
       return this.name().trim().length > 0;
     } else {
       return this.name().trim().length > 0 && this.parsedCurl() !== null;
@@ -194,6 +215,7 @@ export class NewRequestDialogComponent {
     const result = parseCurl(value);
     if (result.success) {
       this.parsedCurl.set({
+        type: 'request',
         name: this.name().trim() || 'Imported Request',
         method: result.data.method,
         url: result.data.url,
@@ -216,8 +238,15 @@ export class NewRequestDialogComponent {
 
     if (this.mode() === 'manual') {
       this.dialogRef.close({
+        type: 'request',
         name: trimmedName,
         method: this.method()
+      });
+    } else if (this.mode() === 'websocket') {
+      this.dialogRef.close({
+        type: 'websocket',
+        name: trimmedName,
+        url: this.wsUrl()
       });
     } else {
       const parsed = this.parsedCurl();

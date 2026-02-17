@@ -72,7 +72,7 @@ export class RunnerService {
   initialize(
     collectionPath: string,
     targetId: string | null, // null for entire collection, or folder/request id
-    targetType: 'collection' | 'folder' | 'request'
+    targetType: 'collection' | 'folder' | 'request' | 'websocket'
   ): void {
     const col = this.unifiedCollectionService.getCollection(collectionPath);
     if (!col) return;

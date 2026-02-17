@@ -210,7 +210,7 @@ export class CollectionTreeComponent {
     return data.collectionPath + ':' + data.itemId;
   }
 
-  getNodeType(node: TreeNode): 'collection' | 'folder' | 'request' {
+  getNodeType(node: TreeNode): 'collection' | 'folder' | 'request' | 'websocket' {
     return (node.data as TreeNodeData)?.type ?? 'collection';
   }
 

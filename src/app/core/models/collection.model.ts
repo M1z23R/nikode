@@ -21,16 +21,28 @@ export interface Variable {
 
 export interface CollectionItem {
   id: string;
-  type: 'folder' | 'request';
+  type: 'folder' | 'request' | 'websocket';
   name: string;
   items?: CollectionItem[];  // For folders
   method?: HttpMethod;       // For requests
-  url?: string;              // For requests
+  url?: string;              // For requests and websockets
   params?: KeyValue[];       // For requests - URL query parameters
-  headers?: KeyValue[];      // For requests
+  headers?: KeyValue[];      // For requests and websockets
   body?: RequestBody;        // For requests
   scripts?: Scripts;         // For requests
   docs?: string;             // For requests - documentation/notes
+  // WebSocket-specific
+  wsProtocols?: string[];
+  wsAutoReconnect?: boolean;
+  wsReconnectInterval?: number;
+  wsSavedMessages?: WebSocketSavedMessage[];
+}
+
+export interface WebSocketSavedMessage {
+  id: string;
+  name: string;
+  type: 'text' | 'binary';
+  content: string;
 }
 
 export interface KeyValue {

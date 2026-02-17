@@ -29,6 +29,9 @@ const ALLOWED_CHANNELS = [
   'auth-get-tokens',
   'auth-save-tokens',
   'auth-clear-tokens',
+  'ws-connect',
+  'ws-disconnect',
+  'ws-send',
 ];
 
 // Allowlist of valid channels for receiving events (main -> renderer)
@@ -36,6 +39,10 @@ const ALLOWED_RECEIVE_CHANNELS = [
   'collection-changed',
   'auth-callback',
   'auth-error',
+  'ws-connected',
+  'ws-message',
+  'ws-close',
+  'ws-error',
 ];
 
 // Store active listeners for cleanup

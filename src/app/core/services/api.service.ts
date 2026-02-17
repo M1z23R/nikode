@@ -9,6 +9,15 @@ import {
   FileFormat,
   isIpcError,
 } from '@shared/ipc-types';
+import {
+  WebSocketConnectRequest,
+  WebSocketDisconnectRequest,
+  WebSocketSendRequest,
+  WebSocketConnectedEvent,
+  WebSocketMessageEvent,
+  WebSocketCloseEvent,
+  WebSocketErrorEvent,
+} from '../models/websocket.model';
 import { Collection } from '../models/collection.model';
 import { ProxyRequest, ProxyResponse } from '../models/request.model';
 import { Secrets } from '../models/environment.model';
@@ -140,5 +149,50 @@ export class ApiService {
     }
 
     return result.data;
+  }
+
+  // WebSocket operations
+  async wsConnect(request: WebSocketConnectRequest): Promise<IpcResult<{ success: boolean; error?: string }>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.WS_CONNECT, request);
+  }
+
+  async wsDisconnect(request: WebSocketDisconnectRequest): Promise<IpcResult<{ success: boolean; error?: string }>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.WS_DISCONNECT, request);
+  }
+
+  async wsSend(request: WebSocketSendRequest): Promise<IpcResult<{ success: boolean; error?: string }>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.WS_SEND, request);
+  }
+
+  onWsConnected(callback: (event: WebSocketConnectedEvent) => void): void {
+    window.electronAPI.on(IPC_CHANNELS.WS_CONNECTED, callback);
+  }
+
+  onWsMessage(callback: (event: WebSocketMessageEvent) => void): void {
+    window.electronAPI.on(IPC_CHANNELS.WS_MESSAGE, callback);
+  }
+
+  onWsClose(callback: (event: WebSocketCloseEvent) => void): void {
+    window.electronAPI.on(IPC_CHANNELS.WS_CLOSE, callback);
+  }
+
+  onWsError(callback: (event: WebSocketErrorEvent) => void): void {
+    window.electronAPI.on(IPC_CHANNELS.WS_ERROR, callback);
+  }
+
+  removeWsConnectedListener(callback: (event: WebSocketConnectedEvent) => void): void {
+    window.electronAPI.removeListener(IPC_CHANNELS.WS_CONNECTED, callback);
+  }
+
+  removeWsMessageListener(callback: (event: WebSocketMessageEvent) => void): void {
+    window.electronAPI.removeListener(IPC_CHANNELS.WS_MESSAGE, callback);
+  }
+
+  removeWsCloseListener(callback: (event: WebSocketCloseEvent) => void): void {
+    window.electronAPI.removeListener(IPC_CHANNELS.WS_CLOSE, callback);
+  }
+
+  removeWsErrorListener(callback: (event: WebSocketErrorEvent) => void): void {
+    window.electronAPI.removeListener(IPC_CHANNELS.WS_ERROR, callback);
   }
 }
