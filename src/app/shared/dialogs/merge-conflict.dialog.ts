@@ -2,6 +2,8 @@ import { Component, inject, signal, computed } from '@angular/core';
 import {
   ModalComponent,
   ButtonComponent,
+  RadioGroupComponent,
+  RadioComponent,
   DIALOG_DATA,
   DIALOG_REF,
   DialogRef
@@ -25,7 +27,7 @@ export interface MergeConflictDialogResult {
 
 @Component({
   selector: 'app-merge-conflict-dialog',
-  imports: [ModalComponent, ButtonComponent, ItemPreviewComponent],
+  imports: [ModalComponent, ButtonComponent, RadioGroupComponent, RadioComponent, ItemPreviewComponent],
   template: `
     <ui-modal title="Resolve Conflicts" size="lg">
       <div class="summary">
@@ -62,33 +64,20 @@ export interface MergeConflictDialogResult {
                     </div>
                   </div>
                   <div class="actions">
-                    @if (getResolution(conflict.id) === 'keep-local') {
-                      <ui-button size="sm" color="primary" (clicked)="resolve(conflict.id, 'keep-local')">
-                        Keep Mine
-                      </ui-button>
-                    } @else {
-                      <ui-button size="sm" variant="outline" (clicked)="resolve(conflict.id, 'keep-local')">
-                        Keep Mine
-                      </ui-button>
-                    }
-                    @if (getResolution(conflict.id) === 'keep-remote') {
-                      <ui-button size="sm" color="primary" (clicked)="resolve(conflict.id, 'keep-remote')">
-                        Keep Theirs
-                      </ui-button>
-                    } @else {
-                      <ui-button size="sm" variant="outline" (clicked)="resolve(conflict.id, 'keep-remote')">
-                        Keep Theirs
-                      </ui-button>
-                    }
-                    @if (getResolution(conflict.id) === 'keep-both') {
-                      <ui-button size="sm" color="primary" (clicked)="resolve(conflict.id, 'keep-both')">
-                        Keep Both
-                      </ui-button>
-                    } @else {
-                      <ui-button size="sm" variant="outline" (clicked)="resolve(conflict.id, 'keep-both')">
-                        Keep Both
-                      </ui-button>
-                    }
+                    <ui-radio-group
+                      [value]="getResolution(conflict.id)"
+                      (valueChange)="resolve(conflict.id, $event)"
+                      orientation="horizontal"
+                      variant="segmented">
+                      <ui-radio value="keep-local">Keep Mine</ui-radio>
+                      <ui-radio value="keep-remote">Keep Theirs</ui-radio>
+                      <ui-radio value="keep-both">Keep Both</ui-radio>
+                    </ui-radio-group>
+                  </div>
+                  <div class="legend">
+                    <span><strong>Keep Mine:</strong> Discard server changes, use your version</span>
+                    <span><strong>Keep Theirs:</strong> Discard your changes, use server version</span>
+                    <span><strong>Keep Both:</strong> Use server version and keep your version as a copy</span>
                   </div>
                 }
                 @case ('delete-local') {
@@ -99,24 +88,18 @@ export interface MergeConflictDialogResult {
                     }
                   </div>
                   <div class="actions">
-                    @if (getResolution(conflict.id) === 'keep-local') {
-                      <ui-button size="sm" color="danger" (clicked)="resolve(conflict.id, 'keep-local')">
-                        Confirm Delete
-                      </ui-button>
-                    } @else {
-                      <ui-button size="sm" color="danger" variant="outline" (clicked)="resolve(conflict.id, 'keep-local')">
-                        Confirm Delete
-                      </ui-button>
-                    }
-                    @if (getResolution(conflict.id) === 'keep-remote') {
-                      <ui-button size="sm" color="primary" (clicked)="resolve(conflict.id, 'keep-remote')">
-                        Keep Server Version
-                      </ui-button>
-                    } @else {
-                      <ui-button size="sm" variant="outline" (clicked)="resolve(conflict.id, 'keep-remote')">
-                        Keep Server Version
-                      </ui-button>
-                    }
+                    <ui-radio-group
+                      [value]="getResolution(conflict.id)"
+                      (valueChange)="resolve(conflict.id, $event)"
+                      orientation="horizontal"
+                      variant="segmented">
+                      <ui-radio value="keep-local">Confirm Delete</ui-radio>
+                      <ui-radio value="keep-remote">Restore</ui-radio>
+                    </ui-radio-group>
+                  </div>
+                  <div class="legend">
+                    <span><strong>Confirm Delete:</strong> Permanently delete this {{ conflict.itemType }}</span>
+                    <span><strong>Restore:</strong> Restore the server version with its updates</span>
                   </div>
                 }
                 @case ('delete-remote') {
@@ -127,24 +110,18 @@ export interface MergeConflictDialogResult {
                     }
                   </div>
                   <div class="actions">
-                    @if (getResolution(conflict.id) === 'keep-local') {
-                      <ui-button size="sm" color="primary" (clicked)="resolve(conflict.id, 'keep-local')">
-                        Keep My Version
-                      </ui-button>
-                    } @else {
-                      <ui-button size="sm" variant="outline" (clicked)="resolve(conflict.id, 'keep-local')">
-                        Keep My Version
-                      </ui-button>
-                    }
-                    @if (getResolution(conflict.id) === 'keep-remote') {
-                      <ui-button size="sm" color="danger" (clicked)="resolve(conflict.id, 'keep-remote')">
-                        Accept Delete
-                      </ui-button>
-                    } @else {
-                      <ui-button size="sm" color="danger" variant="outline" (clicked)="resolve(conflict.id, 'keep-remote')">
-                        Accept Delete
-                      </ui-button>
-                    }
+                    <ui-radio-group
+                      [value]="getResolution(conflict.id)"
+                      (valueChange)="resolve(conflict.id, $event)"
+                      orientation="horizontal"
+                      variant="segmented">
+                      <ui-radio value="keep-local">Keep Mine</ui-radio>
+                      <ui-radio value="keep-remote">Accept Delete</ui-radio>
+                    </ui-radio-group>
+                  </div>
+                  <div class="legend">
+                    <span><strong>Keep Mine:</strong> Restore your version with your changes</span>
+                    <span><strong>Accept Delete:</strong> Permanently delete this {{ conflict.itemType }}</span>
                   </div>
                 }
               }
@@ -262,6 +239,21 @@ export interface MergeConflictDialogResult {
       display: flex;
       gap: 0.5rem;
     }
+
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--ui-border);
+      font-size: 0.6875rem;
+      color: var(--ui-text-muted);
+    }
+
+    .legend strong {
+      color: var(--ui-text);
+    }
   `]
 })
 export class MergeConflictDialogComponent {
@@ -288,10 +280,11 @@ export class MergeConflictDialogComponent {
     return this.resolutions().get(conflictId);
   }
 
-  resolve(conflictId: string, choice: ResolutionChoice): void {
+  resolve(conflictId: string, choice: string | number | null | undefined): void {
+    if (!choice) return;
     this.resolutions.update(map => {
       const newMap = new Map(map);
-      newMap.set(conflictId, choice);
+      newMap.set(conflictId, choice as ResolutionChoice);
       return newMap;
     });
   }

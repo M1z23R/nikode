@@ -1,5 +1,6 @@
-import { Component, inject, output, computed } from '@angular/core';
-import { ButtonComponent, DialogService, TooltipDirective } from '@m1z23r/ngx-ui';
+import { Component, inject, output, computed, signal, OnDestroy, effect } from '@angular/core';
+import { ButtonComponent, CircularProgressComponent, DialogService, TooltipDirective } from '@m1z23r/ngx-ui';
+import { SettingsService } from '../../core/services/settings.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { CloudSyncStatusService } from '../../core/services/cloud-sync-status.service';
@@ -9,7 +10,7 @@ import { SettingsDialogComponent } from '../settings/settings.dialog';
 
 @Component({
   selector: 'app-footer',
-  imports: [ButtonComponent, TooltipDirective],
+  imports: [ButtonComponent, CircularProgressComponent, TooltipDirective],
   template: `
     <footer class="app-footer">
       <div class="footer-left">
@@ -57,6 +58,15 @@ import { SettingsDialogComponent } from '../settings/settings.dialog';
         </ui-button>
       </div>
       <div class="footer-right">
+        @if (settingsService.autosave() && autosaveProgress() !== null) {
+          <div class="autosave-indicator" uiTooltip="Auto-saving...">
+            <ui-circular-progress
+              [value]="autosaveProgress()!"
+              size="xs"
+              [strokeWidth]="2"
+            />
+          </div>
+        }
         <div class="cloud-status" [class]="'cloud-status-' + cloudStatus.state()" [uiTooltip]="cloudStatus.message() || ''">
           @switch (cloudStatus.state()) {
             @case ('syncing') {
@@ -166,17 +176,85 @@ import { SettingsDialogComponent } from '../settings/settings.dialog';
       color: var(--ui-text-muted);
       padding: 0 0.5rem;
     }
+
+    .autosave-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .autosave-indicator ::ng-deep .circular-progress {
+      width: 12px !important;
+      height: 12px !important;
+    }
+
+    .autosave-indicator ::ng-deep .circular-progress svg {
+      width: 12px !important;
+      height: 12px !important;
+    }
+
+    .autosave-indicator ::ng-deep .circular-progress circle {
+      stroke: var(--ui-text-muted);
+    }
   `]
 })
-export class FooterComponent {
+export class FooterComponent implements OnDestroy {
   protected workspace = inject(WorkspaceService);
   protected cloudStatus = inject(CloudSyncStatusService);
+  protected settingsService = inject(SettingsService);
   protected version = inject(APP_VERSION);
   private dialogService = inject(DialogService);
   private unifiedCollectionService = inject(UnifiedCollectionService);
 
+  private animationFrameId: number | null = null;
+  protected autosaveProgress = signal<number | null>(null);
+
   consoleToggle = output();
   historyToggle = output();
+
+  constructor() {
+    // Watch for countdown changes and animate
+    effect(() => {
+      const countdown = this.workspace.autosaveCountdown();
+      if (countdown) {
+        this.startAnimation(countdown.startTime, countdown.delayMs);
+      } else {
+        this.stopAnimation();
+        this.autosaveProgress.set(null);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.stopAnimation();
+  }
+
+  private startAnimation(startTime: number, delayMs: number): void {
+    this.stopAnimation();
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, delayMs - elapsed);
+      const progress = (remaining / delayMs) * 100;
+
+      this.autosaveProgress.set(progress);
+
+      if (remaining > 0) {
+        this.animationFrameId = requestAnimationFrame(animate);
+      } else {
+        this.autosaveProgress.set(null);
+      }
+    };
+
+    animate();
+  }
+
+  private stopAnimation(): void {
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+  }
 
   protected canRun = computed(() => !!this.workspace.activeRequest());
 

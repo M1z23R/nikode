@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, computed } from '@angular/core';
 
 export type ShortcutAction =
   | 'saveRequest'
@@ -20,8 +20,11 @@ export interface KeyboardShortcut {
   description: string;
 }
 
+export type AutosaveDelay = 5 | 10 | 30 | 60;
+
 export interface AppSettings {
   autosave: boolean;
+  autosaveDelay: AutosaveDelay;
   proxyUrl: string;
   timeout: number;
   followRedirects: boolean;
@@ -46,6 +49,7 @@ export const DEFAULT_SHORTCUTS: KeyboardShortcut[] = [
 
 const DEFAULT_SETTINGS: AppSettings = {
   autosave: false,
+  autosaveDelay: 10,
   proxyUrl: '',
   timeout: 30,
   followRedirects: true,
@@ -60,9 +64,8 @@ export class SettingsService {
 
   readonly current = this.settings.asReadonly();
 
-  get autosave(): boolean {
-    return this.settings().autosave;
-  }
+  readonly autosave = computed(() => this.settings().autosave);
+  readonly autosaveDelay = computed(() => this.settings().autosaveDelay);
 
   get proxyUrl(): string {
     return this.settings().proxyUrl;

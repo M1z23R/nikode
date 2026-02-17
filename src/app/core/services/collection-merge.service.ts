@@ -370,11 +370,11 @@ export class CollectionMergeService {
         } else if (choice === 'keep-remote') {
           return this.updateItemInTree(items, conflict.id, conflict.remoteVersion as CollectionItem);
         } else if (choice === 'keep-both') {
-          // Keep local and add remote with new ID
-          const remoteCopy = structuredClone(conflict.remoteVersion as CollectionItem);
-          remoteCopy.id = crypto.randomUUID();
-          remoteCopy.name = `${remoteCopy.name} (server)`;
-          return this.addItemAfter(items, conflict.id, remoteCopy);
+          // Keep remote as canonical, add local with new ID as a copy
+          const localCopy = this.regenerateIds(conflict.localVersion as CollectionItem);
+          localCopy.name = `${localCopy.name} (copy)`;
+          items = this.updateItemInTree(items, conflict.id, conflict.remoteVersion as CollectionItem);
+          return this.addItemAfter(items, conflict.id, localCopy);
         }
         break;
 
@@ -419,10 +419,13 @@ export class CollectionMergeService {
             e.id === conflict.id ? structuredClone(conflict.remoteVersion as Environment) : e
           );
         } else if (choice === 'keep-both') {
-          const remoteCopy = structuredClone(conflict.remoteVersion as Environment);
-          remoteCopy.id = crypto.randomUUID();
-          remoteCopy.name = `${remoteCopy.name} (server)`;
-          return [...environments, remoteCopy];
+          // Keep remote as canonical, add local with new ID as a copy
+          const localCopy = structuredClone(conflict.localVersion as Environment);
+          localCopy.id = crypto.randomUUID();
+          localCopy.name = `${localCopy.name} (copy)`;
+          return environments.map(e =>
+            e.id === conflict.id ? structuredClone(conflict.remoteVersion as Environment) : e
+          ).concat(localCopy);
         }
         break;
 
@@ -553,5 +556,14 @@ export class CollectionMergeService {
         }
         return item;
       });
+  }
+
+  private regenerateIds(item: CollectionItem): CollectionItem {
+    const copy = structuredClone(item);
+    copy.id = crypto.randomUUID();
+    if (copy.items) {
+      copy.items = copy.items.map(child => this.regenerateIds(child));
+    }
+    return copy;
   }
 }

@@ -4,10 +4,12 @@ import {
   ButtonComponent,
   InputComponent,
   CheckboxComponent,
+  SelectComponent,
+  OptionComponent,
   DIALOG_REF,
   DialogRef
 } from '@m1z23r/ngx-ui';
-import { SettingsService, AppSettings, KeyboardShortcut, DEFAULT_SHORTCUTS } from '../../core/services/settings.service';
+import { SettingsService, AppSettings, KeyboardShortcut, DEFAULT_SHORTCUTS, AutosaveDelay } from '../../core/services/settings.service';
 import { KeyboardShortcutService } from '../../core/services/keyboard-shortcut.service';
 import { APP_VERSION } from '../../core/tokens/version.token';
 
@@ -15,7 +17,7 @@ type SettingsTab = 'general' | 'network' | 'shortcuts' | 'about';
 
 @Component({
   selector: 'app-settings-dialog',
-  imports: [ModalComponent, ButtonComponent, InputComponent, CheckboxComponent],
+  imports: [ModalComponent, ButtonComponent, InputComponent, CheckboxComponent, SelectComponent, OptionComponent],
   template: `
     <ui-modal title="Settings" [width]="'500px'">
       <div class="settings-layout">
@@ -55,9 +57,25 @@ type SettingsTab = 'general' | 'network' | 'shortcuts' | 'about';
                   <ui-checkbox
                     [checked]="autosave()"
                     (checkedChange)="autosave.set($event)">
-                    Auto-save requests when switching tabs
+                    Auto-save requests
                   </ui-checkbox>
                 </div>
+                @if (autosave()) {
+                  <div class="setting-item delay-selector">
+                    <label class="delay-label">Save after</label>
+                    <ui-select
+                      class="delay-select"
+                      size="sm"
+                      [value]="autosaveDelay()"
+                      (valueChange)="onDelayChange($event)">
+                      <ui-option [value]="5">5 seconds</ui-option>
+                      <ui-option [value]="10">10 seconds</ui-option>
+                      <ui-option [value]="30">30 seconds</ui-option>
+                      <ui-option [value]="60">60 seconds</ui-option>
+                    </ui-select>
+                    <span class="delay-hint">of inactivity</span>
+                  </div>
+                }
               </div>
             }
 
@@ -251,6 +269,19 @@ type SettingsTab = 'general' | 'network' | 'shortcuts' | 'about';
       margin-top: 0.75rem;
     }
 
+    .delay-selector {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-left: 1.5rem;
+    }
+
+    .delay-label,
+    .delay-hint {
+      font-size: 0.75rem;
+      color: var(--ui-text-muted);
+    }
+
     .about-header {
       display: flex;
       align-items: center;
@@ -406,6 +437,7 @@ export class SettingsDialogComponent implements OnInit {
 
   // Form state
   autosave = signal(false);
+  autosaveDelay = signal<AutosaveDelay>(10);
   proxyUrl = signal('');
   timeoutStr = signal('30');
   followRedirects = signal(true);
@@ -419,6 +451,7 @@ export class SettingsDialogComponent implements OnInit {
   ngOnInit(): void {
     const current = this.settingsService.current();
     this.autosave.set(current.autosave);
+    this.autosaveDelay.set(current.autosaveDelay);
     this.proxyUrl.set(current.proxyUrl);
     this.timeoutStr.set(String(current.timeout));
     this.followRedirects.set(current.followRedirects);
@@ -438,6 +471,7 @@ export class SettingsDialogComponent implements OnInit {
     const timeout = parseInt(this.timeoutStr(), 10);
     this.settingsService.update({
       autosave: this.autosave(),
+      autosaveDelay: this.autosaveDelay(),
       proxyUrl: this.proxyUrl().trim(),
       timeout: isNaN(timeout) || timeout < 1 ? 30 : timeout,
       followRedirects: this.followRedirects(),
@@ -446,6 +480,12 @@ export class SettingsDialogComponent implements OnInit {
     });
     this.keyboardShortcutService.setEnabled(true);
     this.dialogRef.close();
+  }
+
+  onDelayChange(value: AutosaveDelay | AutosaveDelay[] | null): void {
+    if (typeof value === 'number') {
+      this.autosaveDelay.set(value);
+    }
   }
 
   // Shortcuts methods

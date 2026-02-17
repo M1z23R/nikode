@@ -514,6 +514,20 @@ ui-split > ui-split-pane {
   flex-shrink: 1 !important;
 }
 
+// Split view gutter/handle styling - make it pill-shaped like scrollbar thumbs
+ui-split .ui-split__gutter-handle {
+  border-radius: 999px; // Pill shape (fully rounded)
+}
+
+// Optional: add subtle border-radius to gutter for a softer look
+ui-split.ui-split--horizontal > .ui-split__gutter {
+  border-radius: 4px;
+}
+
+ui-split.ui-split--vertical > .ui-split__gutter {
+  border-radius: 4px;
+}
+
 // Static tabs full height within panels
 .request-panels,
 .response-panels,

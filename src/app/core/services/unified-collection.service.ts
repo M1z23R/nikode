@@ -37,6 +37,23 @@ export class UnifiedCollectionService {
   // Track previous workspace to detect changes
   private previousWorkspaceId: string | null = null;
 
+  // Callbacks for when a collection is refreshed after merge resolution
+  private collectionRefreshedCallbacks: ((collectionId: string) => void)[] = [];
+
+  /**
+   * Register a callback to be called when a collection is refreshed after merge resolution.
+   * Used by WorkspaceService to refresh open requests.
+   */
+  onCollectionRefreshed(callback: (collectionId: string) => void): void {
+    this.collectionRefreshedCallbacks.push(callback);
+  }
+
+  private notifyCollectionRefreshed(collectionId: string): void {
+    for (const callback of this.collectionRefreshedCallbacks) {
+      callback(collectionId);
+    }
+  }
+
   constructor() {
     // Clear state on logout
     this.authService.onLogout(() => {
@@ -476,12 +493,13 @@ export class UnifiedCollectionService {
 
         this.openCloudCollections.update(cols =>
           cols.map(c => c.id === collectionId
-            ? { ...c, dirty: false, baseSnapshot: structuredClone(savedCollection.data) }
+            ? { ...c, collection: savedCollection.data, dirty: false, baseSnapshot: structuredClone(savedCollection.data) }
             : c
           )
         );
 
         this.cloudSyncStatus.success(`Merged ${mergeResult.autoMergedCount} changes`);
+        this.notifyCollectionRefreshed(collectionId);
         return true;
       } catch (err: any) {
         if (err?.status === 409) {
@@ -541,12 +559,13 @@ export class UnifiedCollectionService {
 
       this.openCloudCollections.update(cols =>
         cols.map(c => c.id === collectionId
-          ? { ...c, dirty: false, baseSnapshot: structuredClone(savedCollection.data) }
+          ? { ...c, collection: savedCollection.data, dirty: false, baseSnapshot: structuredClone(savedCollection.data) }
           : c
         )
       );
 
       this.cloudSyncStatus.success('Conflicts resolved');
+      this.notifyCollectionRefreshed(collectionId);
       return true;
     } catch (err: any) {
       if (err?.status === 409) {

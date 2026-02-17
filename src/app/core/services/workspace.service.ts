@@ -1,4 +1,4 @@
-import { Injectable, inject, signal, computed } from '@angular/core';
+import { Injectable, inject, signal, computed, effect } from '@angular/core';
 import { TabsService, ToastService } from '@m1z23r/ngx-ui';
 import { isIpcError } from '@shared/ipc-types';
 import { ApiService } from './api.service';
@@ -28,6 +28,11 @@ export class WorkspaceService {
 
   private openRequests = signal<OpenRequest[]>([]);
   private darkMode = signal(false);
+  private autosaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private autosaveStartTimes = new Map<string, number>();
+
+  // Exposed for footer countdown indicator
+  readonly autosaveCountdown = signal<{ startTime: number; delayMs: number } | null>(null);
 
   readonly requests = this.openRequests.asReadonly();
   readonly isDarkMode = this.darkMode.asReadonly();
@@ -46,6 +51,27 @@ export class WorkspaceService {
       this.darkMode.set(true);
       document.documentElement.classList.add('dark');
     }
+
+    // Refresh open requests when a collection is updated after merge resolution
+    this.unifiedCollectionService.onCollectionRefreshed((collectionId) => {
+      this.refreshOpenRequestsForCollection(collectionId);
+    });
+
+    // Update countdown signal when active tab changes
+    effect(() => {
+      const activeId = this.activeId();
+      if (activeId) {
+        const startTime = this.autosaveStartTimes.get(activeId);
+        if (startTime) {
+          const delayMs = this.settingsService.autosaveDelay() * 1000;
+          this.autosaveCountdown.set({ startTime, delayMs });
+        } else {
+          this.autosaveCountdown.set(null);
+        }
+      } else {
+        this.autosaveCountdown.set(null);
+      }
+    });
   }
 
   toggleDarkMode(): void {
@@ -89,6 +115,7 @@ export class WorkspaceService {
 
     // Handle tab close
     tabRef.afterClosed().then(() => {
+      this.cancelScheduledSave(requestId);
       this.openRequests.update(reqs => reqs.filter(r => r.id !== requestId));
     });
   }
@@ -106,14 +133,64 @@ export class WorkspaceService {
       reqs.map(r => r.id === requestId ? { ...r, ...updates, dirty: true } : r)
     );
 
-    // If autosave is enabled, save immediately
-    if (this.settingsService.autosave) {
-      this.saveRequest(requestId);
-    } else {
-      // Update tab label to show dirty indicator
-      const request = this.openRequests().find(r => r.id === requestId);
-      if (request) {
-        this.tabsService.updateLabel(requestId, `${request.name} *`);
+    // Update tab label to show dirty indicator
+    const request = this.openRequests().find(r => r.id === requestId);
+    if (request) {
+      this.tabsService.updateLabel(requestId, `${request.name} *`);
+    }
+
+    // If autosave is enabled, schedule a debounced save
+    if (this.settingsService.autosave()) {
+      this.scheduleSave(requestId);
+    }
+  }
+
+  private scheduleSave(requestId: string): void {
+    // Clear any existing timer for this request
+    const existingTimer = this.autosaveTimers.get(requestId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    // Schedule a new save
+    const delayMs = this.settingsService.autosaveDelay() * 1000;
+    const startTime = Date.now();
+    this.autosaveStartTimes.set(requestId, startTime);
+
+    // Update countdown signal if this is the active request
+    if (this.activeId() === requestId) {
+      this.autosaveCountdown.set({ startTime, delayMs });
+    }
+
+    const timer = setTimeout(() => {
+      this.autosaveTimers.delete(requestId);
+      this.autosaveStartTimes.delete(requestId);
+
+      // Clear countdown if this was the active request
+      if (this.activeId() === requestId) {
+        this.autosaveCountdown.set(null);
+      }
+
+      // Only save if the request is still dirty
+      const req = this.openRequests().find(r => r.id === requestId);
+      if (req?.dirty) {
+        this.saveRequest(requestId);
+      }
+    }, delayMs);
+
+    this.autosaveTimers.set(requestId, timer);
+  }
+
+  private cancelScheduledSave(requestId: string): void {
+    const timer = this.autosaveTimers.get(requestId);
+    if (timer) {
+      clearTimeout(timer);
+      this.autosaveTimers.delete(requestId);
+      this.autosaveStartTimes.delete(requestId);
+
+      // Clear countdown if this was the active request
+      if (this.activeId() === requestId) {
+        this.autosaveCountdown.set(null);
       }
     }
   }
@@ -147,6 +224,9 @@ export class WorkspaceService {
   }
 
   saveRequest(requestId: string): void {
+    // Cancel any pending autosave
+    this.cancelScheduledSave(requestId);
+
     const request = this.openRequests().find(r => r.id === requestId);
     if (!request) return;
 
@@ -345,5 +425,44 @@ export class WorkspaceService {
       merged[key] = value;
     });
     return merged;
+  }
+
+  /**
+   * Refresh open requests that belong to a collection from the collection data.
+   * Used after merge conflict resolution to sync UI with resolved data.
+   */
+  refreshOpenRequestsForCollection(collectionPath: string): void {
+    this.openRequests.update(reqs =>
+      reqs.map(req => {
+        if (req.collectionPath !== collectionPath) return req;
+
+        // Find the updated item in the collection
+        const item = this.unifiedCollectionService.findItem(collectionPath, req.itemId);
+        if (!item || item.type !== 'request') return req;
+
+        // Only refresh non-dirty requests (don't overwrite unsaved user changes)
+        if (req.dirty) return req;
+
+        // Update with collection data
+        return {
+          ...req,
+          name: item.name,
+          method: item.method ?? 'GET',
+          url: item.url ?? '',
+          params: item.params ?? [],
+          headers: item.headers ?? [],
+          body: item.body ?? { type: 'none' },
+          scripts: item.scripts ?? { pre: '', post: '' },
+          docs: item.docs ?? ''
+        };
+      })
+    );
+
+    // Update tab labels for refreshed requests
+    for (const req of this.openRequests()) {
+      if (req.collectionPath === collectionPath && !req.dirty) {
+        this.tabsService.updateLabel(req.id, req.name);
+      }
+    }
   }
 }
