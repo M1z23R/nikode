@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5 minutes before expiry
 
 type AuthCallback = () => void | Promise<void>;
+type AuthStateCallback = (authenticated: boolean, error: string | null) => void;
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -21,6 +22,7 @@ export class AuthService {
   private authErrorHandler: ((data: AuthErrorData) => void) | null = null;
   private onLoginCallbacks: AuthCallback[] = [];
   private onLogoutCallbacks: AuthCallback[] = [];
+  private authStateCallbacks: AuthStateCallback[] = [];
 
   readonly user = this._user.asReadonly();
   readonly isLoading = this._isLoading.asReadonly();
@@ -48,6 +50,7 @@ export class AuthService {
       this.ngZone.run(() => {
         this._isLoading.set(false);
         this._error.set(data.message);
+        this.notifyAuthStateChange(false, data.message);
       });
     };
     window.electronAPI.on(IPC_CHANNELS.AUTH_ERROR, this.authErrorHandler);
@@ -72,15 +75,22 @@ export class AuthService {
       await this.fetchUserProfile();
       this.scheduleTokenRefresh();
       await this.notifyLogin();
+      this.notifyAuthStateChange(true, null);
     } catch (err) {
-      this._error.set(err instanceof Error ? err.message : 'Authentication failed');
+      const errorMsg = err instanceof Error ? err.message : 'Authentication failed';
+      this._error.set(errorMsg);
       this._user.set(null);
+      this.notifyAuthStateChange(false, errorMsg);
     } finally {
       this._isLoading.set(false);
     }
   }
 
   async login(provider: AuthProvider): Promise<void> {
+    await this.startLogin(provider);
+  }
+
+  async startLogin(provider: AuthProvider): Promise<string> {
     this._isLoading.set(true);
     this._error.set(null);
 
@@ -93,9 +103,65 @@ export class AuthService {
       const { url } = await response.json();
       // Open the consent URL in the default browser
       window.open(url, '_blank');
+      return url;
     } catch (err) {
       this._error.set(err instanceof Error ? err.message : 'Failed to start login');
       this._isLoading.set(false);
+      throw err;
+    }
+  }
+
+  cancelLogin(): void {
+    this._isLoading.set(false);
+    this._error.set(null);
+  }
+
+  async exchangeCode(provider: AuthProvider, code: string): Promise<void> {
+    this._isLoading.set(true);
+    this._error.set(null);
+
+    try {
+      const response = await fetch(`${environment.apiBaseUrl}/auth/${provider}/exchange`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Failed to exchange code' }));
+        throw new Error(error.message || 'Failed to exchange code');
+      }
+
+      const data: AuthCallbackData = await response.json();
+      await this.handleAuthCallback(data);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to exchange code';
+      this._error.set(errorMsg);
+      this._isLoading.set(false);
+      this.notifyAuthStateChange(false, errorMsg);
+      throw err;
+    }
+  }
+
+  onAuthStateChange(callback: AuthStateCallback): () => void {
+    this.authStateCallbacks.push(callback);
+    return () => {
+      const index = this.authStateCallbacks.indexOf(callback);
+      if (index > -1) {
+        this.authStateCallbacks.splice(index, 1);
+      }
+    };
+  }
+
+  private notifyAuthStateChange(authenticated: boolean, error: string | null): void {
+    for (const callback of this.authStateCallbacks) {
+      try {
+        callback(authenticated, error);
+      } catch (err) {
+        console.error('Auth state change callback error:', err);
+      }
     }
   }
 

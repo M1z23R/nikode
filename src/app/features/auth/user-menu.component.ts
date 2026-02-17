@@ -1,7 +1,8 @@
 import { Component, inject } from '@angular/core';
-import { DropdownComponent, DropdownItemComponent, DropdownDividerComponent, DropdownTriggerDirective, ButtonComponent } from '@m1z23r/ngx-ui';
+import { DropdownComponent, DropdownItemComponent, DropdownDividerComponent, DropdownTriggerDirective, ButtonComponent, DialogService } from '@m1z23r/ngx-ui';
 import { AuthService } from '../../core/services/auth.service';
 import { AuthProvider } from '../../core/models/auth.model';
+import { SsoLoginDialogComponent, SsoLoginDialogData } from './sso-login.dialog';
 
 @Component({
   selector: 'app-user-menu',
@@ -233,6 +234,7 @@ import { AuthProvider } from '../../core/models/auth.model';
 })
 export class UserMenuComponent {
   authService = inject(AuthService);
+  private dialogService = inject(DialogService);
 
   getInitials(name: string): string {
     return name
@@ -244,7 +246,10 @@ export class UserMenuComponent {
   }
 
   signIn(provider: AuthProvider): void {
-    this.authService.login(provider);
+    this.dialogService.open<SsoLoginDialogComponent, SsoLoginDialogData, boolean>(
+      SsoLoginDialogComponent,
+      { data: { provider } }
+    );
   }
 
   signOut(): void {
