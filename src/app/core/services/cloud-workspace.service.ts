@@ -76,6 +76,9 @@ export class CloudWorkspaceService {
         `/workspaces/${workspaceId}/collections`
       );
       this.collections.set(collections);
+    } catch (err) {
+      console.error('Failed to load collections:', err);
+      this.collections.set([]);
     } finally {
       this.isLoading.set(false);
     }

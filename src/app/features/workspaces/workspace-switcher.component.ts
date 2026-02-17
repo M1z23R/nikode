@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, computed } from '@angular/core';
 import {
   DropdownComponent,
   DropdownItemComponent,
@@ -140,16 +140,16 @@ export class WorkspaceSwitcherComponent {
   private teamService = inject(TeamService);
   private cloudWorkspaceService = inject(CloudWorkspaceService);
 
-  activeWorkspaceName(): string {
+  readonly activeWorkspaceName = computed(() => {
     const active = this.cloudWorkspaceService.activeWorkspace();
     return active?.name ?? 'Select Workspace';
-  }
+  });
 
-  personalWorkspaces(): Workspace[] {
+  readonly personalWorkspaces = computed(() => {
     return this.cloudWorkspaceService.workspaces().filter(w => w.type === 'personal');
-  }
+  });
 
-  teamWorkspaceGroups(): { teamId: string; teamName: string; workspaces: Workspace[] }[] {
+  readonly teamWorkspaceGroups = computed(() => {
     const teams = this.teamService.teams();
     const workspaces = this.cloudWorkspaceService.workspaces().filter(w => w.type === 'team');
 
@@ -160,7 +160,7 @@ export class WorkspaceSwitcherComponent {
         workspaces: workspaces.filter(w => w.team_id === team.id)
       }))
       .filter(group => group.workspaces.length > 0);
-  }
+  });
 
   isActive(workspace: Workspace): boolean {
     return this.cloudWorkspaceService.activeWorkspace()?.id === workspace.id;
