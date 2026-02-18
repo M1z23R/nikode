@@ -1,6 +1,21 @@
 import { Injectable } from '@angular/core';
-import equal from 'fast-deep-equal';
 import { Collection, CollectionItem, Environment } from '../models/collection.model';
+
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+
+  if (Array.isArray(a)) {
+    if (a.length !== (b as unknown[]).length) return false;
+    return a.every((v, i) => deepEqual(v, (b as unknown[])[i]));
+  }
+
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b as object);
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every(k => deepEqual((a as any)[k], (b as any)[k]));
+}
 import {
   ItemConflict,
   MergeResult,
@@ -55,7 +70,7 @@ export class CollectionMergeService {
     if (a.type === 'folder' && b.type === 'folder') {
       return a.id === b.id && a.name === b.name;
     }
-    return equal(a, b);
+    return deepEqual(a, b);
   }
 
   getItemPath(items: CollectionItem[], id: string, currentPath: string[] = []): string[] {
@@ -251,7 +266,7 @@ export class CollectionMergeService {
 
       // NEW in both
       if (!inBase && inLocal && inRemote) {
-        if (!equal(localEnv, remoteEnv)) {
+        if (!deepEqual(localEnv, remoteEnv)) {
           conflicts.push({
             id,
             type: 'update',
@@ -268,7 +283,7 @@ export class CollectionMergeService {
 
       // DELETED locally
       if (inBase && !inLocal && inRemote) {
-        if (!equal(baseEnv, remoteEnv)) {
+        if (!deepEqual(baseEnv, remoteEnv)) {
           conflicts.push({
             id,
             type: 'delete-local',
@@ -285,7 +300,7 @@ export class CollectionMergeService {
 
       // DELETED remotely
       if (inBase && inLocal && !inRemote) {
-        if (!equal(baseEnv, localEnv)) {
+        if (!deepEqual(baseEnv, localEnv)) {
           conflicts.push({
             id,
             type: 'delete-remote',
@@ -303,13 +318,13 @@ export class CollectionMergeService {
 
       // EXISTS in all three
       if (inBase && inLocal && inRemote) {
-        const localChanged = !equal(baseEnv, localEnv);
-        const remoteChanged = !equal(baseEnv, remoteEnv);
+        const localChanged = !deepEqual(baseEnv, localEnv);
+        const remoteChanged = !deepEqual(baseEnv, remoteEnv);
 
         if (!localChanged && remoteChanged) {
           mergedEnvs = mergedEnvs.map(e => e.id === id ? structuredClone(remoteEnv!) : e);
           autoMergedCount++;
-        } else if (localChanged && remoteChanged && !equal(localEnv, remoteEnv)) {
+        } else if (localChanged && remoteChanged && !deepEqual(localEnv, remoteEnv)) {
           conflicts.push({
             id,
             type: 'update',

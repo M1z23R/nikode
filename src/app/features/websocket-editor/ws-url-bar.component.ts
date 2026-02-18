@@ -10,7 +10,6 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
   template: `
     <div class="url-bar">
       <div class="input-wrapper">
-        <div class="status-indicator" [class]="connection().status" [title]="getStatusText()"></div>
         <app-template-input
           class="url-input"
           [value]="connection().url"
@@ -38,7 +37,7 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
               color="danger"
               (clicked)="disconnect()"
               title="Disconnect">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ui-success, #22c55e)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9 17H7A5 5 0 0 1 7 7"/>
                 <path d="M15 7h2a5 5 0 0 1 4 8"/>
                 <line x1="8" y1="12" x2="12" y2="12"/>
@@ -53,7 +52,7 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
               (clicked)="connect()"
               [disabled]="!connection().url || connection().status === 'connecting'"
               title="Connect">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ui-text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
               </svg>
@@ -76,51 +75,16 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
       align-items: center;
     }
 
-    .status-indicator {
-      position: absolute;
-      left: 0.75rem;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      transition: background-color 0.2s ease;
-      z-index: 1;
-
-      &.disconnected {
-        background-color: var(--ui-text-muted);
-      }
-
-      &.connecting, &.reconnecting {
-        background-color: var(--ui-warning);
-        animation: pulse 1s infinite;
-      }
-
-      &.connected {
-        background-color: var(--ui-success);
-      }
-
-      &.error {
-        background-color: var(--ui-error);
-      }
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-
     .url-input {
       width: 100%;
     }
 
     .url-input ::ng-deep input {
-      padding-left: 1.75rem;
       padding-right: 5rem;
       text-overflow: ellipsis;
     }
 
     .url-input ::ng-deep .ui-template-input-mirror {
-      padding-left: 1.75rem;
       padding-right: 5rem;
     }
 
@@ -154,15 +118,4 @@ export class WsUrlBarComponent {
     this.webSocketService.saveConnection(this.connection().id);
   }
 
-  getStatusText(): string {
-    const conn = this.connection();
-    switch (conn.status) {
-      case 'disconnected': return 'Disconnected';
-      case 'connecting': return 'Connecting...';
-      case 'connected': return 'Connected';
-      case 'reconnecting': return 'Reconnecting...';
-      case 'error': return conn.errorMessage || 'Error';
-      default: return '';
-    }
-  }
 }
