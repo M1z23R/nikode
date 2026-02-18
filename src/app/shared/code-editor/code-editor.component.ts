@@ -17,6 +17,8 @@ import { scriptCompletions } from './script-completions.extension';
 import { json } from '@codemirror/lang-json';
 import { javascript } from '@codemirror/lang-javascript';
 import { xml } from '@codemirror/lang-xml';
+import { graphql as graphqlExtension, updateSchema as updateGraphQLSchemaExt } from 'cm6-graphql';
+import { GraphQLSchema } from 'graphql';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 import { syntaxHighlighting, HighlightStyle, foldGutter, foldKeymap } from '@codemirror/language';
@@ -132,7 +134,7 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy, OnChanges 
   @ViewChild('editorContainer', { static: true }) editorContainer!: ElementRef<HTMLDivElement>;
 
   @Input() value = '';
-  @Input() language: 'json' | 'javascript' | 'xml' | 'html' | 'text' = 'json';
+  @Input() language: 'json' | 'javascript' | 'xml' | 'html' | 'graphql' | 'text' = 'json';
   @Input() placeholder = '';
   @Input() readonly = false;
   @Input() showLineNumbers = true;
@@ -244,6 +246,8 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy, OnChanges 
       );
     } else if (this.language === 'xml' || this.language === 'html') {
       extensions.push(xml());
+    } else if (this.language === 'graphql') {
+      extensions.push(...graphqlExtension(), autocompletion());
     }
 
     if (this.placeholder) {
@@ -296,5 +300,10 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy, OnChanges 
 
   focus(): void {
     this.editorView?.focus();
+  }
+
+  updateGraphQLSchema(schema: GraphQLSchema): void {
+    if (!this.editorView) return;
+    updateGraphQLSchemaExt(this.editorView, schema);
   }
 }

@@ -9,6 +9,7 @@ import {
   FileFormat,
   isIpcError,
 } from '@shared/ipc-types';
+import { Environment } from '../models/collection.model';
 import {
   WebSocketConnectRequest,
   WebSocketDisconnectRequest,
@@ -76,6 +77,14 @@ export class ApiService {
 
   async exportOpenApi(path: string, format: 'yaml' | 'json' = 'yaml'): Promise<IpcResult<{ filePath: string | null }>> {
     return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_OPENAPI, { path, format });
+  }
+
+  async importPostman(sourcePath: string, targetPath: string): Promise<IpcResult<{ path: string; collection: Collection }>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.IMPORT_POSTMAN, { sourcePath, targetPath });
+  }
+
+  async importPostmanEnv(sourcePath: string, collectionPath: string): Promise<IpcResult<{ environment: Environment }>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.IMPORT_POSTMAN_ENV, { sourcePath, collectionPath });
   }
 
   async detectFileFormat(path: string): Promise<IpcResult<FileFormat>> {

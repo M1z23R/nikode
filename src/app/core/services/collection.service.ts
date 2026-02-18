@@ -378,8 +378,13 @@ export class CollectionService implements OnDestroy {
     const format = formatResult.data;
 
     if (format === 'unknown') {
-      this.toastService.error('Unrecognized file format. Expected Nikode collection or OpenAPI spec.');
+      this.toastService.error('Unrecognized file format. Expected Nikode collection, OpenAPI spec, or Postman collection.');
       return false;
+    }
+
+    // Postman environment imports don't need a destination folder
+    if (format === 'postman-env') {
+      return this.importPostmanEnv(sourcePath);
     }
 
     // Show destination picker
@@ -397,6 +402,8 @@ export class CollectionService implements OnDestroy {
     // Route to appropriate import method
     if (format === 'openapi') {
       return this.importOpenApi(sourcePath, targetPath);
+    } else if (format === 'postman') {
+      return this.importPostman(sourcePath, targetPath);
     } else {
       return this.importCollection(sourcePath, targetPath);
     }
@@ -539,6 +546,59 @@ export class CollectionService implements OnDestroy {
     await this.api.watchCollection(targetPath);
 
     this.toastService.success('OpenAPI spec imported successfully');
+    return true;
+  }
+
+  async importPostman(sourcePath: string, targetPath: string): Promise<boolean> {
+    const result = await this.api.importPostman(sourcePath, targetPath);
+    if (isIpcError(result)) {
+      this.toastService.error(result.error.userMessage);
+      return false;
+    }
+
+    this.openCollections.update(cols => [
+      ...cols,
+      {
+        path: result.data.path,
+        collection: result.data.collection,
+        expanded: true,
+        dirty: false
+      }
+    ]);
+
+    // Start file watcher for this collection
+    await this.api.watchCollection(targetPath);
+
+    this.toastService.success('Postman collection imported successfully');
+    return true;
+  }
+
+  async importPostmanEnv(sourcePath: string): Promise<boolean> {
+    const collections = this.openCollections();
+
+    if (collections.length === 0) {
+      this.toastService.error('No collections are open. Open a collection first to import an environment into it.');
+      return false;
+    }
+
+    // If only one collection is open, use it directly; otherwise pick the first one
+    // (A collection picker dialog could be added here in the future)
+    const target = collections[0];
+
+    const result = await this.api.importPostmanEnv(sourcePath, target.path);
+    if (isIpcError(result)) {
+      this.toastService.error(result.error.userMessage);
+      return false;
+    }
+
+    // Merge the environment into the target collection
+    const updatedCollection = {
+      ...target.collection,
+      environments: [...target.collection.environments, result.data.environment],
+    };
+
+    this.updateCollection(target.path, updatedCollection);
+    this.toastService.success('Postman environment imported successfully');
     return true;
   }
 

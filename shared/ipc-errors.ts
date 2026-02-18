@@ -8,6 +8,7 @@ export const IPC_ERROR_MESSAGES: Record<IpcErrorCode, string> = {
   INVALID_PATH: 'The specified path is invalid.',
   INVALID_JSON: 'The file contains invalid JSON and could not be parsed.',
   INVALID_OPENAPI: 'The file is not a valid OpenAPI/Swagger specification.',
+  INVALID_POSTMAN: 'The file is not a valid Postman collection or environment.',
   NETWORK_ERROR: 'A network error occurred. Please check your connection and try again.',
   TIMEOUT: 'The operation timed out. Please try again.',
   INVALID_CHANNEL: 'An internal error occurred. Invalid IPC channel.',

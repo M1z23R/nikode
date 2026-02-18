@@ -7,6 +7,7 @@ const { HttpClient } = require('./services/http-client');
 const { GraphQLClient } = require('./services/graphql-client');
 const { FileWatcherService } = require('./services/file-watcher');
 const { OpenApiConverter } = require('./services/openapi-converter');
+const { PostmanConverter } = require('./services/postman-converter');
 const { WebSocketClient } = require('./services/websocket-client');
 const { wrapHandler } = require('./utils/ipc-helpers');
 
@@ -17,6 +18,7 @@ const httpClient = new HttpClient();
 const graphqlClient = new GraphQLClient();
 const fileWatcher = new FileWatcherService();
 const openApiConverter = new OpenApiConverter();
+const postmanConverter = new PostmanConverter();
 const webSocketClient = new WebSocketClient();
 
 // Request single instance lock for deep link handling on Windows/Linux
@@ -391,6 +393,37 @@ ipcMain.handle(
     await secretsService.addRecentPath(targetPath);
 
     return { path: targetPath, collection };
+  }),
+);
+
+// Import Postman collection
+ipcMain.handle(
+  'import-postman',
+  wrapHandler(async (event, args) => {
+    const { sourcePath, targetPath } = args;
+
+    // Convert Postman collection to Nikode collection
+    const collection = await postmanConverter.importFromPostman(sourcePath);
+
+    // Ensure target directory exists
+    const fs = require('fs/promises');
+    await fs.mkdir(targetPath, { recursive: true });
+
+    // Write the collection
+    await fileService.writeCollection(targetPath, collection);
+    await secretsService.addRecentPath(targetPath);
+
+    return { path: targetPath, collection };
+  }),
+);
+
+// Import Postman environment
+ipcMain.handle(
+  'import-postman-env',
+  wrapHandler(async (event, args) => {
+    const { sourcePath } = args;
+    const environment = await postmanConverter.importEnvironment(sourcePath);
+    return { environment };
   }),
 );
 

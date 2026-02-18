@@ -1,4 +1,11 @@
 import { KeyValue } from './collection.model';
+import { GraphQLSchema } from 'graphql';
+
+export interface CachedGraphQLSchema {
+  schema: GraphQLSchema;
+  fetchedAt: number;
+  url: string;
+}
 
 export interface GraphQLRequest {
   url: string;
@@ -39,6 +46,7 @@ export interface OpenGraphQLRequest {
   headers: KeyValue[];
   response: GraphQLResponse | null;
   loading: boolean;
+  schemaLoading: boolean;
   dirty: boolean;
 }
 
@@ -64,6 +72,7 @@ export function createOpenGraphQLRequest(
     headers,
     response: null,
     loading: false,
+    schemaLoading: false,
     dirty: false,
   };
 }

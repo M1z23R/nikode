@@ -26,6 +26,8 @@ const ALLOWED_CHANNELS = [
   'write-file',
   'import-openapi',
   'export-openapi',
+  'import-postman',
+  'import-postman-env',
   'detect-file-format',
   'auth-get-tokens',
   'auth-save-tokens',

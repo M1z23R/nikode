@@ -1,4 +1,4 @@
-import { Collection } from '../src/app/core/models/collection.model';
+import { Collection, Environment } from '../src/app/core/models/collection.model';
 import { ProxyRequest, ProxyResponse } from '../src/app/core/models/request.model';
 import { Secrets } from '../src/app/core/models/environment.model';
 import {
@@ -53,6 +53,10 @@ export const IPC_CHANNELS = {
   IMPORT_OPENAPI: 'import-openapi',
   EXPORT_OPENAPI: 'export-openapi',
 
+  // Postman import
+  IMPORT_POSTMAN: 'import-postman',
+  IMPORT_POSTMAN_ENV: 'import-postman-env',
+
   // File format detection
   DETECT_FILE_FORMAT: 'detect-file-format',
 
@@ -97,6 +101,7 @@ export type IpcErrorCode =
   | 'INVALID_PATH'
   | 'INVALID_JSON'
   | 'INVALID_OPENAPI'
+  | 'INVALID_POSTMAN'
   | 'NETWORK_ERROR'
   | 'TIMEOUT'
   | 'INVALID_CHANNEL'
@@ -149,6 +154,8 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.WRITE_FILE]: { path: string; content: string };
   [IPC_CHANNELS.IMPORT_OPENAPI]: { sourcePath: string; targetPath: string };
   [IPC_CHANNELS.EXPORT_OPENAPI]: { path: string; format: 'yaml' | 'json' };
+  [IPC_CHANNELS.IMPORT_POSTMAN]: { sourcePath: string; targetPath: string };
+  [IPC_CHANNELS.IMPORT_POSTMAN_ENV]: { sourcePath: string; collectionPath: string };
   [IPC_CHANNELS.DETECT_FILE_FORMAT]: string; // path
   [IPC_CHANNELS.AUTH_GET_TOKENS]: void;
   [IPC_CHANNELS.AUTH_SAVE_TOKENS]: AuthTokens;
@@ -189,6 +196,8 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.WRITE_FILE]: { status: 'ok' };
   [IPC_CHANNELS.IMPORT_OPENAPI]: { path: string; collection: Collection };
   [IPC_CHANNELS.EXPORT_OPENAPI]: { filePath: string | null };
+  [IPC_CHANNELS.IMPORT_POSTMAN]: { path: string; collection: Collection };
+  [IPC_CHANNELS.IMPORT_POSTMAN_ENV]: { environment: Environment };
   [IPC_CHANNELS.DETECT_FILE_FORMAT]: FileFormat;
   [IPC_CHANNELS.AUTH_GET_TOKENS]: AuthTokens | null;
   [IPC_CHANNELS.AUTH_SAVE_TOKENS]: { status: 'ok' };
@@ -205,7 +214,7 @@ export interface IpcResponseMap {
 }
 
 // File format detection result
-export type FileFormat = 'nikode' | 'openapi' | 'unknown';
+export type FileFormat = 'nikode' | 'openapi' | 'postman' | 'postman-env' | 'unknown';
 
 // Dialog options
 export interface OpenDialogOptions {

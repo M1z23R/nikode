@@ -252,6 +252,16 @@ class FileService {
         return 'nikode';
       }
 
+      // Check for Postman Collection v2.1
+      if (parsed.info?.schema?.includes('schema.getpostman.com')) {
+        return 'postman';
+      }
+
+      // Check for Postman Environment
+      if (typeof parsed.name === 'string' && Array.isArray(parsed.values)) {
+        return 'postman-env';
+      }
+
       return 'unknown';
     } catch {
       return 'unknown';

@@ -12,6 +12,7 @@ const IPC_ERROR_MESSAGES = {
   NETWORK_ERROR: 'A network error occurred. Please check your connection and try again.',
   TIMEOUT: 'The operation timed out. Please try again.',
   INVALID_CHANNEL: 'An internal error occurred. Invalid IPC channel.',
+  INVALID_POSTMAN: 'The file is not a valid Postman collection or environment.',
   UNKNOWN_ERROR: 'An unexpected error occurred. Please try again.',
 };
 

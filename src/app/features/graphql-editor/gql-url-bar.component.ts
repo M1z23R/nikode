@@ -22,6 +22,24 @@ import { OpenGraphQLRequest } from '../../core/models/graphql.model';
           <ui-button
             variant="ghost"
             size="sm"
+            (clicked)="fetchSchema()"
+            [disabled]="!request().url || request().schemaLoading"
+            title="Fetch Schema">
+            @if (request().schemaLoading) {
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spinner">
+                <circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="12"/>
+              </svg>
+            } @else {
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+            }
+          </ui-button>
+          <ui-button
+            variant="ghost"
+            size="sm"
             (clicked)="save()"
             [disabled]="!request().dirty"
             title="Save">
@@ -82,7 +100,7 @@ import { OpenGraphQLRequest } from '../../core/models/graphql.model';
     .url-input {
       width: 100%;
       padding: 0.5rem 0.75rem;
-      padding-right: 4.5rem;
+      padding-right: 6.5rem;
       border: 1px solid var(--ui-border);
       border-radius: 6px;
       background-color: var(--ui-bg);
@@ -130,5 +148,9 @@ export class GqlUrlBarComponent {
 
   save(): void {
     this.graphqlService.saveRequest(this.request().id);
+  }
+
+  fetchSchema(): void {
+    this.graphqlService.fetchSchema(this.request().id);
   }
 }
