@@ -472,8 +472,31 @@ export class EnvironmentEditorDialogComponent implements OnInit {
 
     let imported: ExportedEnvironment;
     try {
-      imported = JSON.parse(readResult.data);
-      if (!imported.name || !Array.isArray(imported.variables)) {
+      const parsed = JSON.parse(readResult.data);
+
+      if (parsed.name && Array.isArray(parsed.values)) {
+        // Postman environment format — convert to ExportedEnvironment
+        const secrets: Record<string, string> = {};
+        imported = {
+          name: parsed.name,
+          variables: parsed.values.map((v: any) => {
+            const isSecret = v.type === 'secret';
+            if (isSecret && v.value) {
+              secrets[v.key] = String(v.value);
+            }
+            return {
+              key: v.key,
+              value: isSecret ? '' : String(v.value ?? ''),
+              enabled: v.enabled ?? true,
+              secret: isSecret
+            };
+          }),
+          ...(Object.keys(secrets).length ? { secrets } : {})
+        };
+      } else if (parsed.name && Array.isArray(parsed.variables)) {
+        // Nikode format
+        imported = parsed;
+      } else {
         throw new Error('Invalid format');
       }
     } catch {
