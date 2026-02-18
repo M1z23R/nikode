@@ -336,6 +336,77 @@ export class UnifiedCollectionService {
       });
   }
 
+  // Move item within a collection (reorder / reparent)
+  moveItem(collectionId: string, itemId: string, targetId: string | null, position: 'before' | 'after' | 'inside'): void {
+    if (this.isCloudId(collectionId)) {
+      const unified = this.getCollection(collectionId);
+      if (!unified || unified.isReadOnly) {
+        if (unified?.isReadOnly) {
+          this.toastService.error('Cannot modify collection while offline');
+        }
+        return;
+      }
+
+      const item = this.findItemInTree(unified.collection.items, itemId);
+      if (!item) return;
+
+      // Guard: don't move folder into own descendants
+      if (position === 'inside' && item.type === 'folder' && targetId) {
+        if (this.isDescendant(item, targetId)) return;
+      }
+
+      let items = this.deleteItemFromTree(unified.collection.items, itemId);
+
+      if (targetId === null) {
+        items = [...items, item];
+      } else {
+        items = this.insertItemInTree(items, item, targetId, position);
+      }
+
+      this.updateCloudCollectionLocally(collectionId, { ...unified.collection, items });
+    } else {
+      this.collectionService.moveItem(collectionId, itemId, targetId, position);
+    }
+  }
+
+  private isDescendant(parent: CollectionItem, targetId: string): boolean {
+    if (!parent.items) return false;
+    for (const child of parent.items) {
+      if (child.id === targetId) return true;
+      if (this.isDescendant(child, targetId)) return true;
+    }
+    return false;
+  }
+
+  private insertItemInTree(items: CollectionItem[], item: CollectionItem, targetId: string, position: 'before' | 'after' | 'inside'): CollectionItem[] {
+    if (position === 'inside') {
+      return items.map(i => {
+        if (i.id === targetId && i.type === 'folder') {
+          return { ...i, items: [...(i.items || []), item] };
+        }
+        if (i.items) {
+          return { ...i, items: this.insertItemInTree(i.items, item, targetId, position) };
+        }
+        return i;
+      });
+    }
+
+    const idx = items.findIndex(i => i.id === targetId);
+    if (idx !== -1) {
+      const result = [...items];
+      const insertIdx = position === 'before' ? idx : idx + 1;
+      result.splice(insertIdx, 0, item);
+      return result;
+    }
+
+    return items.map(i => {
+      if (i.items) {
+        return { ...i, items: this.insertItemInTree(i.items, item, targetId, position) };
+      }
+      return i;
+    });
+  }
+
   // Find item in collection
   findItem(collectionId: string, itemId: string): CollectionItem | undefined {
     if (this.isCloudId(collectionId)) {

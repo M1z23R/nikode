@@ -211,6 +211,73 @@ export class CollectionService implements OnDestroy {
     this.updateCollection(collectionPath, updatedCollection);
   }
 
+  moveItem(collectionPath: string, itemId: string, targetId: string | null, position: 'before' | 'after' | 'inside'): void {
+    const col = this.getCollection(collectionPath);
+    if (!col) return;
+
+    // Find the item to move
+    const item = this.findItemInTree(col.collection.items, itemId);
+    if (!item) return;
+
+    // Guard: don't move into own descendants
+    if (position === 'inside' && item.type === 'folder' && targetId) {
+      if (this.isDescendant(item, targetId)) return;
+    }
+
+    // Remove from current location
+    let items = this.deleteItemFromTree(col.collection.items, itemId);
+
+    // Insert at new location
+    if (targetId === null) {
+      // Move to root level at end
+      items = [...items, item];
+    } else {
+      items = this.insertItemInTree(items, item, targetId, position);
+    }
+
+    this.updateCollection(collectionPath, { ...col.collection, items });
+  }
+
+  private isDescendant(parent: CollectionItem, targetId: string): boolean {
+    if (!parent.items) return false;
+    for (const child of parent.items) {
+      if (child.id === targetId) return true;
+      if (this.isDescendant(child, targetId)) return true;
+    }
+    return false;
+  }
+
+  private insertItemInTree(items: CollectionItem[], item: CollectionItem, targetId: string, position: 'before' | 'after' | 'inside'): CollectionItem[] {
+    if (position === 'inside') {
+      return items.map(i => {
+        if (i.id === targetId && i.type === 'folder') {
+          return { ...i, items: [...(i.items || []), item] };
+        }
+        if (i.items) {
+          return { ...i, items: this.insertItemInTree(i.items, item, targetId, position) };
+        }
+        return i;
+      });
+    }
+
+    // before/after: insert as sibling
+    const idx = items.findIndex(i => i.id === targetId);
+    if (idx !== -1) {
+      const result = [...items];
+      const insertIdx = position === 'before' ? idx : idx + 1;
+      result.splice(insertIdx, 0, item);
+      return result;
+    }
+
+    // Target not at this level, recurse
+    return items.map(i => {
+      if (i.items) {
+        return { ...i, items: this.insertItemInTree(i.items, item, targetId, position) };
+      }
+      return i;
+    });
+  }
+
   private deleteItemFromTree(items: CollectionItem[], itemId: string): CollectionItem[] {
     return items
       .filter(item => item.id !== itemId)

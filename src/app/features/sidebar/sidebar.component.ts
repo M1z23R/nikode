@@ -21,7 +21,7 @@ import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog
 import { PushToCloudDialogComponent, PushToCloudDialogData } from '../workspaces/push-to-cloud.dialog';
 import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
 import { CollectionsToTreePipe, TreeNodeData } from './collections-to-tree.pipe';
-import { CollectionTreeComponent } from './collection-tree.component';
+import { CollectionTreeComponent, NodeDropEvent } from './collection-tree.component';
 import { generateCurl } from '../../core/utils/curl';
 import { createOpenRequest } from '../../core/models/request.model';
 
@@ -63,6 +63,7 @@ import { createOpenRequest } from '../../core/models/request.model';
             [indent]="16"
             (nodeClick)="onNodeClick($event)"
             (action)="onTreeAction($event)"
+            (nodeDrop)="onNodeDrop($event)"
           />
         }
       </div>
@@ -191,6 +192,26 @@ export class SidebarComponent {
         this.deleteItem(nodeData);
         break;
     }
+  }
+
+  onNodeDrop(event: NodeDropEvent): void {
+    const dragData = event.node.data as TreeNodeData;
+    const targetData = event.target.data as TreeNodeData;
+
+    if (dragData.collectionPath !== targetData.collectionPath) return;
+    if (targetData.isReadOnly) return;
+    if (!dragData.itemId) return;
+
+    // For collection-level targets, drop "inside" at root
+    const targetId = targetData.type === 'collection' ? null : targetData.itemId;
+    const position = targetData.type === 'collection' ? 'inside' as const : event.position;
+
+    this.unifiedCollectionService.moveItem(
+      dragData.collectionPath,
+      dragData.itemId,
+      targetId,
+      position,
+    );
   }
 
   async openCollection(): Promise<void> {

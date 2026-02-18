@@ -51,7 +51,7 @@
     "@codemirror/state": "^6.5.4",
     "@codemirror/theme-one-dark": "^6.1.3",
     "@codemirror/view": "^6.39.14",
-    "@m1z23r/ngx-ui": "^1.1.28",
+    "@m1z23r/ngx-ui": "^1.1.29",
     "codemirror": "^6.0.2",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",

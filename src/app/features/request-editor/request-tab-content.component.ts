@@ -134,6 +134,46 @@ export interface RequestTabData {
       overflow: hidden;
     }
 
+    :host ::ng-deep .request-panels > ui-tabs,
+    :host ::ng-deep .response-panels > ui-tabs {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :host ::ng-deep .request-panels > ui-tabs > .ui-tabs,
+    :host ::ng-deep .response-panels > ui-tabs > .ui-tabs {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :host ::ng-deep .request-panels .ui-tabs__panels,
+    :host ::ng-deep .response-panels .ui-tabs__panels {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :host ::ng-deep .request-panels ui-tab:has(> .ui-tab-panel),
+    :host ::ng-deep .response-panels ui-tab:has(> .ui-tab-panel) {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :host ::ng-deep .request-panels .ui-tab-panel,
+    :host ::ng-deep .response-panels .ui-tab-panel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
     .loading-state, .empty-state {
       display: flex;
       flex-direction: column;

@@ -2,13 +2,40 @@ import { Component, input, output } from '@angular/core';
 import { TreeNode, DropdownComponent, DropdownItemComponent, DropdownDividerComponent, DropdownTriggerDirective, ContextMenuDirective } from '@m1z23r/ngx-ui';
 import { TreeNodeData } from './collections-to-tree.pipe';
 
+export interface NodeDropEvent {
+  node: TreeNode;
+  target: TreeNode;
+  position: 'before' | 'after' | 'inside';
+}
+
+// Shared drag state across recursive component instances
+const dragState = {
+  node: null as TreeNode | null,
+  overNodeId: null as string | null,
+  position: null as 'before' | 'after' | 'inside' | null,
+};
+
 @Component({
   selector: 'app-collection-tree',
   imports: [DropdownComponent, DropdownItemComponent, DropdownDividerComponent, DropdownTriggerDirective, ContextMenuDirective],
   template: `
     @for (node of nodes(); track trackNode(node)) {
       <div class="tree-node" [style.padding-left.px]="level() * indent()">
-        <div class="tree-node-content" (click)="onNodeClick(node)" [uiContextMenu]="dropdown">
+        <div
+          class="tree-node-content"
+          [class.drag-over-before]="isDragOver(node, 'before')"
+          [class.drag-over-after]="isDragOver(node, 'after')"
+          [class.drag-over-inside]="isDragOver(node, 'inside')"
+          [class.dragging]="isDragging(node)"
+          [attr.draggable]="isDraggable(node)"
+          (click)="onNodeClick(node)"
+          (dragstart)="onDragStart($event, node)"
+          (dragend)="onDragEnd()"
+          (dragover)="onDragOver($event, node)"
+          (dragleave)="onDragLeave(node)"
+          (drop)="onDrop($event, node)"
+          [uiContextMenu]="dropdown"
+        >
           @if (isExpandable(node)) {
             <span class="tree-node-toggle" [class.expanded]="node.expanded">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -84,6 +111,7 @@ import { TreeNodeData } from './collections-to-tree.pipe';
               [indent]="indent()"
               (nodeClick)="nodeClick.emit($event)"
               (action)="action.emit($event)"
+              (nodeDrop)="nodeDrop.emit($event)"
             />
           } @else {
             <div class="tree-node-placeholder" [style.padding-left.px]="(level() + 1) * indent()">
@@ -106,6 +134,7 @@ import { TreeNodeData } from './collections-to-tree.pipe';
       padding: 0.375rem 0.5rem;
       cursor: pointer;
       border-radius: 4px;
+      position: relative;
 
       &:hover {
         background-color: var(--ui-bg-secondary);
@@ -113,6 +142,44 @@ import { TreeNodeData } from './collections-to-tree.pipe';
         .tree-node-actions {
           opacity: 1;
         }
+      }
+
+      &[draggable="true"] {
+        cursor: grab;
+      }
+
+      &.dragging {
+        opacity: 0.4;
+      }
+
+      &.drag-over-before::before {
+        content: '';
+        position: absolute;
+        top: -1px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--ui-primary, #3b82f6);
+        border-radius: 1px;
+        z-index: 1;
+      }
+
+      &.drag-over-after::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--ui-primary, #3b82f6);
+        border-radius: 1px;
+        z-index: 1;
+      }
+
+      &.drag-over-inside {
+        background-color: color-mix(in srgb, var(--ui-primary, #3b82f6) 15%, transparent);
+        outline: 1px solid var(--ui-primary, #3b82f6);
+        outline-offset: -1px;
       }
     }
 
@@ -204,6 +271,7 @@ export class CollectionTreeComponent {
 
   nodeClick = output<TreeNode>();
   action = output<{ type: string; node: TreeNode }>();
+  nodeDrop = output<NodeDropEvent>();
 
   trackNode(node: TreeNode): string {
     const data = node.data as TreeNodeData;
@@ -225,6 +293,113 @@ export class CollectionTreeComponent {
 
   isReadOnly(node: TreeNode): boolean {
     return (node.data as TreeNodeData)?.isReadOnly ?? false;
+  }
+
+  isDraggable(node: TreeNode): boolean {
+    const type = this.getNodeType(node);
+    return type !== 'collection' && !this.isReadOnly(node);
+  }
+
+  isDragging(node: TreeNode): boolean {
+    return dragState.node === node;
+  }
+
+  isDragOver(node: TreeNode, position: 'before' | 'after' | 'inside'): boolean {
+    const data = node.data as TreeNodeData;
+    const nodeId = data.collectionPath + ':' + data.itemId;
+    return dragState.overNodeId === nodeId && dragState.position === position;
+  }
+
+  onDragStart(event: DragEvent, node: TreeNode): void {
+    if (!this.isDraggable(node)) {
+      event.preventDefault();
+      return;
+    }
+    dragState.node = node;
+    event.dataTransfer!.effectAllowed = 'move';
+    event.dataTransfer!.setData('text/plain', '');
+  }
+
+  onDragEnd(): void {
+    dragState.node = null;
+    dragState.overNodeId = null;
+    dragState.position = null;
+  }
+
+  onDragOver(event: DragEvent, node: TreeNode): void {
+    if (!dragState.node) return;
+
+    const dragData = dragState.node.data as TreeNodeData;
+    const targetData = node.data as TreeNodeData;
+
+    // Prevent cross-collection drag
+    if (dragData.collectionPath !== targetData.collectionPath) return;
+
+    // Prevent dragging onto self
+    if (dragData.itemId === targetData.itemId) return;
+
+    // Prevent dropping on read-only collections
+    if (targetData.isReadOnly) return;
+
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = 'move';
+
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const y = event.clientY - rect.top;
+    const height = rect.height;
+    const targetType = targetData.type;
+
+    const nodeId = targetData.collectionPath + ':' + targetData.itemId;
+
+    // Only folders and collections accept "inside" drops
+    const canDropInside = targetType === 'folder' || targetType === 'collection';
+
+    if (canDropInside) {
+      if (y < height * 0.25) {
+        dragState.position = targetType === 'collection' ? 'inside' : 'before';
+      } else if (y > height * 0.75) {
+        dragState.position = targetType === 'collection' ? 'inside' : 'after';
+      } else {
+        dragState.position = 'inside';
+      }
+    } else {
+      // Non-folders: only before/after
+      dragState.position = y < height * 0.5 ? 'before' : 'after';
+    }
+
+    dragState.overNodeId = nodeId;
+  }
+
+  onDragLeave(node: TreeNode): void {
+    const data = node.data as TreeNodeData;
+    const nodeId = data.collectionPath + ':' + data.itemId;
+    if (dragState.overNodeId === nodeId) {
+      dragState.overNodeId = null;
+      dragState.position = null;
+    }
+  }
+
+  onDrop(event: DragEvent, node: TreeNode): void {
+    event.preventDefault();
+    if (!dragState.node || !dragState.position) return;
+
+    const dragData = dragState.node.data as TreeNodeData;
+    const targetData = node.data as TreeNodeData;
+
+    // Same validations as dragover
+    if (dragData.collectionPath !== targetData.collectionPath) return;
+    if (dragData.itemId === targetData.itemId) return;
+    if (targetData.isReadOnly) return;
+
+    this.nodeDrop.emit({
+      node: dragState.node,
+      target: node,
+      position: dragState.position,
+    });
+
+    dragState.node = null;
+    dragState.overNodeId = null;
+    dragState.position = null;
   }
 
   onNodeClick(node: TreeNode): void {
