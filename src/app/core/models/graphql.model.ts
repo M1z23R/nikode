@@ -3,6 +3,7 @@ import { GraphQLSchema } from 'graphql';
 
 export interface CachedGraphQLSchema {
   schema: GraphQLSchema;
+  introspectionResult: Record<string, unknown>;
   fetchedAt: number;
   url: string;
 }

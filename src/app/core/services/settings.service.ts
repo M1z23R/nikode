@@ -22,6 +22,8 @@ export interface KeyboardShortcut {
 
 export type AutosaveDelay = 5 | 10 | 30 | 60;
 
+export type MergeConflictBehavior = 'ask' | 'keep-local' | 'keep-remote';
+
 export interface AppSettings {
   autosave: boolean;
   autosaveDelay: AutosaveDelay;
@@ -31,6 +33,7 @@ export interface AppSettings {
   validateSsl: boolean;
   keyboardShortcuts: KeyboardShortcut[];
   editorLayout: EditorLayout;
+  mergeConflictBehavior: MergeConflictBehavior;
 }
 
 const STORAGE_KEY = 'nikode-settings';
@@ -56,6 +59,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   validateSsl: true,
   keyboardShortcuts: DEFAULT_SHORTCUTS,
   editorLayout: 'horizontal',
+  mergeConflictBehavior: 'ask',
 };
 
 @Injectable({ providedIn: 'root' })

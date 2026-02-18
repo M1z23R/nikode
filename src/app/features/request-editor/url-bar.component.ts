@@ -1,20 +1,21 @@
-import { Component, Input, inject } from '@angular/core';
-import { ButtonComponent, InputComponent, SelectComponent, OptionComponent, DialogService } from '@m1z23r/ngx-ui';
+import { Component, input, inject } from '@angular/core';
+import { ButtonComponent, SelectComponent, OptionComponent, DialogService } from '@m1z23r/ngx-ui';
 import { OpenRequest } from '../../core/models/request.model';
 import { HttpMethod } from '../../core/models/collection.model';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { EnvironmentService } from '../../core/services/environment.service';
 import { generateCurl, ParsedCurl } from '../../core/utils/curl';
 import { CurlImportDialogComponent } from '../../shared/dialogs/curl-import.dialog';
+import { TemplateInputWrapperComponent } from '../../shared/components/template-input-wrapper.component';
 
 @Component({
   selector: 'app-url-bar',
-  imports: [ButtonComponent, InputComponent, SelectComponent, OptionComponent],
+  imports: [ButtonComponent, TemplateInputWrapperComponent, SelectComponent, OptionComponent],
   template: `
     <div class="url-bar">
       <ui-select
         class="method-select"
-        [value]="request.method"
+        [value]="request().method"
         (valueChange)="onMethodChange($any($event))">
         @for (m of methods; track m) {
           <ui-option [value]="m">
@@ -23,12 +24,12 @@ import { CurlImportDialogComponent } from '../../shared/dialogs/curl-import.dial
         }
       </ui-select>
       <div class="input-wrapper">
-        <ui-input
+        <app-template-input
           class="url-input"
-          [value]="request.url"
-          (valueChange)="onUrlChange($event.toString())"
-          placeholder="Enter request URL..."
-          (keydown.enter)="onSend()" />
+          [value]="request().url"
+          (valueChange)="onUrlChange($event)"          placeholder="Enter request URL..."
+          [collectionPath]="request().collectionPath"
+          (enterPressed)="onSend()" />
         <div class="floating-buttons">
           <ui-button
             variant="ghost"
@@ -55,7 +56,7 @@ import { CurlImportDialogComponent } from '../../shared/dialogs/curl-import.dial
             variant="ghost"
             size="sm"
             (clicked)="onSave()"
-            [disabled]="!request.dirty"
+            [disabled]="!request().dirty"
             title="Save changes">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
@@ -67,7 +68,7 @@ import { CurlImportDialogComponent } from '../../shared/dialogs/curl-import.dial
             variant="ghost"
             size="sm"
             (clicked)="onSend()"
-            [loading]="request.loading"
+            [loading]="request().loading"
             title="Send request">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M5 12h14"/>
@@ -101,8 +102,12 @@ import { CurlImportDialogComponent } from '../../shared/dialogs/curl-import.dial
     }
 
     .url-input ::ng-deep input {
-      padding-right: 5.5rem;
+      padding-right: 7rem;
       text-overflow: ellipsis;
+    }
+
+    .url-input ::ng-deep .ui-template-input-mirror {
+      padding-right: 7rem;
     }
 
     .floating-buttons {
@@ -115,7 +120,7 @@ import { CurlImportDialogComponent } from '../../shared/dialogs/curl-import.dial
   `]
 })
 export class UrlBarComponent {
-  @Input({ required: true }) request!: OpenRequest;
+  request = input.required<OpenRequest>();
 
   private workspace = inject(WorkspaceService);
   private environmentService = inject(EnvironmentService);
@@ -124,19 +129,19 @@ export class UrlBarComponent {
   methods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 
   onMethodChange(method: HttpMethod): void {
-    this.workspace.updateRequestMethod(this.request.id, method);
+    this.workspace.updateRequestMethod(this.request().id, method);
   }
 
   onUrlChange(url: string): void {
-    this.workspace.updateRequestUrl(this.request.id, url);
+    this.workspace.updateRequestUrl(this.request().id, url);
   }
 
   onSend(): void {
-    this.workspace.sendRequest(this.request.id);
+    this.workspace.sendRequest(this.request().id);
   }
 
   onSave(): void {
-    this.workspace.saveRequest(this.request.id);
+    this.workspace.saveRequest(this.request().id);
   }
 
   async importCurl(): Promise<void> {
@@ -145,7 +150,7 @@ export class UrlBarComponent {
     );
     const result = await ref.afterClosed();
     if (result) {
-      this.workspace.updateRequest(this.request.id, {
+      this.workspace.updateRequest(this.request().id, {
         method: result.method,
         url: result.url,
         headers: result.headers.length > 0
@@ -160,8 +165,9 @@ export class UrlBarComponent {
   }
 
   async copyCurl(): Promise<void> {
-    const variables = this.environmentService.resolveVariables(this.request.collectionPath);
-    const proxyRequest = this.workspace.buildProxyRequest(this.request, variables);
+    const req = this.request();
+    const variables = this.environmentService.resolveVariables(req.collectionPath);
+    const proxyRequest = this.workspace.buildProxyRequest(req, variables);
     const curl = generateCurl(proxyRequest);
 
     try {

@@ -469,6 +469,12 @@ html, body {
   }
 }
 
+// Fix height mismatch: native <input> elements default to line-height: normal (~1.2)
+// while divs inherit line-height: 1.5 from body, causing ui-template-input to be taller than ui-input
+ui-input .ui-input {
+  line-height: 1.5;
+}
+
 // Ghost buttons brighter in dark mode
 .dark .ui-button--ghost {
   --_btn-color: #d1d5db !important; // Gray-300 - more visible on dark background

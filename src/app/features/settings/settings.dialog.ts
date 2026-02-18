@@ -9,7 +9,7 @@ import {
   DIALOG_REF,
   DialogRef
 } from '@m1z23r/ngx-ui';
-import { SettingsService, AppSettings, KeyboardShortcut, DEFAULT_SHORTCUTS, AutosaveDelay } from '../../core/services/settings.service';
+import { SettingsService, AppSettings, KeyboardShortcut, DEFAULT_SHORTCUTS, AutosaveDelay, MergeConflictBehavior } from '../../core/services/settings.service';
 import { KeyboardShortcutService } from '../../core/services/keyboard-shortcut.service';
 import { APP_VERSION } from '../../core/tokens/version.token';
 
@@ -19,7 +19,7 @@ type SettingsTab = 'general' | 'network' | 'shortcuts' | 'about';
   selector: 'app-settings-dialog',
   imports: [ModalComponent, ButtonComponent, InputComponent, CheckboxComponent, SelectComponent, OptionComponent],
   template: `
-    <ui-modal title="Settings" [width]="'500px'">
+    <ui-modal title="Settings" [width]="'560px'">
       <div class="settings-layout">
         <nav class="settings-nav">
           <button
@@ -61,10 +61,9 @@ type SettingsTab = 'general' | 'network' | 'shortcuts' | 'about';
                   </ui-checkbox>
                 </div>
                 @if (autosave()) {
-                  <div class="setting-item delay-selector">
-                    <label class="delay-label">Save after</label>
+                  <div class="setting-item autosave-delay">
+                    <label class="delay-label">Save after inactivity</label>
                     <ui-select
-                      class="delay-select"
                       size="sm"
                       [value]="autosaveDelay()"
                       (valueChange)="onDelayChange($event)">
@@ -73,9 +72,23 @@ type SettingsTab = 'general' | 'network' | 'shortcuts' | 'about';
                       <ui-option [value]="30">30 seconds</ui-option>
                       <ui-option [value]="60">60 seconds</ui-option>
                     </ui-select>
-                    <span class="delay-hint">of inactivity</span>
                   </div>
                 }
+              </div>
+
+              <div class="settings-section">
+                <h3>Cloud</h3>
+                <div class="setting-item">
+                  <label class="select-label">Merge conflict behavior</label>
+                  <ui-select
+                    size="sm"
+                    [value]="mergeConflictBehavior()"
+                    (valueChange)="onMergeBehaviorChange($event)">
+                    <ui-option value="ask">Always ask</ui-option>
+                    <ui-option value="keep-local">Always keep local</ui-option>
+                    <ui-option value="keep-remote">Always keep remote</ui-option>
+                  </ui-select>
+                </div>
               </div>
             }
 
@@ -269,17 +282,16 @@ type SettingsTab = 'general' | 'network' | 'shortcuts' | 'about';
       margin-top: 0.75rem;
     }
 
-    .delay-selector {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+    .autosave-delay {
       margin-left: 1.5rem;
     }
 
     .delay-label,
-    .delay-hint {
+    .select-label {
+      display: block;
       font-size: 0.75rem;
       color: var(--ui-text-muted);
+      margin-bottom: 0.375rem;
     }
 
     .about-header {
@@ -442,6 +454,7 @@ export class SettingsDialogComponent implements OnInit {
   timeoutStr = signal('30');
   followRedirects = signal(true);
   validateSsl = signal(true);
+  mergeConflictBehavior = signal<MergeConflictBehavior>('ask');
 
   // Shortcuts state
   shortcuts = signal<KeyboardShortcut[]>([]);
@@ -457,6 +470,7 @@ export class SettingsDialogComponent implements OnInit {
     this.followRedirects.set(current.followRedirects);
     this.validateSsl.set(current.validateSsl);
     this.shortcuts.set([...current.keyboardShortcuts]);
+    this.mergeConflictBehavior.set(current.mergeConflictBehavior);
 
     // Disable shortcuts while settings dialog is open
     this.keyboardShortcutService.setEnabled(false);
@@ -477,6 +491,7 @@ export class SettingsDialogComponent implements OnInit {
       followRedirects: this.followRedirects(),
       validateSsl: this.validateSsl(),
       keyboardShortcuts: this.shortcuts(),
+      mergeConflictBehavior: this.mergeConflictBehavior(),
     });
     this.keyboardShortcutService.setEnabled(true);
     this.dialogRef.close();
@@ -485,6 +500,12 @@ export class SettingsDialogComponent implements OnInit {
   onDelayChange(value: AutosaveDelay | AutosaveDelay[] | null): void {
     if (typeof value === 'number') {
       this.autosaveDelay.set(value);
+    }
+  }
+
+  onMergeBehaviorChange(value: MergeConflictBehavior | MergeConflictBehavior[] | null): void {
+    if (typeof value === 'string') {
+      this.mergeConflictBehavior.set(value);
     }
   }
 

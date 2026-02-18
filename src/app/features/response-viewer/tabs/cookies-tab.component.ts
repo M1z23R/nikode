@@ -1,11 +1,11 @@
-import { Component, Input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { ProxyResponse } from '../../../core/models/request.model';
 
 @Component({
   selector: 'app-cookies-tab',
   template: `
     <div class="cookies-tab">
-      @if (response.cookies && response.cookies.length > 0) {
+      @if (response().cookies && response().cookies.length > 0) {
         <table class="cookies-table">
           <thead>
             <tr>
@@ -18,7 +18,7 @@ import { ProxyResponse } from '../../../core/models/request.model';
             </tr>
           </thead>
           <tbody>
-            @for (cookie of response.cookies; track cookie.name) {
+            @for (cookie of response().cookies; track cookie.name) {
               <tr>
                 <td class="cookie-name">{{ cookie.name }}</td>
                 <td class="cookie-value">{{ cookie.value }}</td>
@@ -106,5 +106,5 @@ import { ProxyResponse } from '../../../core/models/request.model';
   `]
 })
 export class CookiesTabComponent {
-  @Input({ required: true }) response!: ProxyResponse;
+  response = input.required<ProxyResponse>();
 }

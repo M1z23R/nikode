@@ -15,6 +15,8 @@ import { resolveVariables } from '../utils/variable-resolver';
 import { getIntrospectionQuery, buildClientSchema } from 'graphql';
 import { GraphQLTabContentComponent, GraphQLTabData } from '../../features/graphql-editor/graphql-tab-content.component';
 
+const SCHEMA_STORAGE_KEY = 'nikode-graphql-schemas';
+
 @Injectable({ providedIn: 'root' })
 export class GraphQLService {
   private api = inject(ApiService);
@@ -29,6 +31,40 @@ export class GraphQLService {
 
   readonly requests = this.openRequests.asReadonly();
   readonly schemas = this.schemasSignal.asReadonly();
+
+  constructor() {
+    this.loadSchemasFromStorage();
+  }
+
+  private loadSchemasFromStorage(): void {
+    try {
+      const raw = localStorage.getItem(SCHEMA_STORAGE_KEY);
+      if (!raw) return;
+      const entries: { url: string; introspectionResult: Record<string, unknown>; fetchedAt: number }[] = JSON.parse(raw);
+      for (const entry of entries) {
+        const schema = buildClientSchema(entry.introspectionResult as any);
+        this.schemaCache.set(entry.url, {
+          schema,
+          introspectionResult: entry.introspectionResult,
+          fetchedAt: entry.fetchedAt,
+          url: entry.url,
+        });
+      }
+      this.schemasSignal.set(new Map(this.schemaCache));
+    } catch {
+      // Corrupted storage — clear it
+      localStorage.removeItem(SCHEMA_STORAGE_KEY);
+    }
+  }
+
+  private saveSchemasToStorage(): void {
+    const entries = [...this.schemaCache.values()].map(c => ({
+      url: c.url,
+      introspectionResult: c.introspectionResult,
+      fetchedAt: c.fetchedAt,
+    }));
+    localStorage.setItem(SCHEMA_STORAGE_KEY, JSON.stringify(entries));
+  }
 
   openGraphQL(collectionPath: string, itemId: string): void {
     const item = this.unifiedCollectionService.findItem(collectionPath, itemId);
@@ -186,14 +222,17 @@ export class GraphQLService {
     }
 
     try {
-      const schema = buildClientSchema(result.data.data as any);
+      const introspectionResult = result.data.data as Record<string, unknown>;
+      const schema = buildClientSchema(introspectionResult as any);
       const cached: CachedGraphQLSchema = {
         schema,
+        introspectionResult,
         fetchedAt: Date.now(),
         url: resolvedUrl,
       };
       this.schemaCache.set(resolvedUrl, cached);
       this.schemasSignal.set(new Map(this.schemaCache));
+      this.saveSchemasToStorage();
       this.toastService.success('GraphQL schema fetched successfully');
     } catch (e: any) {
       this.toastService.error(`Failed to parse schema: ${e.message}`);

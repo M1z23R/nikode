@@ -1,23 +1,22 @@
-import { Component, inject, input, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { Component, inject, input } from '@angular/core';
 import { ButtonComponent } from '@m1z23r/ngx-ui';
 import { WebSocketService } from '../../core/services/websocket.service';
 import { OpenWebSocketConnection } from '../../core/models/websocket.model';
+import { TemplateInputWrapperComponent } from '../../shared/components/template-input-wrapper.component';
 
 @Component({
   selector: 'app-ws-url-bar',
-  imports: [FormsModule, ButtonComponent],
+  imports: [ButtonComponent, TemplateInputWrapperComponent],
   template: `
     <div class="url-bar">
       <div class="input-wrapper">
         <div class="status-indicator" [class]="connection().status" [title]="getStatusText()"></div>
-        <input
-          type="text"
+        <app-template-input
           class="url-input"
-          [ngModel]="connection().url"
-          (ngModelChange)="onUrlChange($event)"
-          placeholder="wss://nikode.dimitrije.dev/api/v1/ws"
+          [value]="connection().url"
+          (valueChange)="onUrlChange($event)"          placeholder="wss://nikode.dimitrije.dev/api/v1/ws"
           [disabled]="connection().status === 'connected'"
+          [collectionPath]="connection().collectionPath"
         />
         <div class="floating-buttons">
           <ui-button
@@ -112,26 +111,17 @@ import { OpenWebSocketConnection } from '../../core/models/websocket.model';
 
     .url-input {
       width: 100%;
-      padding: 0.5rem 0.75rem;
+    }
+
+    .url-input ::ng-deep input {
       padding-left: 1.75rem;
-      padding-right: 4.5rem;
-      border: 1px solid var(--ui-border);
-      border-radius: 6px;
-      background-color: var(--ui-bg);
-      color: var(--ui-text);
-      font-family: var(--ui-font-mono, ui-monospace, monospace);
-      font-size: 0.875rem;
+      padding-right: 5rem;
       text-overflow: ellipsis;
+    }
 
-      &:focus {
-        outline: none;
-        border-color: var(--ui-accent);
-      }
-
-      &:disabled {
-        background-color: var(--ui-bg-secondary);
-        cursor: not-allowed;
-      }
+    .url-input ::ng-deep .ui-template-input-mirror {
+      padding-left: 1.75rem;
+      padding-right: 5rem;
     }
 
     .floating-buttons {

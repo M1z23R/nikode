@@ -1,22 +1,21 @@
 import { Component, inject, input } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { ButtonComponent } from '@m1z23r/ngx-ui';
 import { GraphQLService } from '../../core/services/graphql.service';
 import { OpenGraphQLRequest } from '../../core/models/graphql.model';
+import { TemplateInputWrapperComponent } from '../../shared/components/template-input-wrapper.component';
 
 @Component({
   selector: 'app-gql-url-bar',
-  imports: [FormsModule, ButtonComponent],
+  imports: [ButtonComponent, TemplateInputWrapperComponent],
   template: `
     <div class="url-bar">
       <div class="method-badge">GQL</div>
       <div class="input-wrapper">
-        <input
-          type="text"
+        <app-template-input
           class="url-input"
-          [ngModel]="request().url"
-          (ngModelChange)="onUrlChange($event)"
-          placeholder="https://api.example.com/graphql"
+          [value]="request().url"
+          (valueChange)="onUrlChange($event)"          placeholder="https://api.example.com/graphql"
+          [collectionPath]="request().collectionPath"
         />
         <div class="floating-buttons">
           <ui-button
@@ -99,20 +98,15 @@ import { OpenGraphQLRequest } from '../../core/models/graphql.model';
 
     .url-input {
       width: 100%;
-      padding: 0.5rem 0.75rem;
-      padding-right: 6.5rem;
-      border: 1px solid var(--ui-border);
-      border-radius: 6px;
-      background-color: var(--ui-bg);
-      color: var(--ui-text);
-      font-family: var(--ui-font-mono, ui-monospace, monospace);
-      font-size: 0.875rem;
-      text-overflow: ellipsis;
+    }
 
-      &:focus {
-        outline: none;
-        border-color: var(--ui-accent);
-      }
+    .url-input ::ng-deep input {
+      padding-right: 7rem;
+      text-overflow: ellipsis;
+    }
+
+    .url-input ::ng-deep .ui-template-input-mirror {
+      padding-right: 7rem;
     }
 
     .floating-buttons {

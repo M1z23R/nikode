@@ -1,4 +1,4 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, input, inject } from '@angular/core';
 import { RadioGroupComponent, RadioComponent, ButtonComponent } from '@m1z23r/ngx-ui';
 import { OpenRequest } from '../../../core/models/request.model';
 import { RequestBody, KeyValue } from '../../../core/models/collection.model';
@@ -20,7 +20,7 @@ import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor
   template: `
     <div class="body-panel">
       <ui-radio-group
-        [value]="request.body.type"
+        [value]="request().body.type"
         (valueChange)="onTypeChange($event?.toString() || 'none')"
         orientation="horizontal"
         variant="segmented">
@@ -32,7 +32,7 @@ import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor
       </ui-radio-group>
 
       <div class="body-content">
-        @switch (request.body.type) {
+        @switch (request().body.type) {
           @case ('none') {
             <div class="no-body">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -58,7 +58,7 @@ import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor
                 Format
               </ui-button>
               <app-code-editor
-                [value]="request.body.content || ''"
+                [value]="request().body.content || ''"
                 (valueChange)="onContentChange($event)"
                 [variableTooltip]="variableTooltipConfig"
                 language="json"
@@ -68,7 +68,7 @@ import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor
           @case ('raw') {
             <div class="editor-wrapper">
               <app-code-editor
-                [value]="request.body.content || ''"
+                [value]="request().body.content || ''"
                 (valueChange)="onContentChange($event)"
                 [variableTooltip]="variableTooltipConfig"
                 language="text"
@@ -78,19 +78,19 @@ import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor
           @case ('form-data') {
             <div class="form-data-wrapper">
               <app-key-value-editor
-                [items]="request.body.entries || []"
-                (itemsChange)="onEntriesChange($event)"
+                [items]="request().body.entries || []"                (itemsChange)="onEntriesChange($event)"
                 keyPlaceholder="Field name"
-                valuePlaceholder="Value" />
+                valuePlaceholder="Value"
+                [collectionPath]="request().collectionPath" />
             </div>
           }
           @case ('x-www-form-urlencoded') {
             <div class="form-data-wrapper">
               <app-key-value-editor
-                [items]="request.body.entries || []"
-                (itemsChange)="onEntriesChange($event)"
+                [items]="request().body.entries || []"                (itemsChange)="onEntriesChange($event)"
                 keyPlaceholder="Key"
-                valuePlaceholder="Value" />
+                valuePlaceholder="Value"
+                [collectionPath]="request().collectionPath" />
             </div>
           }
         }
@@ -164,21 +164,21 @@ import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor
   `]
 })
 export class BodyPanelComponent {
-  @Input({ required: true }) request!: OpenRequest;
+  request = input.required<OpenRequest>();
 
   private workspace = inject(WorkspaceService);
   private environmentService = inject(EnvironmentService);
 
   variableTooltipConfig: VariableTooltipConfig = {
     resolver: (name: string): VariableInfo | undefined => {
-      const info = this.environmentService.getVariableInfo(this.request.collectionPath, name);
+      const info = this.environmentService.getVariableInfo(this.request().collectionPath, name);
       if (!info) return undefined;
       return { name, value: info.value, isSecret: info.isSecret };
     },
     onSave: (name: string, value: string): void => {
-      const env = this.environmentService.getActiveEnvironment(this.request.collectionPath);
+      const env = this.environmentService.getActiveEnvironment(this.request().collectionPath);
       if (env) {
-        this.environmentService.addVariable(this.request.collectionPath, env.id, {
+        this.environmentService.addVariable(this.request().collectionPath, env.id, {
           key: name,
           value,
           enabled: true
@@ -188,11 +188,12 @@ export class BodyPanelComponent {
   };
 
   onTypeChange(type: string): void {
+    const req = this.request();
     const bodyType = type as RequestBody['type'];
     const body: RequestBody = {
       type: bodyType,
-      content: this.request.body.content || '',
-      entries: this.request.body.entries || []
+      content: req.body.content || '',
+      entries: req.body.entries || []
     };
 
     // Initialize entries for form types if empty
@@ -200,27 +201,29 @@ export class BodyPanelComponent {
       body.entries = [{ key: '', value: '', enabled: true }];
     }
 
-    this.workspace.updateRequestBody(this.request.id, body);
+    this.workspace.updateRequestBody(req.id, body);
   }
 
   onContentChange(content: string): void {
+    const req = this.request();
     const body: RequestBody = {
-      ...this.request.body,
+      ...req.body,
       content
     };
-    this.workspace.updateRequestBody(this.request.id, body);
+    this.workspace.updateRequestBody(req.id, body);
   }
 
   onEntriesChange(entries: KeyValue[]): void {
+    const req = this.request();
     const body: RequestBody = {
-      ...this.request.body,
+      ...req.body,
       entries
     };
-    this.workspace.updateRequestBody(this.request.id, body);
+    this.workspace.updateRequestBody(req.id, body);
   }
 
   onFormat(): void {
-    const content = this.request.body.content || '';
+    const content = this.request().body.content || '';
     if (!content.trim()) return;
 
     try {

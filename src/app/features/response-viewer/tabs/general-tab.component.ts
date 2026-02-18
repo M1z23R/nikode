@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { ProxyResponse } from '../../../core/models/request.model';
 
 @Component({
@@ -7,19 +7,19 @@ import { ProxyResponse } from '../../../core/models/request.model';
     <div class="general-tab">
       <div class="status-row">
         <span class="status-code" [class]="getStatusClass()">
-          {{ response.statusCode }}
+          {{ response().statusCode }}
         </span>
-        <span class="status-text">{{ response.statusText }}</span>
+        <span class="status-text">{{ response().statusText }}</span>
       </div>
 
       <div class="stats">
         <div class="stat">
           <span class="stat-label">Time</span>
-          <span class="stat-value">{{ response.time }} ms</span>
+          <span class="stat-value">{{ response().time }} ms</span>
         </div>
         <div class="stat">
           <span class="stat-label">Size</span>
-          <span class="stat-value">{{ formatSize(response.size) }}</span>
+          <span class="stat-value">{{ formatSize(response().size) }}</span>
         </div>
       </div>
 
@@ -129,14 +129,14 @@ import { ProxyResponse } from '../../../core/models/request.model';
   `]
 })
 export class GeneralTabComponent {
-  @Input({ required: true }) response!: ProxyResponse;
+  response = input.required<ProxyResponse>();
 
   get headerEntries(): [string, string][] {
-    return Object.entries(this.response.headers);
+    return Object.entries(this.response().headers);
   }
 
   getStatusClass(): string {
-    const code = this.response.statusCode;
+    const code = this.response().statusCode;
     if (code >= 200 && code < 300) return 'status-2xx';
     if (code >= 300 && code < 400) return 'status-3xx';
     if (code >= 400 && code < 500) return 'status-4xx';

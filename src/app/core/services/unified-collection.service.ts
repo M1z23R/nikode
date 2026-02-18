@@ -6,12 +6,14 @@ import { AuthService } from './auth.service';
 import { NetworkStatusService } from './network-status.service';
 import { CollectionMergeService } from './collection-merge.service';
 import { CloudSyncStatusService } from './cloud-sync-status.service';
+import { SettingsService } from './settings.service';
 import { UnifiedCollection, CollectionItem, Collection } from '../models/collection.model';
 import {
   MergeConflictDialogComponent,
   MergeConflictDialogData,
   MergeConflictDialogResult
 } from '../../shared/dialogs/merge-conflict.dialog';
+import { ConflictResolution, ResolutionChoice } from '../models/merge.model';
 
 interface OpenCloudCollectionState {
   id: string;
@@ -30,6 +32,7 @@ export class UnifiedCollectionService {
   private dialogService = inject(DialogService);
   private mergeService = inject(CollectionMergeService);
   private cloudSyncStatus = inject(CloudSyncStatusService);
+  private settingsService = inject(SettingsService);
 
   // Local state for open cloud collections (expanded/dirty state)
   private openCloudCollections = signal<OpenCloudCollectionState[]>([]);
@@ -583,26 +586,41 @@ export class UnifiedCollectionService {
       }
     }
 
-    // Show conflict resolution dialog
-    this.cloudSyncStatus.idle();
-    const dialogRef = this.dialogService.open<
-      MergeConflictDialogComponent,
-      MergeConflictDialogData,
-      MergeConflictDialogResult | undefined
-    >(MergeConflictDialogComponent, {
-      data: { result: mergeResult }
-    });
+    // Check merge conflict behavior setting
+    const mergeBehavior = this.settingsService.current().mergeConflictBehavior;
 
-    const result = await dialogRef.afterClosed();
+    let resolutions: ConflictResolution[];
 
-    if (!result || result.cancelled) {
+    if (mergeBehavior === 'keep-local' || mergeBehavior === 'keep-remote') {
+      // Auto-resolve all conflicts with the configured behavior
+      resolutions = mergeResult.conflicts.map(c => ({
+        conflictId: c.id,
+        choice: mergeBehavior as ResolutionChoice
+      }));
+    } else {
+      // Show conflict resolution dialog
       this.cloudSyncStatus.idle();
-      return false;
+      const dialogRef = this.dialogService.open<
+        MergeConflictDialogComponent,
+        MergeConflictDialogData,
+        MergeConflictDialogResult | undefined
+      >(MergeConflictDialogComponent, {
+        data: { result: mergeResult }
+      });
+
+      const result = await dialogRef.afterClosed();
+
+      if (!result || result.cancelled) {
+        this.cloudSyncStatus.idle();
+        return false;
+      }
+
+      resolutions = result.resolutions;
     }
 
     // Apply resolutions and save
     this.cloudSyncStatus.syncing('Saving resolved changes...');
-    const finalCollection = this.mergeService.applyResolutions(mergeResult, result.resolutions);
+    const finalCollection = this.mergeService.applyResolutions(mergeResult, resolutions);
 
     try {
       // Re-fetch to get latest version in case it changed during dialog

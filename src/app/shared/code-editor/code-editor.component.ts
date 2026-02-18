@@ -1,14 +1,13 @@
 import {
   Component,
   ElementRef,
-  Input,
-  Output,
-  EventEmitter,
+  input,
+  model,
   AfterViewInit,
   OnDestroy,
-  OnChanges,
-  SimpleChanges,
-  ViewChild
+  ViewChild,
+  effect,
+  untracked
 } from '@angular/core';
 import { EditorState, Extension, Compartment } from '@codemirror/state';
 import { EditorView, keymap, placeholder as cmPlaceholder, lineNumbers, highlightActiveLine, highlightActiveLineGutter } from '@codemirror/view';
@@ -130,47 +129,56 @@ const darkHighlighting = HighlightStyle.define([
     }
   `]
 })
-export class CodeEditorComponent implements AfterViewInit, OnDestroy, OnChanges {
+export class CodeEditorComponent implements AfterViewInit, OnDestroy {
   @ViewChild('editorContainer', { static: true }) editorContainer!: ElementRef<HTMLDivElement>;
 
-  @Input() value = '';
-  @Input() language: 'json' | 'javascript' | 'xml' | 'html' | 'graphql' | 'text' = 'json';
-  @Input() placeholder = '';
-  @Input() readonly = false;
-  @Input() showLineNumbers = true;
-  @Input() foldable = false;
-  @Input() variableTooltip: VariableTooltipConfig | null = null;
-
-  @Output() valueChange = new EventEmitter<string>();
+  value = model('');
+  language = input<'json' | 'javascript' | 'xml' | 'html' | 'graphql' | 'text'>('json');
+  placeholder = input('');
+  readonly = input(false);
+  showLineNumbers = input(true);
+  foldable = input(false);
+  variableTooltip = input<VariableTooltipConfig | null>(null);
 
   private editorView: EditorView | null = null;
   private skipNextUpdate = false;
   private themeCompartment = new Compartment();
   private observer: MutationObserver | null = null;
+  private editorInitialized = false;
+
+  constructor() {
+    effect(() => {
+      const val = this.value();
+      if (this.editorView && !this.skipNextUpdate) {
+        const currentValue = this.editorView.state.doc.toString();
+        if (currentValue !== val) {
+          this.editorView.dispatch({
+            changes: { from: 0, to: currentValue.length, insert: val }
+          });
+        }
+      }
+      this.skipNextUpdate = false;
+    });
+
+    effect(() => {
+      this.language();
+      if (this.editorInitialized) {
+        untracked(() => this.recreateEditor());
+      }
+    });
+
+    effect(() => {
+      this.variableTooltip();
+      if (this.editorInitialized) {
+        untracked(() => this.recreateEditor());
+      }
+    });
+  }
 
   ngAfterViewInit(): void {
     this.initEditor();
+    this.editorInitialized = true;
     this.observeThemeChanges();
-  }
-
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['value'] && this.editorView && !this.skipNextUpdate) {
-      const currentValue = this.editorView.state.doc.toString();
-      if (currentValue !== this.value) {
-        this.editorView.dispatch({
-          changes: { from: 0, to: currentValue.length, insert: this.value }
-        });
-      }
-    }
-    this.skipNextUpdate = false;
-
-    if (changes['language'] && !changes['language'].firstChange) {
-      this.recreateEditor();
-    }
-
-    if (changes['variableTooltip'] && !changes['variableTooltip'].firstChange) {
-      this.recreateEditor();
-    }
   }
 
   ngOnDestroy(): void {
@@ -221,49 +229,52 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy, OnChanges 
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           this.skipNextUpdate = true;
-          this.valueChange.emit(update.state.doc.toString());
+          this.value.set(update.state.doc.toString());
         }
       }),
       this.themeCompartment.of(this.getThemeExtensions()),
     ];
 
-    if (this.showLineNumbers) {
+    if (this.showLineNumbers()) {
       extensions.push(lineNumbers(), highlightActiveLineGutter());
     }
 
-    if (this.foldable) {
+    if (this.foldable()) {
       extensions.push(foldGutter());
     }
 
-    if (this.language === 'json') {
+    const lang = this.language();
+    if (lang === 'json') {
       extensions.push(json());
-    } else if (this.language === 'javascript') {
+    } else if (lang === 'javascript') {
       extensions.push(
         javascript(),
         autocompletion({
           override: [scriptCompletions],
         })
       );
-    } else if (this.language === 'xml' || this.language === 'html') {
+    } else if (lang === 'xml' || lang === 'html') {
       extensions.push(xml());
-    } else if (this.language === 'graphql') {
+    } else if (lang === 'graphql') {
       extensions.push(...graphqlExtension(), autocompletion());
     }
 
-    if (this.placeholder) {
-      extensions.push(cmPlaceholder(this.placeholder));
+    const ph = this.placeholder();
+    if (ph) {
+      extensions.push(cmPlaceholder(ph));
     }
 
-    if (this.readonly) {
+    if (this.readonly()) {
       extensions.push(EditorState.readOnly.of(true));
     }
 
-    if (this.variableTooltip) {
-      extensions.push(variableTooltip(this.variableTooltip), variableTooltipTheme);
+    const tooltipConfig = this.variableTooltip();
+    if (tooltipConfig) {
+      extensions.push(variableTooltip(tooltipConfig), variableTooltipTheme);
     }
 
     const state = EditorState.create({
-      doc: this.value,
+      doc: this.value(),
       extensions
     });
 
@@ -291,7 +302,7 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy, OnChanges 
         changes: { from: 0, to: content.length, insert: formatted }
       });
       this.skipNextUpdate = true;
-      this.valueChange.emit(formatted);
+      this.value.set(formatted);
       return true;
     } catch {
       return false;

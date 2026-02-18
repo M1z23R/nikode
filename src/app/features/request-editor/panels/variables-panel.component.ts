@@ -1,17 +1,19 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, input, inject, computed } from '@angular/core';
 import { OpenRequest } from '../../../core/models/request.model';
 import { EnvironmentService } from '../../../core/services/environment.service';
 import { extractVariableNames } from '../../../core/utils/variable-resolver';
+import { GetPipe } from '../../../shared/pipes/get.pipe';
 
 @Component({
   selector: 'app-variables-panel',
+  imports: [GetPipe],
   template: `
     <div class="variables-panel">
       <div class="info">
         <p>Variables used in this request:</p>
       </div>
 
-      @if (usedVariables.length === 0) {
+      @if (usedVariables().length === 0) {
         <div class="no-variables">
           <p>No variables used. Use <code>{{ '{{variableName}}' }}</code> syntax in URL, headers, or body.</p>
         </div>
@@ -24,12 +26,13 @@ import { extractVariableNames } from '../../../core/utils/variable-resolver';
             </tr>
           </thead>
           <tbody>
-            @for (varName of usedVariables; track varName) {
+            @for (varName of usedVariables(); track varName) {
               <tr>
                 <td><code>{{ '{{' + varName + '}}' }}</code></td>
                 <td>
-                  @if (resolvedVariables[varName] !== undefined) {
-                    <code>{{ resolvedVariables[varName] }}</code>
+                  @let value = resolvedVariables() | get: varName;
+                  @if (value !== undefined) {
+                    <code>{{ value }}</code>
                   } @else {
                     <span class="unresolved">Not defined</span>
                   }
@@ -105,21 +108,22 @@ import { extractVariableNames } from '../../../core/utils/variable-resolver';
   `]
 })
 export class VariablesPanelComponent {
-  @Input({ required: true }) request!: OpenRequest;
+  request = input.required<OpenRequest>();
 
   private environmentService = inject(EnvironmentService);
 
-  get usedVariables(): string[] {
+  usedVariables = computed(() => {
+    const req = this.request();
     const allText = [
-      this.request.url,
-      ...this.request.headers.map(h => h.value),
-      this.request.body.content || ''
+      req.url,
+      ...req.headers.map(h => h.value),
+      req.body.content || ''
     ].join(' ');
 
     return extractVariableNames(allText);
-  }
+  });
 
-  get resolvedVariables(): Record<string, string> {
-    return this.environmentService.resolveVariables(this.request.collectionPath);
-  }
+  resolvedVariables = computed(() => {
+    return this.environmentService.resolveVariables(this.request().collectionPath);
+  });
 }

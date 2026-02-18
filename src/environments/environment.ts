@@ -1,4 +1,4 @@
 export const environment = {
   production: false,
-  apiBaseUrl: 'https://nikode.dimitrije.dev/api/v1'
+  apiBaseUrl: 'http://localhost:8080/api/v1'
 };

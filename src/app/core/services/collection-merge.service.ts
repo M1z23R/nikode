@@ -45,6 +45,19 @@ export class CollectionMergeService {
     return environments.find(e => e.id === id);
   }
 
+  /**
+   * Compare two collection items. For folders, only compare own properties (id, name)
+   * since children are individually compared via collectAllItemIds.
+   * For non-folder items, use deep equality.
+   */
+  private compareItems(a: CollectionItem | undefined, b: CollectionItem | undefined): boolean {
+    if (!a || !b) return a === b;
+    if (a.type === 'folder' && b.type === 'folder') {
+      return a.id === b.id && a.name === b.name;
+    }
+    return equal(a, b);
+  }
+
   getItemPath(items: CollectionItem[], id: string, currentPath: string[] = []): string[] {
     for (const item of items) {
       if (item.id === id) {
@@ -99,7 +112,7 @@ export class CollectionMergeService {
       // Case 3: NEW in both (not in base, in both local and remote)
       if (!inBase && inLocal && inRemote) {
         // Both added same UUID - check if identical
-        if (equal(localItem, remoteItem)) {
+        if (this.compareItems(localItem, remoteItem)) {
           // Already in merged, no action needed
           autoMergedCount++;
         } else {
@@ -118,7 +131,7 @@ export class CollectionMergeService {
 
       // Case 4: DELETED locally (in base+remote, not in local)
       if (inBase && !inLocal && inRemote) {
-        const remoteUnchanged = equal(baseItem, remoteItem);
+        const remoteUnchanged = this.compareItems(baseItem, remoteItem);
         if (remoteUnchanged) {
           // Accept delete - item not in merged (started from local)
           autoMergedCount++;
@@ -138,7 +151,7 @@ export class CollectionMergeService {
 
       // Case 5: DELETED remotely (in base+local, not in remote)
       if (inBase && inLocal && !inRemote) {
-        const localUnchanged = equal(baseItem, localItem);
+        const localUnchanged = this.compareItems(baseItem, localItem);
         if (localUnchanged) {
           // Accept remote delete - remove from merged
           mergedItems = this.removeItemFromTree(mergedItems, id);
@@ -159,8 +172,8 @@ export class CollectionMergeService {
 
       // Case 6: EXISTS in all three
       if (inBase && inLocal && inRemote) {
-        const localChanged = !equal(baseItem, localItem);
-        const remoteChanged = !equal(baseItem, remoteItem);
+        const localChanged = !this.compareItems(baseItem, localItem);
+        const remoteChanged = !this.compareItems(baseItem, remoteItem);
 
         if (!localChanged && !remoteChanged) {
           // No changes, keep as-is
@@ -181,7 +194,7 @@ export class CollectionMergeService {
         }
 
         // Both changed
-        if (equal(localItem, remoteItem)) {
+        if (this.compareItems(localItem, remoteItem)) {
           // Same change, no conflict
           autoMergedCount++;
           continue;

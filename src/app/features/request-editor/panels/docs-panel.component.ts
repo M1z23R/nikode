@@ -1,4 +1,4 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, input, inject } from '@angular/core';
 import { TextareaComponent } from '@m1z23r/ngx-ui';
 import { OpenRequest } from '../../../core/models/request.model';
 import { WorkspaceService } from '../../../core/services/workspace.service';
@@ -11,7 +11,7 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
       <ui-textarea
         label="Documentation"
         hint="Notes and documentation for this request"
-        [value]="request.docs"
+        [value]="request().docs"
         (valueChange)="onDocsChange($event)"
         placeholder="Add notes, usage examples, or documentation for this request..."
         [rows]="10"
@@ -32,11 +32,11 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
   `]
 })
 export class DocsPanelComponent {
-  @Input({ required: true }) request!: OpenRequest;
+  request = input.required<OpenRequest>();
 
   private workspace = inject(WorkspaceService);
 
   onDocsChange(docs: string): void {
-    this.workspace.updateRequestDocs(this.request.id, docs);
+    this.workspace.updateRequestDocs(this.request().id, docs);
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable, inject, signal, effect } from '@angular/core';
-import { ToastService } from '@m1z23r/ngx-ui';
+import { ToastService, TemplateVariable } from '@m1z23r/ngx-ui';
 import { isIpcError } from '@shared/ipc-types';
 import { ApiService } from './api.service';
 import { UnifiedCollectionService } from './unified-collection.service';
@@ -100,6 +100,20 @@ export class EnvironmentService {
       ...col.collection,
       activeEnvironmentId: envId
     });
+  }
+
+  getTemplateVariables(collectionPath: string): TemplateVariable[] {
+    const env = this.getActiveEnvironment(collectionPath);
+    if (!env) return [];
+    const secrets = this.getSecrets(collectionPath);
+    return env.variables
+      .filter(v => v.enabled)
+      .map(v => ({
+        key: v.key,
+        value: v.secret
+          ? (secrets?.[env.id]?.[v.key] ?? '')
+          : v.value,
+      }));
   }
 
   resolveVariables(collectionPath: string): ResolvedVariables {

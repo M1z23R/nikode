@@ -10,10 +10,10 @@ import { KeyValueEditorComponent } from '../../request-editor/key-value-editor.c
   template: `
     <div class="headers-panel">
       <app-key-value-editor
-        [items]="connection().headers"
-        (itemsChange)="onHeadersChange($event)"
+        [items]="connection().headers"        (itemsChange)="onHeadersChange($event)"
         keyPlaceholder="Header name"
         valuePlaceholder="Header value"
+        [collectionPath]="connection().collectionPath"
       />
       @if (connection().status === 'connected') {
         <div class="warning">

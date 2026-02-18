@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { TextareaComponent } from '@m1z23r/ngx-ui';
 import { ProxyResponse } from '../../../core/models/request.model';
 
@@ -8,8 +8,8 @@ import { ProxyResponse } from '../../../core/models/request.model';
   template: `
     <div class="request-tab">
       <div class="request-line">
-        <span class="method">{{ response.sentRequest.method }}</span>
-        <span class="url">{{ response.sentRequest.url }}</span>
+        <span class="method">{{ response().sentRequest.method }}</span>
+        <span class="url">{{ response().sentRequest.url }}</span>
       </div>
 
       <div class="section">
@@ -26,11 +26,11 @@ import { ProxyResponse } from '../../../core/models/request.model';
         </table>
       </div>
 
-      @if (response.sentRequest.body) {
+      @if (response().sentRequest.body) {
         <div class="section">
           <h4>Request Body</h4>
           <ui-textarea
-            [value]="formatBody(response.sentRequest.body)"
+            [value]="formatBody(response().sentRequest.body || '')"
             [readonly]="true"
             [rows]="8"
             resize="vertical" />
@@ -106,10 +106,10 @@ import { ProxyResponse } from '../../../core/models/request.model';
   `]
 })
 export class RequestTabComponent {
-  @Input({ required: true }) response!: ProxyResponse;
+  response = input.required<ProxyResponse>();
 
   get headerEntries(): [string, string][] {
-    return Object.entries(this.response.sentRequest.headers);
+    return Object.entries(this.response().sentRequest.headers);
   }
 
   formatBody(body: string): string {

@@ -1,4 +1,4 @@
-import { Component, Input, inject } from '@angular/core';
+import { Component, input, inject } from '@angular/core';
 import { OpenRequest } from '../../../core/models/request.model';
 import { Scripts } from '../../../core/models/collection.model';
 import { WorkspaceService } from '../../../core/services/workspace.service';
@@ -16,7 +16,7 @@ import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor
         <span class="script-hint">Runs before the request is sent</span>
         <div class="editor-wrapper">
           <app-code-editor
-            [value]="request.scripts.pre"
+            [value]="request().scripts.pre"
             (valueChange)="onPreChange($event)"
             [variableTooltip]="variableTooltipConfig"
             language="javascript"
@@ -30,7 +30,7 @@ import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor
         <span class="script-hint">Runs after the response is received</span>
         <div class="editor-wrapper">
           <app-code-editor
-            [value]="request.scripts.post"
+            [value]="request().scripts.post"
             (valueChange)="onPostChange($event)"
             [variableTooltip]="variableTooltipConfig"
             language="javascript"
@@ -153,7 +153,7 @@ import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor
   `]
 })
 export class ScriptsPanelComponent {
-  @Input({ required: true }) request!: OpenRequest;
+  request = input.required<OpenRequest>();
 
   private workspace = inject(WorkspaceService);
   private environmentService = inject(EnvironmentService);
@@ -169,14 +169,14 @@ nk.test("Has user field", () => {
 
   variableTooltipConfig: VariableTooltipConfig = {
     resolver: (name: string): VariableInfo | undefined => {
-      const info = this.environmentService.getVariableInfo(this.request.collectionPath, name);
+      const info = this.environmentService.getVariableInfo(this.request().collectionPath, name);
       if (!info) return undefined;
       return { name, value: info.value, isSecret: info.isSecret };
     },
     onSave: (name: string, value: string): void => {
-      const env = this.environmentService.getActiveEnvironment(this.request.collectionPath);
+      const env = this.environmentService.getActiveEnvironment(this.request().collectionPath);
       if (env) {
-        this.environmentService.addVariable(this.request.collectionPath, env.id, {
+        this.environmentService.addVariable(this.request().collectionPath, env.id, {
           key: name,
           value,
           enabled: true
@@ -186,12 +186,14 @@ nk.test("Has user field", () => {
   };
 
   onPreChange(pre: string): void {
-    const scripts: Scripts = { ...this.request.scripts, pre };
-    this.workspace.updateRequestScripts(this.request.id, scripts);
+    const req = this.request();
+    const scripts: Scripts = { ...req.scripts, pre };
+    this.workspace.updateRequestScripts(req.id, scripts);
   }
 
   onPostChange(post: string): void {
-    const scripts: Scripts = { ...this.request.scripts, post };
-    this.workspace.updateRequestScripts(this.request.id, scripts);
+    const req = this.request();
+    const scripts: Scripts = { ...req.scripts, post };
+    this.workspace.updateRequestScripts(req.id, scripts);
   }
 }

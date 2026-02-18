@@ -1,13 +1,14 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, input, model } from '@angular/core';
 import { ButtonComponent, InputComponent, CheckboxComponent } from '@m1z23r/ngx-ui';
 import { KeyValue } from '../../core/models/collection.model';
+import { TemplateInputWrapperComponent } from '../../shared/components/template-input-wrapper.component';
 
 @Component({
   selector: 'app-key-value-editor',
-  imports: [ButtonComponent, InputComponent, CheckboxComponent],
+  imports: [ButtonComponent, InputComponent, CheckboxComponent, TemplateInputWrapperComponent],
   template: `
     <div class="kv-editor">
-      @for (item of items; track $index; let i = $index) {
+      @for (item of items(); track $index; let i = $index) {
         <div class="kv-row">
           <ui-checkbox
             [checked]="item.enabled"
@@ -16,12 +17,13 @@ import { KeyValue } from '../../core/models/collection.model';
             class="kv-key"
             [value]="item.key"
             (valueChange)="onKeyChange(i, $event.toString())"
-            [placeholder]="keyPlaceholder" />
-          <ui-input
+            [placeholder]="keyPlaceholder()" />
+          <app-template-input
             class="kv-value"
             [value]="item.value"
-            (valueChange)="onValueChange(i, $event.toString())"
-            [placeholder]="valuePlaceholder" />
+            (valueChange)="onValueChange(i, $event)"
+            [placeholder]="valuePlaceholder()"
+            [collectionPath]="collectionPath()" />
           <ui-button variant="ghost" size="sm" (clicked)="onRemove(i)" title="Remove">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"/>
@@ -57,37 +59,36 @@ import { KeyValue } from '../../core/models/collection.model';
   `]
 })
 export class KeyValueEditorComponent {
-  @Input() items: KeyValue[] = [];
-  @Input() keyPlaceholder = 'Key';
-  @Input() valuePlaceholder = 'Value';
-  @Output() itemsChange = new EventEmitter<KeyValue[]>();
-
-  private emitChange(): void {
-    this.itemsChange.emit([...this.items]);
-  }
+  items = model<KeyValue[]>([]);
+  keyPlaceholder = input('Key');
+  valuePlaceholder = input('Value');
+  collectionPath = input('');
 
   onToggle(index: number): void {
-    this.items[index] = { ...this.items[index], enabled: !this.items[index].enabled };
-    this.emitChange();
+    const arr = [...this.items()];
+    arr[index] = { ...arr[index], enabled: !arr[index].enabled };
+    this.items.set(arr);
   }
 
   onKeyChange(index: number, key: string): void {
-    this.items[index] = { ...this.items[index], key };
-    this.emitChange();
+    const arr = [...this.items()];
+    arr[index] = { ...arr[index], key };
+    this.items.set(arr);
   }
 
   onValueChange(index: number, value: string): void {
-    this.items[index] = { ...this.items[index], value };
-    this.emitChange();
+    const arr = [...this.items()];
+    arr[index] = { ...arr[index], value };
+    this.items.set(arr);
   }
 
   onRemove(index: number): void {
-    this.items.splice(index, 1);
-    this.emitChange();
+    const arr = [...this.items()];
+    arr.splice(index, 1);
+    this.items.set(arr);
   }
 
   onAdd(): void {
-    this.items.push({ key: '', value: '', enabled: true });
-    this.emitChange();
+    this.items.set([...this.items(), { key: '', value: '', enabled: true }]);
   }
 }
