@@ -5,10 +5,10 @@ import {
   InputComponent,
   SelectComponent,
   OptionComponent,
+  TextareaComponent,
   DIALOG_REF,
   DialogRef
 } from '@m1z23r/ngx-ui';
-import { FormsModule } from '@angular/forms';
 import { HttpMethod, KeyValue, RequestBody } from '../../../core/models/collection.model';
 import { parseCurl } from '../../../core/utils/curl';
 
@@ -24,7 +24,7 @@ export interface NewRequestDialogResult {
 
 @Component({
   selector: 'app-new-request-dialog',
-  imports: [ModalComponent, ButtonComponent, InputComponent, SelectComponent, OptionComponent, FormsModule],
+  imports: [ModalComponent, ButtonComponent, InputComponent, SelectComponent, OptionComponent, TextareaComponent],
   template: `
     <ui-modal title="New Request" size="md">
       <div class="mode-tabs">
@@ -97,16 +97,15 @@ export interface NewRequestDialogResult {
             [(value)]="name"
             placeholder="Get Users" />
           <div class="curl-field">
-            <label class="curl-label">cURL Command</label>
-            <textarea
+            <ui-textarea
               class="curl-input"
-              [ngModel]="curlCommand()"
-              (ngModelChange)="onCurlChange($event)"
-              placeholder="curl -X POST 'https://api.example.com/users' \\
-  -H 'Content-Type: application/json' \\
-  -d '{&quot;name&quot;: &quot;John&quot;}'"
-              rows="6"
-            ></textarea>
+              label="cURL Command"
+              [value]="curlCommand()"
+              (valueChange)="onCurlChange($event)"
+              placeholder="curl -X POST 'https://api.example.com/users' -H 'Content-Type: application/json' -d '{&quot;name&quot;: &quot;John&quot;&#125;'"
+              [rows]="6"
+              resize="vertical"
+            />
             @if (curlError()) {
               <div class="error-message">{{ curlError() }}</div>
             }
@@ -162,32 +161,8 @@ export interface NewRequestDialogResult {
       gap: 0.375rem;
     }
 
-    .curl-label {
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: var(--ui-text);
-    }
-
     .curl-input {
       width: 100%;
-      padding: 0.75rem;
-      font-family: var(--ui-font-mono, ui-monospace, monospace);
-      font-size: 0.875rem;
-      line-height: 1.5;
-      border: 1px solid var(--ui-border);
-      border-radius: 4px;
-      background-color: var(--ui-bg);
-      color: var(--ui-text);
-      resize: vertical;
-
-      &:focus {
-        outline: none;
-        border-color: var(--ui-primary);
-      }
-
-      &::placeholder {
-        color: var(--ui-text-muted);
-      }
     }
 
     .error-message {

@@ -17,12 +17,18 @@ import { CodeEditorComponent } from '../../../shared/code-editor/code-editor.com
   `,
   styles: [`
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
       height: 100%;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .json-viewer {
-      height: 100%;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
     }
   `]
 })

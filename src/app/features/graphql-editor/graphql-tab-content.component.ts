@@ -84,6 +84,46 @@ export interface GraphQLTabData {
       border-radius: 8px;
       overflow: hidden;
     }
+
+    :host ::ng-deep .config-panels > ui-tabs,
+    :host ::ng-deep .response-panels > ui-tabs {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :host ::ng-deep .config-panels > ui-tabs > .ui-tabs,
+    :host ::ng-deep .response-panels > ui-tabs > .ui-tabs {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :host ::ng-deep .config-panels .ui-tabs__panels,
+    :host ::ng-deep .response-panels .ui-tabs__panels {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :host ::ng-deep .config-panels ui-tab:has(> .ui-tab-panel),
+    :host ::ng-deep .response-panels ui-tab:has(> .ui-tab-panel) {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :host ::ng-deep .config-panels .ui-tab-panel,
+    :host ::ng-deep .response-panels .ui-tab-panel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
   `]
 })
 export class GraphQLTabContentComponent {

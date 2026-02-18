@@ -2,28 +2,26 @@ import { Component, inject, signal, computed } from '@angular/core';
 import {
   ModalComponent,
   ButtonComponent,
+  TextareaComponent,
   DIALOG_REF,
   DialogRef
 } from '@m1z23r/ngx-ui';
-import { FormsModule } from '@angular/forms';
 import { ParsedCurl, parseCurl } from '../../core/utils/curl';
 
 @Component({
   selector: 'app-curl-import-dialog',
-  imports: [ModalComponent, ButtonComponent, FormsModule],
+  imports: [ModalComponent, ButtonComponent, TextareaComponent],
   template: `
     <ui-modal title="Import cURL" size="lg">
       <div class="curl-import-content">
         <p class="help-text">Paste a cURL command below to import it as a request.</p>
-        <textarea
+        <ui-textarea
           class="curl-input"
-          [ngModel]="curlCommand()"
-          (ngModelChange)="curlCommand.set($event)"
-          placeholder="curl -X POST 'https://api.example.com/users' \\
-  -H 'Content-Type: application/json' \\
-  -d '{&quot;name&quot;: &quot;John&quot;}'"
-          rows="8"
-        ></textarea>
+          [(value)]="curlCommand"
+          placeholder="curl -X POST 'https://api.example.com/users' -H 'Content-Type: application/json' -d '{&quot;name&quot;: &quot;John&quot;&#125;'"
+          [rows]="8"
+          resize="vertical"
+        />
         @if (error()) {
           <div class="error-message">{{ error() }}</div>
         }
@@ -52,24 +50,6 @@ import { ParsedCurl, parseCurl } from '../../core/utils/curl';
 
     .curl-input {
       width: 100%;
-      padding: 0.75rem;
-      font-family: var(--ui-font-mono, ui-monospace, monospace);
-      font-size: 0.875rem;
-      line-height: 1.5;
-      border: 1px solid var(--ui-border);
-      border-radius: 4px;
-      background-color: var(--ui-bg);
-      color: var(--ui-text);
-      resize: vertical;
-
-      &:focus {
-        outline: none;
-        border-color: var(--ui-primary);
-      }
-
-      &::placeholder {
-        color: var(--ui-text-muted);
-      }
     }
 
     .error-message {

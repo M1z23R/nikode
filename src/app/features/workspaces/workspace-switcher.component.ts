@@ -5,12 +5,15 @@ import {
   DropdownDividerComponent,
   DropdownTriggerDirective,
   DialogService,
-  ButtonComponent
+  ButtonComponent,
+  ToastService
 } from '@m1z23r/ngx-ui';
 import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
 import { Workspace } from '../../core/models/cloud.model';
 import { NewWorkspaceDialogComponent } from './new-workspace.dialog';
 import { WorkspaceMembersDialogComponent } from './workspace-members.dialog';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/dialogs/confirm.dialog';
+import { InputDialogComponent, InputDialogData } from '../../shared/dialogs/input.dialog';
 
 @Component({
   selector: 'app-workspace-switcher',
@@ -38,13 +41,27 @@ import { WorkspaceMembersDialogComponent } from './workspace-members.dialog';
         <div class="dropdown-section-header">OWNED</div>
         @for (workspace of ownedWorkspaces(); track workspace.id) {
           <ui-dropdown-item (clicked)="selectWorkspace(workspace)">
-            <div class="workspace-item">
+            <div class="workspace-item" [class.workspace-item--active]="isActive(workspace)">
               <span>{{ workspace.name }}</span>
-              @if (isActive(workspace)) {
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-              }
+              <div class="workspace-item-actions">
+                <ui-dropdown class="workspace-actions" [closeOnSelect]="true">
+                  <span
+                    uiDropdownTrigger
+                    class="workspace-dots"
+                    (click)="onActionsClick($event)"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="5" cy="12" r="2"/>
+                      <circle cx="12" cy="12" r="2"/>
+                      <circle cx="19" cy="12" r="2"/>
+                    </svg>
+                  </span>
+                  <ui-dropdown-item (clicked)="renameWorkspace(workspace)">Rename</ui-dropdown-item>
+                  <ui-dropdown-item (clicked)="deleteWorkspace(workspace)">
+                    <span class="danger-text">Delete</span>
+                  </ui-dropdown-item>
+                </ui-dropdown>
+              </div>
             </div>
           </ui-dropdown-item>
         }
@@ -54,13 +71,26 @@ import { WorkspaceMembersDialogComponent } from './workspace-members.dialog';
         <div class="dropdown-section-header">SHARED WITH ME</div>
         @for (workspace of sharedWorkspaces(); track workspace.id) {
           <ui-dropdown-item (clicked)="selectWorkspace(workspace)">
-            <div class="workspace-item">
+            <div class="workspace-item" [class.workspace-item--active]="isActive(workspace)">
               <span>{{ workspace.name }}</span>
-              @if (isActive(workspace)) {
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-              }
+              <div class="workspace-item-actions">
+                <ui-dropdown class="workspace-actions" [closeOnSelect]="true">
+                  <span
+                    uiDropdownTrigger
+                    class="workspace-dots"
+                    (click)="onActionsClick($event)"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="5" cy="12" r="2"/>
+                      <circle cx="12" cy="12" r="2"/>
+                      <circle cx="19" cy="12" r="2"/>
+                    </svg>
+                  </span>
+                  <ui-dropdown-item (clicked)="leaveWorkspace(workspace)">
+                    <span class="danger-text">Leave</span>
+                  </ui-dropdown-item>
+                </ui-dropdown>
+              </div>
             </div>
           </ui-dropdown-item>
         }
@@ -122,10 +152,31 @@ import { WorkspaceMembersDialogComponent } from './workspace-members.dialog';
       gap: 0.5rem;
       width: 100%;
 
-      svg {
-        color: var(--ui-primary);
-        flex-shrink: 0;
+      &--active span:first-child {
+        font-weight: 600;
       }
+    }
+
+    .workspace-item-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      flex-shrink: 0;
+    }
+
+    .workspace-dots {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      color: var(--ui-text-muted);
+
+      &:hover {
+        color: var(--ui-text);
+      }
+    }
+
+    .danger-text {
+      color: var(--ui-danger);
     }
 
     .action-item {
@@ -137,6 +188,7 @@ import { WorkspaceMembersDialogComponent } from './workspace-members.dialog';
 })
 export class WorkspaceSwitcherComponent {
   private dialogService = inject(DialogService);
+  private toastService = inject(ToastService);
   readonly cloudWorkspaceService = inject(CloudWorkspaceService);
 
   readonly activeWorkspaceName = computed(() => {
@@ -175,5 +227,78 @@ export class WorkspaceSwitcherComponent {
       WorkspaceMembersDialogComponent,
       { data: { workspace: activeWorkspace } }
     );
+  }
+
+  onActionsClick(event: MouseEvent): void {
+    event.stopPropagation();
+  }
+
+  async deleteWorkspace(workspace: Workspace): Promise<void> {
+    const ref = this.dialogService.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Delete Workspace',
+          message: `Are you sure you want to delete "${workspace.name}"? This action cannot be undone.`,
+          confirmLabel: 'Delete',
+          confirmColor: 'danger'
+        }
+      }
+    );
+    const confirmed = await ref.afterClosed();
+    if (!confirmed) return;
+
+    try {
+      await this.cloudWorkspaceService.deleteWorkspace(workspace.id);
+      this.toastService.success(`Workspace "${workspace.name}" deleted`);
+    } catch (e: any) {
+      this.toastService.error(e?.message ?? 'Failed to delete workspace');
+    }
+  }
+
+  async leaveWorkspace(workspace: Workspace): Promise<void> {
+    const ref = this.dialogService.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Leave Workspace',
+          message: `Are you sure you want to leave "${workspace.name}"?`,
+          confirmLabel: 'Leave',
+          confirmColor: 'danger'
+        }
+      }
+    );
+    const confirmed = await ref.afterClosed();
+    if (!confirmed) return;
+
+    try {
+      await this.cloudWorkspaceService.leaveWorkspace(workspace.id);
+      this.toastService.success(`Left workspace "${workspace.name}"`);
+    } catch (e: any) {
+      this.toastService.error(e?.message ?? 'Failed to leave workspace');
+    }
+  }
+
+  async renameWorkspace(workspace: Workspace): Promise<void> {
+    const ref = this.dialogService.open<InputDialogComponent, InputDialogData, string | undefined>(
+      InputDialogComponent,
+      {
+        data: {
+          title: 'Rename Workspace',
+          label: 'Name',
+          initialValue: workspace.name,
+          submitLabel: 'Rename'
+        }
+      }
+    );
+    const newName = await ref.afterClosed();
+    if (!newName || newName === workspace.name) return;
+
+    try {
+      await this.cloudWorkspaceService.updateWorkspace(workspace.id, newName);
+      this.toastService.success(`Workspace renamed to "${newName}"`);
+    } catch (e: any) {
+      this.toastService.error(e?.message ?? 'Failed to rename workspace');
+    }
   }
 }

@@ -95,15 +95,19 @@ import { BinaryViewerComponent } from '../viewers/binary-viewer.component';
   `,
   styles: [`
     :host {
-      display: block;
-      padding: 1rem;
+      display: flex;
+      flex-direction: column;
       height: 100%;
+      padding: 1rem;
+      overflow: hidden;
+      box-sizing: border-box;
     }
 
     .response-tab {
       display: flex;
       flex-direction: column;
       height: 100%;
+      min-height: 0;
     }
 
     .body-section {
@@ -134,7 +138,9 @@ import { BinaryViewerComponent } from '../viewers/binary-viewer.component';
 
     .body-editor {
       flex: 1;
-      min-height: 200px;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
     }
   `]
 })

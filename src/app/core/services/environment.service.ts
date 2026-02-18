@@ -2,7 +2,6 @@ import { Injectable, inject, signal, effect } from '@angular/core';
 import { ToastService } from '@m1z23r/ngx-ui';
 import { isIpcError } from '@shared/ipc-types';
 import { ApiService } from './api.service';
-import { CollectionService } from './collection.service';
 import { UnifiedCollectionService } from './unified-collection.service';
 import { Secrets, ResolvedVariables } from '../models/environment.model';
 import { Environment, Variable, UnifiedCollection } from '../models/collection.model';
@@ -10,7 +9,6 @@ import { Environment, Variable, UnifiedCollection } from '../models/collection.m
 @Injectable({ providedIn: 'root' })
 export class EnvironmentService {
   private api = inject(ApiService);
-  private collectionService = inject(CollectionService);
   private unifiedCollectionService = inject(UnifiedCollectionService);
   private toastService = inject(ToastService);
 
@@ -18,17 +16,17 @@ export class EnvironmentService {
   private pendingLoads = new Set<string>();
 
   constructor() {
-    // Auto-load secrets when local collections are opened
-    // (cloud collections don't have local secrets)
+    // Auto-load secrets for all collections (local and cloud)
+    // Secrets are always stored locally on the user's machine
     effect(() => {
-      const collections = this.collectionService.collections();
+      const allCollections = this.unifiedCollectionService.collections();
       const cache = this.secretsCache();
 
-      for (const col of collections) {
-        if (!cache.has(col.path) && !this.pendingLoads.has(col.path)) {
-          this.pendingLoads.add(col.path);
-          this.loadSecrets(col.path).finally(() => {
-            this.pendingLoads.delete(col.path);
+      for (const col of allCollections) {
+        if (!cache.has(col.id) && !this.pendingLoads.has(col.id)) {
+          this.pendingLoads.add(col.id);
+          this.loadSecrets(col.id).finally(() => {
+            this.pendingLoads.delete(col.id);
           });
         }
       }
@@ -108,8 +106,7 @@ export class EnvironmentService {
     const env = this.getActiveEnvironment(collectionPath);
     const col = this.getUnifiedCollection(collectionPath);
 
-    // Only get secrets for local collections
-    const secrets = col?.source === 'local' ? this.getSecrets(collectionPath) : undefined;
+    const secrets = this.getSecrets(collectionPath);
 
     if (!env || !col) return {};
 
@@ -137,7 +134,6 @@ export class EnvironmentService {
    */
   getVariableInfo(collectionPath: string, key: string): { value: string | undefined; isSecret: boolean } | undefined {
     const env = this.getActiveEnvironment(collectionPath);
-    const col = this.getUnifiedCollection(collectionPath);
     if (!env) return undefined;
 
     const variable = env.variables.find(v => v.key === key && v.enabled);
@@ -146,13 +142,9 @@ export class EnvironmentService {
     const isSecret = variable.secret ?? false;
 
     if (isSecret) {
-      // Only get secrets for local collections
-      if (col?.source === 'local') {
-        const secrets = this.getSecrets(collectionPath);
-        const value = secrets?.[env.id]?.[variable.key];
-        return { value, isSecret: true };
-      }
-      return { value: undefined, isSecret: true };
+      const secrets = this.getSecrets(collectionPath);
+      const value = secrets?.[env.id]?.[variable.key];
+      return { value, isSecret: true };
     }
 
     return { value: variable.value, isSecret: false };
@@ -225,16 +217,18 @@ export class EnvironmentService {
     return true;
   }
 
-  updateVariable(collectionPath: string, envId: string, key: string, updates: Partial<Variable>): boolean {
+  updateVariable(collectionPath: string, envId: string, index: number, updates: Partial<Variable>): boolean {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return false;
 
     const env = col.collection.environments.find(e => e.id === envId);
     if (!env) return false;
+    if (index < 0 || index >= env.variables.length) return false;
 
     // Check for duplicate key if key is being changed
-    if (updates.key !== undefined && updates.key !== key && updates.key !== '') {
-      if (env.variables.some(v => v.key === updates.key)) {
+    const currentKey = env.variables[index].key;
+    if (updates.key !== undefined && updates.key !== currentKey && updates.key !== '') {
+      if (env.variables.some((v, i) => i !== index && v.key === updates.key)) {
         this.toastService.error(`Variable "${updates.key}" already exists`);
         return false;
       }
@@ -246,8 +240,8 @@ export class EnvironmentService {
         e.id === envId
           ? {
               ...e,
-              variables: e.variables.map(v =>
-                v.key === key ? { ...v, ...updates } : v
+              variables: e.variables.map((v, i) =>
+                i === index ? { ...v, ...updates } : v
               )
             }
           : e
@@ -256,7 +250,7 @@ export class EnvironmentService {
     return true;
   }
 
-  deleteVariable(collectionPath: string, envId: string, key: string): void {
+  deleteVariable(collectionPath: string, envId: string, index: number): void {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
@@ -264,7 +258,7 @@ export class EnvironmentService {
       ...col.collection,
       environments: col.collection.environments.map(e =>
         e.id === envId
-          ? { ...e, variables: e.variables.filter(v => v.key !== key) }
+          ? { ...e, variables: e.variables.filter((_, i) => i !== index) }
           : e
       )
     });
@@ -334,8 +328,8 @@ export class EnvironmentService {
       environments: [...col.collection.environments, newEnv]
     });
 
-    // Import secrets if provided (only for local collections)
-    if (col.source === 'local' && data.secrets) {
+    // Import secrets if provided
+    if (data.secrets) {
       const currentSecrets = this.getSecrets(collectionPath) || {};
       const updatedSecrets: Secrets = {
         ...currentSecrets,

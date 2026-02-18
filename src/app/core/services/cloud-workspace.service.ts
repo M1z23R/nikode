@@ -6,6 +6,8 @@ import { Workspace, CloudCollection, WorkspaceMember, WorkspaceInvite } from '..
 import { Collection } from '../models/collection.model';
 import { isIpcError } from '@shared/ipc-types';
 
+const LAST_WORKSPACE_KEY = 'nikode-last-workspace';
+
 @Injectable({ providedIn: 'root' })
 export class CloudWorkspaceService {
   private apiClient = inject(ApiClientService);
@@ -31,6 +33,14 @@ export class CloudWorkspaceService {
     try {
       const workspaces = await this.apiClient.get<Workspace[]>('/workspaces');
       this.workspaces.set(workspaces);
+
+      const lastId = localStorage.getItem(LAST_WORKSPACE_KEY);
+      if (lastId && !this.activeWorkspace()) {
+        const match = workspaces.find(w => w.id === lastId);
+        if (match) {
+          await this.selectWorkspace(match);
+        }
+      }
     } finally {
       this.isLoading.set(false);
     }
@@ -63,8 +73,10 @@ export class CloudWorkspaceService {
   async selectWorkspace(workspace: Workspace | null): Promise<void> {
     this.activeWorkspace.set(workspace);
     if (workspace) {
+      localStorage.setItem(LAST_WORKSPACE_KEY, workspace.id);
       await this.loadCollections(workspace.id);
     } else {
+      localStorage.removeItem(LAST_WORKSPACE_KEY);
       this.collections.set([]);
     }
   }
@@ -197,5 +209,6 @@ export class CloudWorkspaceService {
     this.activeWorkspace.set(null);
     this.collections.set([]);
     this.pendingInvites.set([]);
+    localStorage.removeItem(LAST_WORKSPACE_KEY);
   }
 }

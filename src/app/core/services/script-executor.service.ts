@@ -84,9 +84,9 @@ export class ScriptExecutorService {
       setEnv: (key: string, value: string): void => {
         const env = this.environmentService.getActiveEnvironment(collectionPath);
         if (env) {
-          const existingVar = env.variables.find(v => v.key === key);
-          if (existingVar) {
-            this.environmentService.updateVariable(collectionPath, env.id, key, { value });
+          const existingIndex = env.variables.findIndex(v => v.key === key);
+          if (existingIndex !== -1) {
+            this.environmentService.updateVariable(collectionPath, env.id, existingIndex, { value });
           } else {
             this.environmentService.addVariable(collectionPath, env.id, {
               key,

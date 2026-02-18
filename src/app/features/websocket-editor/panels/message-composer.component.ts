@@ -1,6 +1,5 @@
 import { Component, inject, input, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { ButtonComponent, TabsComponent, TabComponent, DialogService } from '@m1z23r/ngx-ui';
+import { ButtonComponent, TabsComponent, TabComponent, TextareaComponent, DialogService } from '@m1z23r/ngx-ui';
 import { WebSocketService } from '../../../core/services/websocket.service';
 import { OpenWebSocketConnection, WebSocketSavedMessage } from '../../../core/models/websocket.model';
 import { InputDialogComponent, InputDialogData } from '../../../shared/dialogs/input.dialog';
@@ -8,19 +7,19 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/dialo
 
 @Component({
   selector: 'app-message-composer',
-  imports: [FormsModule, ButtonComponent, TabsComponent, TabComponent],
+  imports: [ButtonComponent, TabsComponent, TabComponent, TextareaComponent],
   template: `
     <div class="composer">
       <ui-tabs [activeTab]="activeTab()" (activeTabChange)="activeTab.set($any($event))" variant="underline">
         <ui-tab id="text" label="Text">
           <div class="compose-content">
-            <textarea
+            <ui-textarea
               class="message-input"
-              [ngModel]="textMessage()"
-              (ngModelChange)="textMessage.set($event)"
+              [(value)]="textMessage"
               placeholder="Enter message to send..."
-              rows="8"
-            ></textarea>
+              [rows]="8"
+              resize="none"
+            />
             <div class="compose-actions">
               <ui-button
                 color="primary"
@@ -40,13 +39,13 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/dialo
         <ui-tab id="binary" label="Binary">
           <div class="compose-content">
             <div class="binary-input-wrapper">
-              <textarea
+              <ui-textarea
                 class="message-input"
-                [ngModel]="binaryMessage()"
-                (ngModelChange)="binaryMessage.set($event)"
+                [(value)]="binaryMessage"
                 placeholder="Enter base64-encoded binary data..."
-                rows="8"
-              ></textarea>
+                [rows]="8"
+                resize="none"
+              />
               <div class="binary-hint">Data should be base64-encoded</div>
             </div>
             <div class="compose-actions">
@@ -123,24 +122,6 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../../../shared/dialo
 
     .message-input {
       flex: 1;
-      padding: 0.75rem;
-      font-family: var(--ui-font-mono, ui-monospace, monospace);
-      font-size: 0.875rem;
-      line-height: 1.5;
-      border: 1px solid var(--ui-border);
-      border-radius: 6px;
-      background-color: var(--ui-bg);
-      color: var(--ui-text);
-      resize: none;
-
-      &:focus {
-        outline: none;
-        border-color: var(--ui-accent);
-      }
-
-      &::placeholder {
-        color: var(--ui-text-muted);
-      }
     }
 
     .binary-input-wrapper {

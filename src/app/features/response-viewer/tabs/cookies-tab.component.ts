@@ -48,6 +48,9 @@ import { ProxyResponse } from '../../../core/models/request.model';
     :host {
       display: block;
       padding: 1rem;
+      height: 100%;
+      overflow: auto;
+      box-sizing: border-box;
     }
 
     .cookies-tab {

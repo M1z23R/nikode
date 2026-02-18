@@ -102,14 +102,18 @@ import { CodeEditorComponent } from '../../../shared/code-editor/code-editor.com
   `,
   styles: [`
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
       height: 100%;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .response-panel {
       display: flex;
       flex-direction: column;
       height: 100%;
+      min-height: 0;
     }
 
     .loading-state, .empty-state {
@@ -144,6 +148,42 @@ import { CodeEditorComponent } from '../../../shared/code-editor/code-editor.com
       display: flex;
       flex-direction: column;
       height: 100%;
+      min-height: 0;
+    }
+
+    :host ::ng-deep .response-content > ui-tabs {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :host ::ng-deep .response-content > ui-tabs > .ui-tabs {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :host ::ng-deep .response-content .ui-tabs__panels {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :host ::ng-deep .response-content ui-tab:has(> .ui-tab-panel) {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :host ::ng-deep .response-content .ui-tab-panel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
     }
 
     .response-header {
@@ -198,6 +238,12 @@ import { CodeEditorComponent } from '../../../shared/code-editor/code-editor.com
       flex: 1;
       min-height: 0;
       padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .tab-content.headers-content {
       overflow: auto;
     }
 

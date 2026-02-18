@@ -149,12 +149,9 @@ import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor
       top: 8px;
       right: 8px;
       z-index: 10;
-      opacity: 0.7;
-      transition: opacity 0.15s ease;
-
-      &:hover {
-        opacity: 1;
-      }
+      background: var(--ui-bg);
+      border: 1px solid var(--ui-border);
+      border-radius: var(--ui-radius-sm, 4px);
     }
 
     .form-data-wrapper {

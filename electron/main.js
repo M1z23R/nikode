@@ -33,8 +33,7 @@ let mainWindow;
 
 // Get API base URL based on environment
 function getApiBaseUrl() {
-  const isDev = process.env.NODE_ENV === 'development';
-  return isDev ? 'http://localhost:8080/api/v1' : 'https://nikode.dimitrije.dev/api/v1';
+  return 'https://nikode.dimitrije.dev/api/v1';
 }
 
 // Parse nikode:// auth callback URL and extract auth code

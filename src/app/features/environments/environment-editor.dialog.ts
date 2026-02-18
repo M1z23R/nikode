@@ -261,19 +261,13 @@ export class EnvironmentEditorDialogComponent implements OnInit {
   secrets = computed(() => this.allSecrets()[this.selectedEnvId()] || {});
 
   ngOnInit(): void {
-    // Only load secrets for local collections
     const collection = this.unifiedCollectionService.getCollection(this.data.collectionPath);
-    if (collection?.source === 'local') {
-      this.environmentService.loadSecrets(this.data.collectionPath);
-    }
     if (collection) {
+      this.environmentService.loadSecrets(this.data.collectionPath);
       this.selectedEnvId.set(collection.collection.activeEnvironmentId);
-      if (collection.source === 'local') {
-        const loadedSecrets = this.environmentService.getSecrets(this.data.collectionPath);
-        if (loadedSecrets) {
-          // Load all environments' secrets, not just the selected one
-          this.allSecrets.set({ ...loadedSecrets });
-        }
+      const loadedSecrets = this.environmentService.getSecrets(this.data.collectionPath);
+      if (loadedSecrets) {
+        this.allSecrets.set({ ...loadedSecrets });
       }
     }
   }
@@ -343,28 +337,22 @@ export class EnvironmentEditorDialogComponent implements OnInit {
   toggleVariable(index: number): void {
     const variable = this.selectedEnv()?.variables[index];
     if (variable) {
-      this.environmentService.updateVariable(this.data.collectionPath, this.selectedEnvId(), variable.key, {
+      this.environmentService.updateVariable(this.data.collectionPath, this.selectedEnvId(), index, {
         enabled: !variable.enabled
       });
     }
   }
 
   updateVariableKey(index: number, newKey: string): void {
-    const variable = this.selectedEnv()?.variables[index];
-    if (variable) {
-      this.environmentService.updateVariable(this.data.collectionPath, this.selectedEnvId(), variable.key, {
-        key: newKey
-      });
-    }
+    this.environmentService.updateVariable(this.data.collectionPath, this.selectedEnvId(), index, {
+      key: newKey
+    });
   }
 
   updateVariableValue(index: number, value: string): void {
-    const variable = this.selectedEnv()?.variables[index];
-    if (variable) {
-      this.environmentService.updateVariable(this.data.collectionPath, this.selectedEnvId(), variable.key, {
-        value
-      });
-    }
+    this.environmentService.updateVariable(this.data.collectionPath, this.selectedEnvId(), index, {
+      value
+    });
   }
 
   toggleSecret(index: number): void {
@@ -373,21 +361,26 @@ export class EnvironmentEditorDialogComponent implements OnInit {
       const becomingSecret = !variable.secret;
       const updates: Partial<Variable> = { secret: becomingSecret };
 
-      // When converting to secret, clear the value from collection data
-      // (the actual secret value should be entered fresh in the secrets store)
       if (becomingSecret) {
+        // Migrate current value to the secrets store before clearing it
+        if (variable.value) {
+          this.updateSecretValue(variable.key, variable.value);
+        }
         updates.value = '';
+      } else {
+        // Converting from secret back to normal: migrate secret value to collection data
+        const secretValue = this.getSecretValue(variable.key);
+        if (secretValue) {
+          updates.value = secretValue;
+        }
       }
 
-      this.environmentService.updateVariable(this.data.collectionPath, this.selectedEnvId(), variable.key, updates);
+      this.environmentService.updateVariable(this.data.collectionPath, this.selectedEnvId(), index, updates);
     }
   }
 
   deleteVariable(index: number): void {
-    const variable = this.selectedEnv()?.variables[index];
-    if (variable) {
-      this.environmentService.deleteVariable(this.data.collectionPath, this.selectedEnvId(), variable.key);
-    }
+    this.environmentService.deleteVariable(this.data.collectionPath, this.selectedEnvId(), index);
   }
 
   getSecretValue(key: string): string {
@@ -503,16 +496,12 @@ export class EnvironmentEditorDialogComponent implements OnInit {
 
   save(): void {
     this.unifiedCollectionService.save(this.data.collectionPath);
-    // Only save secrets for local collections
-    const collection = this.unifiedCollectionService.getCollection(this.data.collectionPath);
-    if (collection?.source === 'local') {
-      // Merge locally tracked secrets with existing ones to avoid wiping other environments
-      const existingSecrets = this.environmentService.getSecrets(this.data.collectionPath) || {};
-      this.environmentService.saveSecrets(this.data.collectionPath, {
-        ...existingSecrets,
-        ...this.allSecrets()
-      });
-    }
+    // Merge locally tracked secrets with existing ones to avoid wiping other environments
+    const existingSecrets = this.environmentService.getSecrets(this.data.collectionPath) || {};
+    this.environmentService.saveSecrets(this.data.collectionPath, {
+      ...existingSecrets,
+      ...this.allSecrets()
+    });
     this.dialogRef.close();
   }
 }
