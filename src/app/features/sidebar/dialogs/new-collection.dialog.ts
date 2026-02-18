@@ -12,7 +12,6 @@ import { isIpcError } from '@shared/ipc-types';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { CloudWorkspaceService } from '../../../core/services/cloud-workspace.service';
-import { TeamService } from '../../../core/services/team.service';
 import { Workspace } from '../../../core/models/cloud.model';
 
 export interface NewCollectionDialogResult {
@@ -74,15 +73,8 @@ export interface NewCollectionDialogResult {
         } @else {
           <div class="form-group">
             <ui-select label="Workspace" [(value)]="selectedWorkspaceId">
-              @if (personalWorkspaces().length > 0) {
-                @for (workspace of personalWorkspaces(); track workspace.id) {
-                  <ui-option [value]="workspace.id">{{ workspace.name }}</ui-option>
-                }
-              }
-              @for (group of teamWorkspaceGroups(); track group.teamId) {
-                @for (workspace of group.workspaces; track workspace.id) {
-                  <ui-option [value]="workspace.id">{{ group.teamName }} / {{ workspace.name }}</ui-option>
-                }
+              @for (workspace of workspaces(); track workspace.id) {
+                <ui-option [value]="workspace.id">{{ workspace.name }}</ui-option>
               }
             </ui-select>
           </div>
@@ -169,7 +161,6 @@ export class NewCollectionDialogComponent {
   private api = inject(ApiService);
   private authService = inject(AuthService);
   private cloudWorkspaceService = inject(CloudWorkspaceService);
-  private teamService = inject(TeamService);
   readonly dialogRef = inject(DIALOG_REF) as DialogRef<NewCollectionDialogResult | undefined>;
 
   collectionType = signal<'local' | 'cloud'>('local');
@@ -177,33 +168,18 @@ export class NewCollectionDialogComponent {
   path = signal('');
   selectedWorkspaceId = signal('');
 
+  workspaces = this.cloudWorkspaceService.workspaces;
+
   constructor() {
     // Initialize workspace selection
-    const workspaces = this.cloudWorkspaceService.workspaces();
-    if (workspaces.length > 0) {
-      this.selectedWorkspaceId.set(workspaces[0].id);
+    const workspaceList = this.cloudWorkspaceService.workspaces();
+    if (workspaceList.length > 0) {
+      this.selectedWorkspaceId.set(workspaceList[0].id);
     }
   }
 
   canUseCloud(): boolean {
     return this.authService.isAuthenticated() && this.cloudWorkspaceService.workspaces().length > 0;
-  }
-
-  personalWorkspaces(): Workspace[] {
-    return this.cloudWorkspaceService.workspaces().filter(w => w.type === 'personal');
-  }
-
-  teamWorkspaceGroups(): { teamId: string; teamName: string; workspaces: Workspace[] }[] {
-    const teams = this.teamService.teams();
-    const workspaces = this.cloudWorkspaceService.workspaces().filter(w => w.type === 'team');
-
-    return teams
-      .map(team => ({
-        teamId: team.id,
-        teamName: team.name,
-        workspaces: workspaces.filter(w => w.team_id === team.id)
-      }))
-      .filter(group => group.workspaces.length > 0);
   }
 
   isValid = computed(() => {

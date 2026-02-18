@@ -14,9 +14,8 @@ import {
 import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
 import { CollectionService } from '../../core/services/collection.service';
 import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
-import { TeamService } from '../../core/services/team.service';
 import { ApiService } from '../../core/services/api.service';
-import { Workspace, CloudCollection } from '../../core/models/cloud.model';
+import { CloudCollection } from '../../core/models/cloud.model';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/dialogs/confirm.dialog';
 
 export interface PushToCloudDialogData {
@@ -31,15 +30,8 @@ export interface PushToCloudDialogData {
     <ui-modal title="Push to Cloud" size="sm">
       <div class="form-group">
         <ui-select label="Workspace" [(value)]="selectedWorkspaceId">
-          @if (personalWorkspaces().length > 0) {
-            @for (workspace of personalWorkspaces(); track workspace.id) {
-              <ui-option [value]="workspace.id">{{ workspace.name }}</ui-option>
-            }
-          }
-          @for (group of teamWorkspaceGroups(); track group.teamId) {
-            @for (workspace of group.workspaces; track workspace.id) {
-              <ui-option [value]="workspace.id">{{ group.teamName }} / {{ workspace.name }}</ui-option>
-            }
+          @for (workspace of workspaces(); track workspace.id) {
+            <ui-option [value]="workspace.id">{{ workspace.name }}</ui-option>
           }
         </ui-select>
       </div>
@@ -89,7 +81,6 @@ export class PushToCloudDialogComponent implements OnInit {
   private cloudWorkspaceService = inject(CloudWorkspaceService);
   private collectionService = inject(CollectionService);
   private unifiedCollectionService = inject(UnifiedCollectionService);
-  private teamService = inject(TeamService);
   private dialogService = inject(DialogService);
   private toastService = inject(ToastService);
   private api = inject(ApiService);
@@ -99,30 +90,15 @@ export class PushToCloudDialogComponent implements OnInit {
   isLoading = signal(false);
   error = signal<string | null>(null);
 
+  workspaces = this.cloudWorkspaceService.workspaces;
+
   ngOnInit(): void {
     this.collectionName.set(this.data.collectionName);
 
-    const workspaces = this.cloudWorkspaceService.workspaces();
-    if (workspaces.length > 0) {
-      this.selectedWorkspaceId.set(workspaces[0].id);
+    const workspaceList = this.cloudWorkspaceService.workspaces();
+    if (workspaceList.length > 0) {
+      this.selectedWorkspaceId.set(workspaceList[0].id);
     }
-  }
-
-  personalWorkspaces(): Workspace[] {
-    return this.cloudWorkspaceService.workspaces().filter(w => w.type === 'personal');
-  }
-
-  teamWorkspaceGroups(): { teamId: string; teamName: string; workspaces: Workspace[] }[] {
-    const teams = this.teamService.teams();
-    const workspaces = this.cloudWorkspaceService.workspaces().filter(w => w.type === 'team');
-
-    return teams
-      .map(team => ({
-        teamId: team.id,
-        teamName: team.name,
-        workspaces: workspaces.filter(w => w.team_id === team.id)
-      }))
-      .filter(group => group.workspaces.length > 0);
   }
 
   canSubmit(): boolean {

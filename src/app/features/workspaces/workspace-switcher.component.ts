@@ -7,12 +7,10 @@ import {
   DialogService,
   ButtonComponent
 } from '@m1z23r/ngx-ui';
-import { AuthService } from '../../core/services/auth.service';
-import { TeamService } from '../../core/services/team.service';
 import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
 import { Workspace } from '../../core/models/cloud.model';
 import { NewWorkspaceDialogComponent } from './new-workspace.dialog';
-import { TeamManagementDialogComponent } from '../teams/team-management.dialog';
+import { WorkspaceMembersDialogComponent } from './workspace-members.dialog';
 
 @Component({
   selector: 'app-workspace-switcher',
@@ -36,9 +34,9 @@ import { TeamManagementDialogComponent } from '../teams/team-management.dialog';
         </svg>
       </ui-button>
 
-      @if (personalWorkspaces().length > 0) {
-        <div class="dropdown-section-header">PERSONAL</div>
-        @for (workspace of personalWorkspaces(); track workspace.id) {
+      @if (ownedWorkspaces().length > 0) {
+        <div class="dropdown-section-header">OWNED</div>
+        @for (workspace of ownedWorkspaces(); track workspace.id) {
           <ui-dropdown-item (clicked)="selectWorkspace(workspace)">
             <div class="workspace-item">
               <span>{{ workspace.name }}</span>
@@ -52,9 +50,9 @@ import { TeamManagementDialogComponent } from '../teams/team-management.dialog';
         }
       }
 
-      @for (group of teamWorkspaceGroups(); track group.teamId) {
-        <div class="dropdown-section-header">TEAM: {{ group.teamName }}</div>
-        @for (workspace of group.workspaces; track workspace.id) {
+      @if (sharedWorkspaces().length > 0) {
+        <div class="dropdown-section-header">SHARED WITH ME</div>
+        @for (workspace of sharedWorkspaces(); track workspace.id) {
           <ui-dropdown-item (clicked)="selectWorkspace(workspace)">
             <div class="workspace-item">
               <span>{{ workspace.name }}</span>
@@ -80,17 +78,19 @@ import { TeamManagementDialogComponent } from '../teams/team-management.dialog';
         </div>
       </ui-dropdown-item>
 
-      <ui-dropdown-item (clicked)="openTeamManagement()">
-        <div class="action-item">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-          <span>Manage Teams</span>
-        </div>
-      </ui-dropdown-item>
+      @if (cloudWorkspaceService.activeWorkspace()) {
+        <ui-dropdown-item (clicked)="openMembersDialog()">
+          <div class="action-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <span>Manage Members</span>
+          </div>
+        </ui-dropdown-item>
+      }
     </ui-dropdown>
   `,
   styles: [`
@@ -137,29 +137,19 @@ import { TeamManagementDialogComponent } from '../teams/team-management.dialog';
 })
 export class WorkspaceSwitcherComponent {
   private dialogService = inject(DialogService);
-  private teamService = inject(TeamService);
-  private cloudWorkspaceService = inject(CloudWorkspaceService);
+  readonly cloudWorkspaceService = inject(CloudWorkspaceService);
 
   readonly activeWorkspaceName = computed(() => {
     const active = this.cloudWorkspaceService.activeWorkspace();
     return active?.name ?? 'Select Workspace';
   });
 
-  readonly personalWorkspaces = computed(() => {
-    return this.cloudWorkspaceService.workspaces().filter(w => w.type === 'personal');
+  readonly ownedWorkspaces = computed(() => {
+    return this.cloudWorkspaceService.workspaces().filter(w => w.role === 'owner');
   });
 
-  readonly teamWorkspaceGroups = computed(() => {
-    const teams = this.teamService.teams();
-    const workspaces = this.cloudWorkspaceService.workspaces().filter(w => w.type === 'team');
-
-    return teams
-      .map(team => ({
-        teamId: team.id,
-        teamName: team.name,
-        workspaces: workspaces.filter(w => w.team_id === team.id)
-      }))
-      .filter(group => group.workspaces.length > 0);
+  readonly sharedWorkspaces = computed(() => {
+    return this.cloudWorkspaceService.workspaces().filter(w => w.role === 'member');
   });
 
   isActive(workspace: Workspace): boolean {
@@ -177,9 +167,13 @@ export class WorkspaceSwitcherComponent {
     await ref.afterClosed();
   }
 
-  openTeamManagement(): void {
-    this.dialogService.open<TeamManagementDialogComponent, void, void>(
-      TeamManagementDialogComponent
+  openMembersDialog(): void {
+    const activeWorkspace = this.cloudWorkspaceService.activeWorkspace();
+    if (!activeWorkspace) return;
+
+    this.dialogService.open<WorkspaceMembersDialogComponent, { workspace: Workspace }, void>(
+      WorkspaceMembersDialogComponent,
+      { data: { workspace: activeWorkspace } }
     );
   }
 }

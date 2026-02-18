@@ -1,26 +1,28 @@
 import { Collection } from './collection.model';
 import { User } from './auth.model';
 
-export interface Team {
+export interface Workspace {
   id: string;
   name: string;
   owner_id: string;
   role: 'owner' | 'member';
 }
 
-export interface TeamMember {
+export interface WorkspaceMember {
   id: string;
   user_id: string;
   role: 'owner' | 'member';
   user: User;
 }
 
-export interface Workspace {
+export interface WorkspaceInvite {
   id: string;
-  name: string;
-  user_id: string | null;
-  team_id: string | null;
-  type: 'personal' | 'team';
+  workspace_id: string;
+  status: 'pending' | 'accepted' | 'declined';
+  created_at: string;
+  workspace?: Workspace;
+  inviter?: User;
+  invitee?: User;
 }
 
 export interface CloudCollection {

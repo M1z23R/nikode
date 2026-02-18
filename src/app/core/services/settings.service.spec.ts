@@ -25,7 +25,7 @@ describe('SettingsService', () => {
 
   describe('default settings', () => {
     it('should initialize with default values', () => {
-      expect(service.autosave).toBe(false);
+      expect(service.autosave()).toBe(false);
       expect(service.timeout).toBe(30);
       expect(service.followRedirects).toBe(true);
       expect(service.validateSsl).toBe(true);
@@ -93,7 +93,7 @@ describe('SettingsService', () => {
   describe('update', () => {
     it('should update multiple settings at once', () => {
       service.update({ autosave: true, timeout: 60 });
-      expect(service.autosave).toBe(true);
+      expect(service.autosave()).toBe(true);
       expect(service.timeout).toBe(60);
     });
 
@@ -113,7 +113,7 @@ describe('SettingsService', () => {
       });
 
       const newService = new SettingsService();
-      expect(newService.autosave).toBe(true);
+      expect(newService.autosave()).toBe(true);
       expect(newService.timeout).toBe(120);
       expect(newService.proxyUrl).toBe('http://proxy.local');
     });
@@ -121,7 +121,7 @@ describe('SettingsService', () => {
     it('should use defaults for invalid JSON', () => {
       mockStorage['nikode-settings'] = 'invalid json';
       const newService = new SettingsService();
-      expect(newService.autosave).toBe(false);
+      expect(newService.autosave()).toBe(false);
       expect(newService.timeout).toBe(30);
     });
 

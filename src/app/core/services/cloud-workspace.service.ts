@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { ApiClientService } from './api-client.service';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
-import { Workspace, CloudCollection } from '../models/cloud.model';
+import { Workspace, CloudCollection, WorkspaceMember, WorkspaceInvite } from '../models/cloud.model';
 import { Collection } from '../models/collection.model';
 import { isIpcError } from '@shared/ipc-types';
 
@@ -15,10 +15,14 @@ export class CloudWorkspaceService {
   readonly workspaces = signal<Workspace[]>([]);
   readonly activeWorkspace = signal<Workspace | null>(null);
   readonly collections = signal<CloudCollection[]>([]);
+  readonly pendingInvites = signal<WorkspaceInvite[]>([]);
   readonly isLoading = signal(false);
 
   constructor() {
-    this.authService.onLogin(() => this.loadWorkspaces());
+    this.authService.onLogin(() => {
+      this.loadWorkspaces();
+      this.loadPendingInvites();
+    });
     this.authService.onLogout(() => this.clear());
   }
 
@@ -32,12 +36,8 @@ export class CloudWorkspaceService {
     }
   }
 
-  async createWorkspace(name: string, teamId?: string): Promise<Workspace> {
-    const body: { name: string; team_id?: string } = { name };
-    if (teamId) {
-      body.team_id = teamId;
-    }
-    const workspace = await this.apiClient.post<Workspace>('/workspaces', body);
+  async createWorkspace(name: string): Promise<Workspace> {
+    const workspace = await this.apiClient.post<Workspace>('/workspaces', { name });
     this.workspaces.update(ws => [...ws, workspace]);
     return workspace;
   }
@@ -69,6 +69,59 @@ export class CloudWorkspaceService {
     }
   }
 
+  // Member management
+  async getMembers(workspaceId: string): Promise<WorkspaceMember[]> {
+    return this.apiClient.get<WorkspaceMember[]>(`/workspaces/${workspaceId}/members`);
+  }
+
+  async inviteMember(workspaceId: string, email: string): Promise<void> {
+    await this.apiClient.post(`/workspaces/${workspaceId}/members`, { email });
+  }
+
+  async removeMember(workspaceId: string, memberId: string): Promise<void> {
+    await this.apiClient.delete(`/workspaces/${workspaceId}/members/${memberId}`);
+  }
+
+  async leaveWorkspace(workspaceId: string): Promise<void> {
+    await this.apiClient.post(`/workspaces/${workspaceId}/leave`);
+    this.workspaces.update(ws => ws.filter(w => w.id !== workspaceId));
+    if (this.activeWorkspace()?.id === workspaceId) {
+      this.activeWorkspace.set(null);
+      this.collections.set([]);
+    }
+  }
+
+  // Invite management
+  async loadPendingInvites(): Promise<void> {
+    try {
+      const invites = await this.apiClient.get<WorkspaceInvite[]>('/invites');
+      this.pendingInvites.set(invites);
+    } catch (err) {
+      console.error('Failed to load pending invites:', err);
+      this.pendingInvites.set([]);
+    }
+  }
+
+  async getWorkspaceInvites(workspaceId: string): Promise<WorkspaceInvite[]> {
+    return this.apiClient.get<WorkspaceInvite[]>(`/workspaces/${workspaceId}/invites`);
+  }
+
+  async cancelInvite(workspaceId: string, inviteId: string): Promise<void> {
+    await this.apiClient.delete(`/workspaces/${workspaceId}/invites/${inviteId}`);
+  }
+
+  async acceptInvite(inviteId: string): Promise<void> {
+    await this.apiClient.post(`/invites/${inviteId}/accept`);
+    this.pendingInvites.update(invites => invites.filter(i => i.id !== inviteId));
+    await this.loadWorkspaces();
+  }
+
+  async declineInvite(inviteId: string): Promise<void> {
+    await this.apiClient.post(`/invites/${inviteId}/decline`);
+    this.pendingInvites.update(invites => invites.filter(i => i.id !== inviteId));
+  }
+
+  // Collection management
   async loadCollections(workspaceId: string): Promise<void> {
     this.isLoading.set(true);
     try {
@@ -143,5 +196,6 @@ export class CloudWorkspaceService {
     this.workspaces.set([]);
     this.activeWorkspace.set(null);
     this.collections.set([]);
+    this.pendingInvites.set([]);
   }
 }
