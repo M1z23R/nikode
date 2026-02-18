@@ -57,7 +57,10 @@ export class QueryEditorComponent {
 
       const cached = schemas.get(resolvedUrl);
       if (cached) {
+        console.log('[QueryEditor] Updating GraphQL schema for', resolvedUrl);
         editor.updateGraphQLSchema(cached.schema);
+      } else {
+        console.log('[QueryEditor] No cached schema for', resolvedUrl, 'available keys:', [...schemas.keys()]);
       }
     });
   }

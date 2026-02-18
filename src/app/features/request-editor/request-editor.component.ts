@@ -7,7 +7,7 @@ import { DynamicTabsComponent, TabsService } from '@m1z23r/ngx-ui';
   template: `
     <div class="request-editor">
       @if (tabsService.tabs().length > 0) {
-        <ui-dynamic-tabs variant="default" />
+        <ui-dynamic-tabs variant="default" renderMode="persistent" />
       } @else {
         <div class="empty-state">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
