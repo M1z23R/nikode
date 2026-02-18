@@ -31,6 +31,38 @@ export interface RunnerRequestItem {
   path: string[]; // folder path for display
 }
 
+export interface RunnerTreeNode {
+  type: 'folder' | 'request';
+  name: string;
+  depth: number;
+  // Requests only:
+  id?: string;
+  method?: HttpMethod;
+  selected?: boolean;
+  // Folders only:
+  key?: string; // unique path key, e.g. "Auth/Users"
+  children?: RunnerTreeNode[];
+  allSelected?: boolean;
+  someSelected?: boolean;
+  childRequestIds?: string[];
+}
+
+export interface FlatTreeRow {
+  type: 'folder' | 'request';
+  name: string;
+  depth: number;
+  // Requests only:
+  id?: string;
+  method?: HttpMethod;
+  selected?: boolean;
+  // Folders only:
+  key?: string;
+  allSelected?: boolean;
+  someSelected?: boolean;
+  childRequestIds?: string[];
+  hasChildren?: boolean;
+}
+
 export type RunnerStatus = 'idle' | 'running' | 'paused' | 'completed' | 'stopped';
 
 export interface RunnerRequestResult {

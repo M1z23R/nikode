@@ -132,6 +132,19 @@ export class RunnerService {
   }
 
   /**
+   * Set selected state for multiple requests by ID
+   */
+  setRequestsSelected(requestIds: string[], selected: boolean): void {
+    const idSet = new Set(requestIds);
+    this.state.update(s => ({
+      ...s,
+      requests: s.requests.map(r =>
+        idSet.has(r.id) ? { ...r, selected } : r
+      ),
+    }));
+  }
+
+  /**
    * Select all requests
    */
   selectAll(): void {

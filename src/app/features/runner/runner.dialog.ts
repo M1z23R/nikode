@@ -17,7 +17,7 @@ import { RunnerService } from '../../core/services/runner.service';
 import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { ApiService } from '../../core/services/api.service';
 import { ReportGeneratorService } from '../../core/services/report-generator.service';
-import { DataFile } from '../../core/models/runner.model';
+import { DataFile, RunnerTreeNode, FlatTreeRow, RunnerRequestItem } from '../../core/models/runner.model';
 import { ExportReportDialogComponent, ExportReportResult } from '../../shared/dialogs/export-report.dialog';
 import { isIpcError } from '@shared/ipc-types';
 
@@ -117,15 +117,29 @@ export interface RunnerDialogData {
               </div>
             </div>
             <div class="requests-list">
-              @for (request of requests(); track request.id) {
-                <div class="request-item" (click)="toggleRequest(request.id)">
-                  <ui-checkbox [checked]="request.selected" />
-                  <span class="request-method method-{{ request.method.toLowerCase() }}">{{ request.method }}</span>
-                  <span class="request-name">{{ request.name }}</span>
-                  @if (request.path.length > 0) {
-                    <span class="request-path">{{ request.path.join(' / ') }}</span>
-                  }
-                </div>
+              @for (row of visibleRows(); track row.id ?? row.key) {
+                @if (row.type === 'folder') {
+                  <div class="folder-row" [style.padding-left.rem]="0.75 + row.depth * 1.25">
+                    <span class="folder-chevron" [class.expanded]="expandedFolders().has(row.key!)" (click)="toggleFolderExpand(row.key!)">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </span>
+                    <div class="folder-checkbox" (click)="toggleFolder(row)">
+                      <ui-checkbox
+                        [checked]="!!row.allSelected"
+                        [indeterminate]="!!row.someSelected && !row.allSelected" />
+                    </div>
+                    <span class="folder-name" (click)="toggleFolderExpand(row.key!)">{{ row.name }}</span>
+                    <span class="folder-count">({{ row.childRequestIds!.length }})</span>
+                  </div>
+                } @else {
+                  <div class="request-item" [style.padding-left.rem]="0.75 + row.depth * 1.25" (click)="toggleRequest(row.id!)">
+                    <ui-checkbox [checked]="!!row.selected" />
+                    <span class="request-method method-{{ row.method!.toLowerCase() }}">{{ row.method }}</span>
+                    <span class="request-name">{{ row.name }}</span>
+                  </div>
+                }
               }
             </div>
           </div>
@@ -349,6 +363,60 @@ export interface RunnerDialogData {
       overflow-y: auto;
     }
 
+    .folder-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--ui-border);
+      background: var(--ui-bg-secondary);
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+
+    .folder-chevron {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.25rem;
+      height: 1.25rem;
+      cursor: pointer;
+      color: var(--ui-text-muted);
+      transition: transform 0.15s ease;
+      flex-shrink: 0;
+
+      &.expanded {
+        transform: rotate(90deg);
+      }
+
+      &:hover {
+        color: var(--ui-text);
+      }
+    }
+
+    .folder-checkbox {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .folder-name {
+      font-weight: 500;
+      font-size: 0.875rem;
+      cursor: pointer;
+
+      &:hover {
+        color: var(--ui-primary);
+      }
+    }
+
+    .folder-count {
+      color: var(--ui-text-muted);
+      font-size: 0.75rem;
+    }
+
     .request-item {
       display: flex;
       align-items: center;
@@ -388,11 +456,6 @@ export interface RunnerDialogData {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-
-    .request-path {
-      color: var(--ui-text-muted);
-      font-size: 0.75rem;
     }
 
     .results-section {
@@ -630,6 +693,7 @@ export class RunnerDialogComponent {
   stopOnError = signal(false);
   dataFile = signal<DataFile | null>(null);
   expandedResults = signal<Set<number>>(new Set());
+  expandedFolders = signal<Set<string>>(new Set());
 
   // Computed from runner service
   readonly status = this.runner.status;
@@ -656,6 +720,15 @@ export class RunnerDialogComponent {
     return col?.collection.environments || [];
   });
 
+  readonly visibleRows = computed<FlatTreeRow[]>(() => {
+    const requests = this.requests();
+    const expanded = this.expandedFolders();
+    const tree = this.buildTree(requests);
+    const rows: FlatTreeRow[] = [];
+    this.collectVisibleRows(tree, rows, expanded);
+    return rows;
+  });
+
   constructor() {
     // Initialize the runner
     this.runner.initialize(
@@ -663,6 +736,14 @@ export class RunnerDialogComponent {
       this.data.targetId,
       this.data.targetType
     );
+
+    // Auto-expand all folders initially
+    const tree = this.buildTree(this.requests());
+    const allKeys = new Set<string>();
+    this.collectFolderKeys(tree, allKeys);
+    if (allKeys.size > 0) {
+      this.expandedFolders.set(allKeys);
+    }
   }
 
   onModeChange(mode: unknown): void {
@@ -729,6 +810,24 @@ export class RunnerDialogComponent {
     this.runner.updateConfig({ iterations: 1 });
   }
 
+  toggleFolder(row: FlatTreeRow): void {
+    if (row.childRequestIds) {
+      this.runner.setRequestsSelected(row.childRequestIds, !row.allSelected);
+    }
+  }
+
+  toggleFolderExpand(key: string): void {
+    this.expandedFolders.update(set => {
+      const next = new Set(set);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
   toggleRequest(requestId: string): void {
     this.runner.toggleRequest(requestId);
   }
@@ -786,6 +885,109 @@ export class RunnerDialogComponent {
       return JSON.stringify(parsed, null, 2);
     } catch {
       return body.slice(0, 1000) + (body.length > 1000 ? '...' : '');
+    }
+  }
+
+  private buildTree(requests: RunnerRequestItem[]): RunnerTreeNode[] {
+    const root: RunnerTreeNode[] = [];
+
+    for (const req of requests) {
+      let currentLevel = root;
+      const pathSoFar: string[] = [];
+
+      for (const folderName of req.path) {
+        pathSoFar.push(folderName);
+        let folder = currentLevel.find(n => n.type === 'folder' && n.name === folderName);
+        if (!folder) {
+          folder = {
+            type: 'folder',
+            name: folderName,
+            depth: pathSoFar.length - 1,
+            key: pathSoFar.join('/'),
+            children: [],
+            childRequestIds: [],
+            allSelected: false,
+            someSelected: false,
+          };
+          currentLevel.push(folder);
+        }
+        currentLevel = folder.children!;
+      }
+
+      currentLevel.push({
+        type: 'request',
+        id: req.id,
+        name: req.name,
+        depth: req.path.length,
+        method: req.method,
+        selected: req.selected,
+      });
+    }
+
+    this.computeFolderStates(root);
+    return root;
+  }
+
+  private computeFolderStates(nodes: RunnerTreeNode[]): string[] {
+    const allIds: string[] = [];
+
+    for (const node of nodes) {
+      if (node.type === 'request') {
+        allIds.push(node.id!);
+      } else if (node.type === 'folder') {
+        const descendantIds = this.computeFolderStates(node.children!);
+        node.childRequestIds = descendantIds;
+
+        const requests = this.requests();
+        const selectedCount = descendantIds.filter(id =>
+          requests.find(r => r.id === id)?.selected
+        ).length;
+
+        node.allSelected = descendantIds.length > 0 && selectedCount === descendantIds.length;
+        node.someSelected = selectedCount > 0;
+
+        allIds.push(...descendantIds);
+      }
+    }
+
+    return allIds;
+  }
+
+  private collectFolderKeys(nodes: RunnerTreeNode[], keys: Set<string>): void {
+    for (const node of nodes) {
+      if (node.type === 'folder') {
+        keys.add(node.key!);
+        this.collectFolderKeys(node.children!, keys);
+      }
+    }
+  }
+
+  private collectVisibleRows(nodes: RunnerTreeNode[], rows: FlatTreeRow[], expanded: Set<string>): void {
+    for (const node of nodes) {
+      if (node.type === 'folder') {
+        rows.push({
+          type: 'folder',
+          name: node.name,
+          depth: node.depth,
+          key: node.key,
+          allSelected: node.allSelected,
+          someSelected: node.someSelected,
+          childRequestIds: node.childRequestIds,
+          hasChildren: (node.children?.length ?? 0) > 0,
+        });
+        if (expanded.has(node.key!)) {
+          this.collectVisibleRows(node.children!, rows, expanded);
+        }
+      } else {
+        rows.push({
+          type: 'request',
+          name: node.name,
+          depth: node.depth,
+          id: node.id,
+          method: node.method,
+          selected: node.selected,
+        });
+      }
     }
   }
 
