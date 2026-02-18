@@ -1,6 +1,7 @@
 import { Injectable, signal, computed, inject, NgZone, OnDestroy, effect } from '@angular/core';
 import { AuthService } from './auth.service';
 import { CloudWorkspaceService } from './cloud-workspace.service';
+import { UnifiedCollectionService } from './unified-collection.service';
 import { environment } from '../../../environments/environment';
 
 export type RealtimeConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
@@ -16,6 +17,7 @@ export class RealtimeService implements OnDestroy {
   private ngZone = inject(NgZone);
   private authService = inject(AuthService);
   private cloudWorkspace = inject(CloudWorkspaceService);
+  private unifiedCollection = inject(UnifiedCollectionService);
 
   private socket: WebSocket | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -30,10 +32,14 @@ export class RealtimeService implements OnDestroy {
   private _state = signal<RealtimeConnectionState>('disconnected');
   private _clientId = signal<string | null>(null);
   private _presence = signal<Map<string, OnlineUser[]>>(new Map());
+  private _lastAction = signal<{ message: string; timestamp: number } | null>(null);
+  private lastActionTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly state = this._state.asReadonly();
   readonly clientId = this._clientId.asReadonly();
   readonly isConnected = computed(() => this._state() === 'connected');
+  readonly lastAction = this._lastAction.asReadonly();
+  readonly presence = this._presence.asReadonly();
 
   readonly statusTooltip = computed(() => {
     switch (this._state()) {
@@ -135,6 +141,11 @@ export class RealtimeService implements OnDestroy {
     this.subscribedWorkspaces.clear();
     this._presence.set(new Map());
     this._clientId.set(null);
+    if (this.lastActionTimer) {
+      clearTimeout(this.lastActionTimer);
+      this.lastActionTimer = null;
+    }
+    this._lastAction.set(null);
 
     if (this.socket) {
       this.socket.close();
@@ -192,20 +203,33 @@ export class RealtimeService implements OnDestroy {
 
         // --- Collection events ---
         case 'collection_created':
+          this.handleCollectionEvent(message);
+          this.setLastAction(`Collection "${message.data?.name || 'unknown'}" created`);
+          break;
         case 'collection_updated':
+          this.handleCollectionEvent(message);
+          this.setLastAction(`Collection "${message.data?.name || 'unknown'}" updated`);
+          break;
         case 'collection_deleted':
           this.handleCollectionEvent(message);
+          this.setLastAction(`Collection deleted`);
           break;
 
         // --- Workspace events ---
         case 'workspace_updated':
           this.handleWorkspaceUpdated(message);
+          this.setLastAction(`Workspace renamed to "${message.data?.name}"`);
           break;
 
         case 'member_joined':
+          this.setLastAction(`${message.data?.user_name || 'Someone'} joined the workspace`);
+          break;
         case 'member_left':
-          // Presence updates handle the live user list;
-          // reload members if needed by consumers
+          this.setLastAction(`${message.data?.user_name || 'Someone'} left the workspace`);
+          break;
+
+        case 'workspaces_changed':
+          this.handleWorkspacesChanged(message);
           break;
 
         default:
@@ -224,12 +248,23 @@ export class RealtimeService implements OnDestroy {
     }
   }
 
-  private handleCollectionEvent(message: any): void {
+  private async handleCollectionEvent(message: any): Promise<void> {
     const activeWs = this.cloudWorkspace.activeWorkspace();
     if (!activeWs || activeWs.id !== message.workspace_id) return;
 
-    // Reload collections for the active workspace to stay in sync
-    this.cloudWorkspace.loadCollections(activeWs.id);
+    const collectionId = message.data?.id;
+
+    // For deleted collections or missing ID, do full reload
+    if (message.type === 'collection_deleted' || !collectionId) {
+      await this.cloudWorkspace.loadCollections(activeWs.id);
+      return;
+    }
+
+    // For created/updated with known ID, use smart handler with merge support
+    await this.unifiedCollection.handleRemoteCollectionUpdate(
+      activeWs.id,
+      collectionId
+    );
   }
 
   private handleWorkspaceUpdated(message: any): void {
@@ -240,6 +275,32 @@ export class RealtimeService implements OnDestroy {
     const active = this.cloudWorkspace.activeWorkspace();
     if (active && active.id === workspace_id) {
       this.cloudWorkspace.activeWorkspace.set({ ...active, name: data.name as string });
+    }
+  }
+
+  private handleWorkspacesChanged(message: any): void {
+    const { reason } = message.data || {};
+
+    // Reload workspaces and pending invites
+    this.cloudWorkspace.loadWorkspaces();
+    this.cloudWorkspace.loadPendingInvites();
+
+    // Show appropriate message based on reason
+    switch (reason) {
+      case 'invite_accepted':
+        this.setLastAction('You joined a new workspace');
+        break;
+      case 'invite_received':
+        this.setLastAction('You received a workspace invite');
+        break;
+      case 'removed_from_workspace':
+        this.setLastAction('You were removed from a workspace');
+        break;
+      case 'workspace_deleted':
+        this.setLastAction('A workspace was deleted');
+        break;
+      default:
+        this.setLastAction('Workspaces updated');
     }
   }
 
@@ -286,5 +347,16 @@ export class RealtimeService implements OnDestroy {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+  }
+
+  private setLastAction(message: string): void {
+    if (this.lastActionTimer) {
+      clearTimeout(this.lastActionTimer);
+    }
+    this._lastAction.set({ message, timestamp: Date.now() });
+    this.lastActionTimer = setTimeout(() => {
+      this._lastAction.set(null);
+      this.lastActionTimer = null;
+    }, 5000);
   }
 }

@@ -8,6 +8,7 @@ import { CollectionMergeService } from './collection-merge.service';
 import { CloudSyncStatusService } from './cloud-sync-status.service';
 import { SettingsService } from './settings.service';
 import { UnifiedCollection, CollectionItem, Collection } from '../models/collection.model';
+import { CloudCollection } from '../models/cloud.model';
 import {
   MergeConflictDialogComponent,
   MergeConflictDialogData,
@@ -695,6 +696,171 @@ export class UnifiedCollectionService {
       this.cloudSyncStatus.error('Sync failed');
       this.toastService.error(err?.message ?? 'Failed to sync collection');
     }
+  }
+
+  /**
+   * Handle a remote collection update from WebSocket.
+   * Performs 3-way merge if local edits exist, otherwise accepts remote directly.
+   */
+  async handleRemoteCollectionUpdate(workspaceId: string, collectionId: string): Promise<void> {
+    // Fetch latest collection from server
+    const remoteCollection = await this.cloudWorkspaceService.getCollectionById(workspaceId, collectionId);
+
+    if (!remoteCollection) {
+      // Collection might have been deleted or error fetching - do full reload
+      await this.cloudWorkspaceService.loadCollections(workspaceId);
+      return;
+    }
+
+    const unifiedId = this.buildCloudId(workspaceId, collectionId);
+    const localState = this.openCloudCollections().find(s => s.id === unifiedId);
+    const isDirty = localState?.dirty ?? false;
+
+    if (!isDirty) {
+      // No local edits - accept remote directly
+      this.applyRemoteUpdate(unifiedId, collectionId, remoteCollection);
+      return;
+    }
+
+    // Has local edits - perform 3-way merge
+    const baseSnapshot = localState?.baseSnapshot;
+    if (!baseSnapshot) {
+      // No base snapshot available - accept remote with warning
+      this.toastService.warning('Remote changes received. Local edits may be lost due to missing base snapshot.');
+      this.applyRemoteUpdate(unifiedId, collectionId, remoteCollection);
+      return;
+    }
+
+    // Get current local collection data
+    const localCollection = this.cloudWorkspaceService.collections()
+      .find(c => c.id === collectionId);
+    if (!localCollection) {
+      this.applyRemoteUpdate(unifiedId, collectionId, remoteCollection);
+      return;
+    }
+
+    const local = localCollection.data;
+    const remote = remoteCollection.data;
+
+    // Perform 3-way merge
+    const mergeResult = this.mergeService.threeWayMerge(baseSnapshot, local, remote);
+
+    if (mergeResult.conflicts.length === 0) {
+      // No conflicts - apply merged result
+      this.applyMergedResult(unifiedId, collectionId, mergeResult.merged, remoteCollection.version);
+      if (mergeResult.autoMergedCount > 0) {
+        this.toastService.info(`Auto-merged ${mergeResult.autoMergedCount} remote changes`);
+      }
+      return;
+    }
+
+    // Has conflicts - check merge behavior setting
+    const mergeBehavior = this.settingsService.current().mergeConflictBehavior;
+
+    let resolutions: ConflictResolution[];
+
+    if (mergeBehavior === 'keep-local' || mergeBehavior === 'keep-remote') {
+      // Auto-resolve with configured behavior
+      resolutions = mergeResult.conflicts.map(c => ({
+        conflictId: c.id,
+        choice: mergeBehavior as ResolutionChoice
+      }));
+    } else {
+      // Show conflict resolution dialog
+      const dialogRef = this.dialogService.open<
+        MergeConflictDialogComponent,
+        MergeConflictDialogData,
+        MergeConflictDialogResult | undefined
+      >(MergeConflictDialogComponent, {
+        data: { result: mergeResult }
+      });
+
+      const result = await dialogRef.afterClosed();
+
+      if (!result || result.cancelled) {
+        // User cancelled - keep local dirty state
+        // Update base snapshot so next merge uses current remote as base
+        this.openCloudCollections.update(cols =>
+          cols.map(c => c.id === unifiedId
+            ? { ...c, baseSnapshot: structuredClone(remote) }
+            : c
+          )
+        );
+        return;
+      }
+
+      resolutions = result.resolutions;
+    }
+
+    // Apply resolutions
+    const finalCollection = this.mergeService.applyResolutions(mergeResult, resolutions);
+    this.applyMergedResult(unifiedId, collectionId, finalCollection, remoteCollection.version);
+  }
+
+  /**
+   * Apply a remote update directly (no merge needed).
+   */
+  private applyRemoteUpdate(unifiedId: string, collectionId: string, remoteCollection: CloudCollection): void {
+    // Update cloud collections signal
+    this.cloudWorkspaceService.collections.update(cols => {
+      const exists = cols.some(c => c.id === collectionId);
+      if (exists) {
+        return cols.map(c => c.id === collectionId ? remoteCollection : c);
+      } else {
+        // New collection created remotely
+        return [...cols, remoteCollection];
+      }
+    });
+
+    // Update base snapshot
+    this.openCloudCollections.update(cols => {
+      const existing = cols.find(c => c.id === unifiedId);
+      if (existing) {
+        return cols.map(c => c.id === unifiedId
+          ? { ...c, baseSnapshot: structuredClone(remoteCollection.data) }
+          : c
+        );
+      } else {
+        return [...cols, {
+          id: unifiedId,
+          expanded: false,
+          dirty: false,
+          baseSnapshot: structuredClone(remoteCollection.data)
+        }];
+      }
+    });
+
+    // Notify tabs to refresh
+    this.notifyCollectionRefreshed(unifiedId);
+  }
+
+  /**
+   * Apply a merged result after conflict resolution.
+   */
+  private applyMergedResult(
+    unifiedId: string,
+    collectionId: string,
+    collection: Collection,
+    version: number
+  ): void {
+    // Update cloud collections signal with merged data
+    this.cloudWorkspaceService.collections.update(cols =>
+      cols.map(c => c.id === collectionId
+        ? { ...c, data: collection, version }
+        : c
+      )
+    );
+
+    // Clear dirty flag and update base snapshot
+    this.openCloudCollections.update(cols =>
+      cols.map(c => c.id === unifiedId
+        ? { ...c, dirty: false, baseSnapshot: structuredClone(collection) }
+        : c
+      )
+    );
+
+    // Notify tabs to refresh
+    this.notifyCollectionRefreshed(unifiedId);
   }
 
   // Create new cloud collection

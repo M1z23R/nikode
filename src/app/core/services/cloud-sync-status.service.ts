@@ -1,4 +1,5 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
+import { AuthService } from './auth.service';
 
 export type CloudSyncState = 'idle' | 'syncing' | 'success' | 'error';
 
@@ -10,12 +11,18 @@ export interface CloudSyncStatus {
 
 @Injectable({ providedIn: 'root' })
 export class CloudSyncStatusService {
+  private authService = inject(AuthService);
+
   private status = signal<CloudSyncStatus>({
     state: 'idle',
     timestamp: Date.now()
   });
 
   private clearTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  constructor() {
+    this.authService.onLogout(() => this.idle());
+  }
 
   readonly currentStatus = this.status.asReadonly();
 

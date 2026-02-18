@@ -134,6 +134,16 @@ export class CloudWorkspaceService {
   }
 
   // Collection management
+  async getCollectionById(workspaceId: string, collectionId: string): Promise<CloudCollection | null> {
+    try {
+      return await this.apiClient.get<CloudCollection>(
+        `/workspaces/${workspaceId}/collections/${collectionId}`
+      );
+    } catch {
+      return null;
+    }
+  }
+
   async loadCollections(workspaceId: string): Promise<void> {
     this.isLoading.set(true);
     try {

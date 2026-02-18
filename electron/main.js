@@ -32,6 +32,7 @@ if (!gotTheLock) {
 }
 
 let mainWindow;
+let pendingDeepLink = null; // Queue deep links that arrive before window is ready
 
 // Get API base URL based on environment
 function getApiBaseUrl() {
@@ -81,7 +82,14 @@ async function handleDeepLink(url) {
   const parsed = parseAuthCallback(url);
   console.log('[DEBUG] parsed auth callback:', parsed);
 
-  if (!parsed || !mainWindow) {
+  if (!parsed) {
+    return;
+  }
+
+  // If window isn't ready yet, queue the deep link for later
+  if (!mainWindow || !mainWindow.webContents) {
+    console.log('[DEBUG] Window not ready, queueing deep link');
+    pendingDeepLink = url;
     return;
   }
 
@@ -158,6 +166,25 @@ async function createWindow() {
   mainWindow.on('closed', () => {
     fileWatcher.unwatchAll();
     mainWindow = null;
+  });
+
+  // Process any deep link that arrived before window was ready
+  mainWindow.webContents.on('did-finish-load', () => {
+    // Check for deep link in startup args (Windows/Linux first instance launch)
+    if (!pendingDeepLink) {
+      const startupUrl = process.argv.find((arg) => arg.startsWith('nikode://'));
+      if (startupUrl) {
+        console.log('[DEBUG] Found deep link in startup args:', startupUrl);
+        pendingDeepLink = startupUrl;
+      }
+    }
+
+    if (pendingDeepLink) {
+      console.log('[DEBUG] Processing pending deep link:', pendingDeepLink);
+      const url = pendingDeepLink;
+      pendingDeepLink = null;
+      handleDeepLink(url);
+    }
   });
 }
 

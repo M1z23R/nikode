@@ -1,5 +1,6 @@
 import { Component, inject, output, computed, signal, OnDestroy, effect } from '@angular/core';
 import { ButtonComponent, CircularProgressComponent, DialogService, TooltipDirective } from '@m1z23r/ngx-ui';
+import { PresenceAvatarsComponent } from '../../shared/components/presence-avatars.component';
 import { SettingsService } from '../../core/services/settings.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
@@ -11,7 +12,7 @@ import { SettingsDialogComponent } from '../settings/settings.dialog';
 
 @Component({
   selector: 'app-footer',
-  imports: [ButtonComponent, CircularProgressComponent, TooltipDirective],
+  imports: [ButtonComponent, CircularProgressComponent, TooltipDirective, PresenceAvatarsComponent],
   template: `
     <footer class="app-footer">
       <div class="footer-left">
@@ -59,6 +60,10 @@ import { SettingsDialogComponent } from '../settings/settings.dialog';
         </ui-button>
       </div>
       <div class="footer-right">
+        <app-presence-avatars />
+        @if (realtime.lastAction(); as action) {
+          <span class="last-action">{{ action.message }}</span>
+        }
         @if (settingsService.autosave() && autosaveProgress() !== null) {
           <div class="autosave-indicator" uiTooltip="Auto-saving...">
             <ui-circular-progress
@@ -243,6 +248,22 @@ import { SettingsDialogComponent } from '../settings/settings.dialog';
 
     .autosave-indicator ::ng-deep .circular-progress circle {
       stroke: var(--ui-text-muted);
+    }
+
+    .last-action {
+      font-size: 0.75rem;
+      color: var(--ui-text-muted);
+      padding: 0 0.5rem;
+      animation: fade-in 0.2s ease-out;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 300px;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(2px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   `]
 })
