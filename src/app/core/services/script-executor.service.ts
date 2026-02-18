@@ -86,7 +86,13 @@ export class ScriptExecutorService {
         if (env) {
           const existingIndex = env.variables.findIndex(v => v.key === key);
           if (existingIndex !== -1) {
-            this.environmentService.updateVariable(collectionPath, env.id, existingIndex, { value });
+            const existingVar = env.variables[existingIndex];
+            if (existingVar.secret) {
+              // Secret variables store their value in the secrets cache, not in v.value
+              this.environmentService.updateSecret(collectionPath, env.id, key, value);
+            } else {
+              this.environmentService.updateVariable(collectionPath, env.id, existingIndex, { value });
+            }
           } else {
             this.environmentService.addVariable(collectionPath, env.id, {
               key,

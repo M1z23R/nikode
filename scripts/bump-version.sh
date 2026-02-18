@@ -86,9 +86,17 @@ fi
 read -p "Push AUR submodules to origin? [y/N] " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    cd "$PROJECT_ROOT/nikode-aur" && git push origin master
-    cd "$PROJECT_ROOT/nikode-bin" && git push origin master
-    echo "✓ Pushed AUR submodules"
+    cd "$PROJECT_ROOT/nikode-aur"
+    git push origin master
+    echo "✓ Pushed nikode-aur"
+
+    sleep 2
+
+    cd "$PROJECT_ROOT/nikode-bin"
+    git push origin master
+    echo "✓ Pushed nikode-bin"
+
+    cd "$PROJECT_ROOT"
 fi
 
 echo ""
