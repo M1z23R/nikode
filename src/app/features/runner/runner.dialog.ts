@@ -6,6 +6,8 @@ import {
   SelectComponent,
   OptionComponent,
   CheckboxComponent,
+  RadioGroupComponent,
+  RadioComponent,
   DIALOG_DATA,
   DIALOG_REF,
   DialogRef,
@@ -15,6 +17,7 @@ import {
 } from '@m1z23r/ngx-ui';
 import { RunnerService } from '../../core/services/runner.service';
 import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
+import { EnvironmentService } from '../../core/services/environment.service';
 import { ApiService } from '../../core/services/api.service';
 import { ReportGeneratorService } from '../../core/services/report-generator.service';
 import { DataFile } from '../../core/models/runner.model';
@@ -37,6 +40,8 @@ export interface RunnerDialogData {
     SelectComponent,
     OptionComponent,
     CheckboxComponent,
+    RadioGroupComponent,
+    RadioComponent,
     SpinnerComponent,
   ],
   template: `
@@ -84,25 +89,49 @@ export interface RunnerDialogData {
               </ui-checkbox>
             </div>
 
-            <!-- Data File -->
-            <div class="data-file-section">
-              <label class="data-file-label">Data File (CSV/JSON)</label>
-              @if (dataFile()) {
-                <div class="data-file-info">
-                  <span class="data-file-name">{{ dataFile()!.name }}</span>
-                  <span class="data-file-count">{{ dataFile()!.data.length }} rows</span>
-                  <ui-button variant="ghost" size="sm" (clicked)="removeDataFile()">Remove</ui-button>
-                </div>
+            <!-- Data Source -->
+            <div class="data-source-section">
+              <label class="data-source-label">Data Source</label>
+              <ui-radio-group
+                [value]="dataSourceType()"
+                (valueChange)="onDataSourceTypeChange($any($event))"
+                orientation="horizontal"
+                variant="segmented">
+                <ui-radio value="file">File</ui-radio>
+                <ui-radio value="variable">Variable</ui-radio>
+              </ui-radio-group>
+
+              @if (dataSourceType() === 'file') {
+                @if (dataFile()) {
+                  <div class="data-file-info">
+                    <span class="data-file-name">{{ dataFile()!.name }}</span>
+                    <span class="data-file-count">{{ dataFile()!.data.length }} rows</span>
+                    <ui-button variant="ghost" size="sm" (clicked)="removeDataFile()">Remove</ui-button>
+                  </div>
+                } @else {
+                  <input
+                    #fileInput
+                    type="file"
+                    accept=".json,.csv"
+                    (change)="onFileSelected($event)"
+                    class="hidden" />
+                  <ui-button variant="ghost" size="sm" (clicked)="fileInput.click()">
+                    Choose File
+                  </ui-button>
+                }
               } @else {
-                <input
-                  #fileInput
-                  type="file"
-                  accept=".json,.csv"
-                  (change)="onFileSelected($event)"
-                  class="hidden" />
-                <ui-button variant="ghost" size="sm" (clicked)="fileInput.click()">
-                  Choose File
-                </ui-button>
+                <ui-select
+                  [value]="dataVariable()"
+                  (valueChange)="onDataVariableChange($any($event))"
+                  placeholder="Select a variable..."
+                  [searchable]="true">
+                  @for (v of arrayVariables(); track v.key) {
+                    <ui-option [value]="v.key">{{ v.key }} ({{ v.length }} items)</ui-option>
+                  }
+                </ui-select>
+                @if (arrayVariables().length === 0) {
+                  <p class="no-variables-hint">No variables containing arrays found. Use a post-script to store an array: <code>nk.setEnv('data', JSON.stringify([...]))</code></p>
+                }
               }
             </div>
           </div>
@@ -286,13 +315,13 @@ export interface RunnerDialogData {
       gap: 1rem;
     }
 
-    .data-file-section {
+    .data-source-section {
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
     }
 
-    .data-file-label {
+    .data-source-label {
       font-size: 0.875rem;
       font-weight: 500;
       color: var(--ui-text);
@@ -318,6 +347,19 @@ export interface RunnerDialogData {
 
     .hidden {
       display: none;
+    }
+
+    .no-variables-hint {
+      margin: 0;
+      font-size: 0.75rem;
+      color: var(--ui-text-muted);
+
+      code {
+        background: var(--ui-bg-secondary);
+        padding: 0.125rem 0.25rem;
+        border-radius: 3px;
+        font-size: 0.7rem;
+      }
     }
 
     .requests-section {
@@ -617,6 +659,7 @@ export class RunnerDialogComponent {
   readonly data = inject(DIALOG_DATA) as RunnerDialogData;
   readonly runner = inject(RunnerService);
   private unifiedCollectionService = inject(UnifiedCollectionService);
+  private environmentService = inject(EnvironmentService);
   private dialogService = inject(DialogService);
   private api = inject(ApiService);
   private toastService = inject(ToastService);
@@ -629,6 +672,8 @@ export class RunnerDialogComponent {
   delayMs = signal(0);
   stopOnError = signal(false);
   dataFile = signal<DataFile | null>(null);
+  dataSourceType = signal<'file' | 'variable'>('file');
+  dataVariable = signal<string | null>(null);
   expandedResults = signal<Set<number>>(new Set());
 
   // Computed from runner service
@@ -654,6 +699,50 @@ export class RunnerDialogComponent {
   readonly environments = computed(() => {
     const col = this.unifiedCollectionService.getCollection(this.data.collectionPath);
     return col?.collection.environments || [];
+  });
+
+  readonly arrayVariables = computed(() => {
+    // Get variables from selected environment (or active if null)
+    const envId = this.selectedEnvironmentId();
+    const col = this.unifiedCollectionService.getCollection(this.data.collectionPath);
+    if (!col) return [];
+
+    let variables: Record<string, string>;
+    if (envId) {
+      // Use the specified environment
+      const env = col.collection.environments.find(e => e.id === envId);
+      const secrets = this.environmentService.getSecrets(this.data.collectionPath);
+      variables = {};
+      if (env) {
+        for (const v of env.variables) {
+          if (!v.enabled) continue;
+          if (v.secret) {
+            const secretValue = secrets?.[env.id]?.[v.key];
+            if (secretValue !== undefined) {
+              variables[v.key] = secretValue;
+            }
+          } else {
+            variables[v.key] = v.value;
+          }
+        }
+      }
+    } else {
+      variables = this.environmentService.resolveVariables(this.data.collectionPath);
+    }
+
+    // Filter to variables that parse as arrays
+    const result: { key: string; length: number }[] = [];
+    for (const [key, value] of Object.entries(variables)) {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          result.push({ key, length: parsed.length });
+        }
+      } catch {
+        // Not valid JSON, skip
+      }
+    }
+    return result;
   });
 
   constructor() {
@@ -698,6 +787,41 @@ export class RunnerDialogComponent {
     this.runner.updateConfig({ stopOnError: value });
   }
 
+  onDataSourceTypeChange(type: 'file' | 'variable'): void {
+    this.dataSourceType.set(type);
+
+    // Clear the other data source when switching
+    if (type === 'file') {
+      this.dataVariable.set(null);
+      this.runner.updateConfig({ dataVariable: undefined });
+    } else {
+      this.dataFile.set(null);
+      this.runner.updateConfig({ dataFile: undefined });
+      // Reset iterations if no variable selected
+      if (!this.dataVariable()) {
+        this.iterations.set(1);
+        this.runner.updateConfig({ iterations: 1 });
+      }
+    }
+  }
+
+  onDataVariableChange(variableKey: string | null): void {
+    this.dataVariable.set(variableKey);
+    this.runner.updateConfig({ dataVariable: variableKey || undefined });
+
+    // Update iterations to match array length
+    if (variableKey) {
+      const arrayVar = this.arrayVariables().find(v => v.key === variableKey);
+      if (arrayVar && arrayVar.length > 0) {
+        this.iterations.set(arrayVar.length);
+        this.runner.updateConfig({ iterations: arrayVar.length });
+      }
+    } else {
+      this.iterations.set(1);
+      this.runner.updateConfig({ iterations: 1 });
+    }
+  }
+
   async onFileSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -725,8 +849,11 @@ export class RunnerDialogComponent {
   removeDataFile(): void {
     this.dataFile.set(null);
     this.runner.updateConfig({ dataFile: undefined });
-    this.iterations.set(1);
-    this.runner.updateConfig({ iterations: 1 });
+    // Only reset iterations if not using a data variable
+    if (!this.dataVariable()) {
+      this.iterations.set(1);
+      this.runner.updateConfig({ iterations: 1 });
+    }
   }
 
   toggleRequest(requestId: string): void {

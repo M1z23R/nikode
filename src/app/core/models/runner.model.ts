@@ -10,6 +10,7 @@ export interface RunnerConfig {
   // Iterations
   iterations: number;
   dataFile?: DataFile;
+  dataVariable?: string; // Variable key to use as data source (must contain JSON array)
 
   // Environment override (null = use collection's active environment)
   environmentId: string | null;

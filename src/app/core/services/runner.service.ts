@@ -255,13 +255,16 @@ export class RunnerService {
     requests: RunnerRequestItem[],
     config: RunnerConfig
   ): Promise<void> {
+    // Pre-resolve environment variables to access dataVariable
+    const envVariables = this.resolveEnvironmentVariables(collectionPath, config);
+
     for (let iteration = 0; iteration < config.iterations; iteration++) {
       if (this.abortController?.signal.aborted) break;
 
       this.state.update(s => ({ ...s, currentIteration: iteration }));
 
-      // Get iteration-specific variables from data file
-      const dataVariables = config.dataFile?.data[iteration] || {};
+      // Get iteration-specific variables from data source
+      const dataVariables = this.getDataVariablesForIteration(config, envVariables, iteration);
 
       for (let i = 0; i < requests.length; i++) {
         if (this.abortController?.signal.aborted) break;
@@ -307,12 +310,15 @@ export class RunnerService {
     requests: RunnerRequestItem[],
     config: RunnerConfig
   ): Promise<void> {
+    // Pre-resolve environment variables to access dataVariable
+    const envVariables = this.resolveEnvironmentVariables(collectionPath, config);
+
     for (let iteration = 0; iteration < config.iterations; iteration++) {
       if (this.abortController?.signal.aborted) break;
 
       this.state.update(s => ({ ...s, currentIteration: iteration }));
 
-      const dataVariables = config.dataFile?.data[iteration] || {};
+      const dataVariables = this.getDataVariablesForIteration(config, envVariables, iteration);
 
       const promises = requests.map((request) =>
         this.executeRequest(collectionPath, request, iteration, config, dataVariables)
@@ -626,5 +632,81 @@ export class RunnerService {
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Resolve environment variables for the runner config
+   */
+  private resolveEnvironmentVariables(
+    collectionPath: string,
+    config: RunnerConfig
+  ): ResolvedVariables {
+    if (config.environmentId) {
+      const col = this.unifiedCollectionService.getCollection(collectionPath);
+      const env = col?.collection.environments.find(e => e.id === config.environmentId);
+      const secrets = this.environmentService.getSecrets(collectionPath);
+
+      const variables: ResolvedVariables = {};
+      if (env) {
+        for (const v of env.variables) {
+          if (!v.enabled) continue;
+          if (v.secret) {
+            const secretValue = secrets?.[env.id]?.[v.key];
+            if (secretValue !== undefined) {
+              variables[v.key] = secretValue;
+            }
+          } else {
+            variables[v.key] = v.value;
+          }
+        }
+      }
+      return variables;
+    }
+    return this.environmentService.resolveVariables(collectionPath);
+  }
+
+  /**
+   * Get data variables for a specific iteration
+   */
+  private getDataVariablesForIteration(
+    config: RunnerConfig,
+    envVariables: ResolvedVariables,
+    iteration: number
+  ): Record<string, string> {
+    // Data file takes precedence
+    if (config.dataFile) {
+      return config.dataFile.data[iteration] || {};
+    }
+
+    // Check for data variable
+    if (config.dataVariable) {
+      const variableValue = envVariables[config.dataVariable];
+      if (variableValue) {
+        try {
+          const parsed = JSON.parse(variableValue);
+          if (Array.isArray(parsed) && parsed[iteration]) {
+            return this.normalizeDataRow(parsed[iteration]);
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    return {};
+  }
+
+  /**
+   * Normalize a data row to Record<string, string>
+   */
+  private normalizeDataRow(row: unknown): Record<string, string> {
+    if (typeof row !== 'object' || row === null) {
+      return {};
+    }
+    const result: Record<string, string> = {};
+    for (const [key, value] of Object.entries(row)) {
+      result[key] = typeof value === 'string' ? value : JSON.stringify(value);
+    }
+    return result;
   }
 }

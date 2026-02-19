@@ -6,6 +6,8 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { CloudSyncStatusService } from '../../core/services/cloud-sync-status.service';
 import { RealtimeService } from '../../core/services/realtime.service';
+import { ChatService } from '../../core/services/chat.service';
+import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
 import { APP_VERSION } from '../../core/tokens/version.token';
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
 import { SettingsDialogComponent } from '../settings/settings.dialog';
@@ -58,6 +60,16 @@ import { SettingsDialogComponent } from '../settings/settings.dialog';
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
         </ui-button>
+        @if (cloudWorkspace.activeWorkspace()) {
+          <ui-button variant="ghost" size="sm" (clicked)="chatToggle.emit()" class="chat-button" uiTooltip="Toggle chat">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            @if (totalUnreadCount() > 0) {
+              <span class="unread-badge">{{ totalUnreadCount() > 99 ? '99+' : totalUnreadCount() }}</span>
+            }
+          </ui-button>
+        }
       </div>
       <div class="footer-right">
         <app-presence-avatars />
@@ -265,6 +277,28 @@ import { SettingsDialogComponent } from '../settings/settings.dialog';
       from { opacity: 0; transform: translateY(2px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    .chat-button {
+      position: relative;
+    }
+
+    .unread-badge {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      min-width: 14px;
+      height: 14px;
+      padding: 0 4px;
+      border-radius: 7px;
+      background-color: var(--ui-error);
+      color: white;
+      font-size: 0.625rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
   `]
 })
 export class FooterComponent implements OnDestroy {
@@ -273,6 +307,8 @@ export class FooterComponent implements OnDestroy {
   protected settingsService = inject(SettingsService);
   protected version = inject(APP_VERSION);
   protected realtime = inject(RealtimeService);
+  protected chatService = inject(ChatService);
+  protected cloudWorkspace = inject(CloudWorkspaceService);
   private dialogService = inject(DialogService);
   private unifiedCollectionService = inject(UnifiedCollectionService);
 
@@ -281,6 +317,7 @@ export class FooterComponent implements OnDestroy {
 
   consoleToggle = output();
   historyToggle = output();
+  chatToggle = output();
 
   constructor() {
     // Watch for countdown changes and animate
@@ -327,6 +364,13 @@ export class FooterComponent implements OnDestroy {
   }
 
   protected canRun = computed(() => !!this.workspace.activeRequest());
+
+  protected totalUnreadCount = computed(() => {
+    const unreadMap = this.chatService.unreadCount();
+    let total = 0;
+    unreadMap.forEach(count => total += count);
+    return total;
+  });
 
   protected openSettings(): void {
     this.dialogService.open<SettingsDialogComponent, void, void>(SettingsDialogComponent, {});

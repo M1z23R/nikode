@@ -12,6 +12,7 @@ import { EnvironmentSelectorComponent } from './features/environments/environmen
 import { FooterComponent } from './features/footer/footer.component';
 import { ConsolePanelComponent } from './features/console/console-panel.component';
 import { HistoryPanelComponent } from './features/history/history-panel.component';
+import { ChatPanelComponent } from './features/chat/chat-panel.component';
 import { SettingsDialogComponent } from './features/settings/settings.dialog';
 import { UserMenuComponent } from './features/auth/user-menu.component';
 import { WorkspaceSwitcherComponent } from './features/workspaces/workspace-switcher.component';
@@ -25,6 +26,7 @@ import { WorkspaceSwitcherComponent } from './features/workspaces/workspace-swit
     FooterComponent,
     ConsolePanelComponent,
     HistoryPanelComponent,
+    ChatPanelComponent,
     SplitComponent,
     SplitPaneComponent,
     UserMenuComponent,
@@ -63,6 +65,11 @@ import { WorkspaceSwitcherComponent } from './features/workspaces/workspace-swit
               <ui-split-pane [minSize]="30">
                 <app-request-editor />
               </ui-split-pane>
+              @if (chatVisible()) {
+                <ui-split-pane [size]="25" [minSize]="15" [maxSize]="40">
+                  <app-chat-panel />
+                </ui-split-pane>
+              }
             </ui-split>
           </ui-split-pane>
           @if (consoleVisible()) {
@@ -78,7 +85,7 @@ import { WorkspaceSwitcherComponent } from './features/workspaces/workspace-swit
         </ui-split>
       </div>
 
-      <app-footer (consoleToggle)="toggleConsole()" (historyToggle)="toggleHistory()" />
+      <app-footer (consoleToggle)="toggleConsole()" (historyToggle)="toggleHistory()" (chatToggle)="toggleChat()" />
     </div>
 
   `,
@@ -149,6 +156,7 @@ export class App implements OnInit, OnDestroy {
 
   consoleVisible = signal(false);
   historyVisible = signal(false);
+  chatVisible = signal(false);
 
   readonly bottomPanelVisible = () => this.consoleVisible() || this.historyVisible();
 
@@ -167,6 +175,10 @@ export class App implements OnInit, OnDestroy {
 
   toggleHistory(): void {
     this.historyVisible.update(v => !v);
+  }
+
+  toggleChat(): void {
+    this.chatVisible.update(v => !v);
   }
 
   private registerKeyboardShortcuts(): void {

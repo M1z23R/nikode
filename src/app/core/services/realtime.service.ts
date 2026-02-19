@@ -12,6 +12,8 @@ export interface OnlineUser {
   avatar_url: string;
 }
 
+export type RealtimeMessageHandler = (message: any) => void | Promise<void>;
+
 @Injectable({ providedIn: 'root' })
 export class RealtimeService implements OnDestroy {
   private ngZone = inject(NgZone);
@@ -34,6 +36,8 @@ export class RealtimeService implements OnDestroy {
   private _presence = signal<Map<string, OnlineUser[]>>(new Map());
   private _lastAction = signal<{ message: string; timestamp: number } | null>(null);
   private lastActionTimer: ReturnType<typeof setTimeout> | null = null;
+  private messageHandlers = new Map<string, RealtimeMessageHandler[]>();
+  private connectCallbacks: (() => void | Promise<void>)[] = [];
 
   readonly state = this._state.asReadonly();
   readonly clientId = this._clientId.asReadonly();
@@ -87,6 +91,47 @@ export class RealtimeService implements OnDestroy {
     return this._presence().get(workspaceId) ?? [];
   }
 
+  /** Register a handler for a specific message type */
+  registerHandler(type: string, handler: RealtimeMessageHandler): () => void {
+    const handlers = this.messageHandlers.get(type) ?? [];
+    handlers.push(handler);
+    this.messageHandlers.set(type, handlers);
+
+    // Return unregister function
+    return () => {
+      const current = this.messageHandlers.get(type);
+      if (current) {
+        const index = current.indexOf(handler);
+        if (index > -1) {
+          current.splice(index, 1);
+        }
+      }
+    };
+  }
+
+  /** Register a callback to be called when connected */
+  onConnect(callback: () => void | Promise<void>): () => void {
+    this.connectCallbacks.push(callback);
+
+    // If already connected, call immediately
+    if (this.isConnected()) {
+      callback();
+    }
+
+    // Return unregister function
+    return () => {
+      const index = this.connectCallbacks.indexOf(callback);
+      if (index > -1) {
+        this.connectCallbacks.splice(index, 1);
+      }
+    };
+  }
+
+  /** Send a message to the server (public API) */
+  sendMessage(message: Record<string, unknown>): void {
+    this.send(message);
+  }
+
   connect(): void {
     if (this.socket?.readyState === WebSocket.OPEN || this.socket?.readyState === WebSocket.CONNECTING) {
       return;
@@ -106,6 +151,14 @@ export class RealtimeService implements OnDestroy {
         this.reconnectAttempts = 0;
         this._state.set('connected');
         this.startPing();
+        // Notify connect callbacks
+        for (const callback of this.connectCallbacks) {
+          try {
+            callback();
+          } catch (err) {
+            console.error('[Realtime] Connect callback error:', err);
+          }
+        }
       });
     };
 
@@ -173,6 +226,18 @@ export class RealtimeService implements OnDestroy {
     try {
       const message = JSON.parse(raw);
 
+      // Call registered handlers for this message type
+      const handlers = this.messageHandlers.get(message.type);
+      if (handlers) {
+        for (const handler of handlers) {
+          try {
+            handler(message);
+          } catch (err) {
+            console.error(`[Realtime] Handler error for ${message.type}:`, err);
+          }
+        }
+      }
+
       switch (message.type) {
         // --- System ---
         case 'connected':
@@ -233,7 +298,10 @@ export class RealtimeService implements OnDestroy {
           break;
 
         default:
-          console.warn('[Realtime] Unhandled message type:', message.type);
+          // Message handled by registered handlers or unknown type
+          if (!handlers || handlers.length === 0) {
+            console.warn('[Realtime] Unhandled message type:', message.type);
+          }
       }
     } catch {
       console.error('[Realtime] Failed to parse message:', raw);
