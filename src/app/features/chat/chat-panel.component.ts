@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect, ElementRef, ViewChild, AfterViewChecked } from '@angular/core';
+import { Component, inject, signal, computed, effect, ElementRef, ViewChild, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonComponent, TooltipDirective } from '@m1z23r/ngx-ui';
 import { ChatService } from '../../core/services/chat.service';
@@ -392,7 +392,7 @@ import { ChatMessage } from '../../core/models/chat.model';
     }
   `]
 })
-export class ChatPanelComponent implements AfterViewChecked {
+export class ChatPanelComponent implements OnInit, OnDestroy {
   protected chatService = inject(ChatService);
   private cloudWorkspace = inject(CloudWorkspaceService);
   private authService = inject(AuthService);
@@ -402,8 +402,8 @@ export class ChatPanelComponent implements AfterViewChecked {
   protected messageText = signal('');
   protected sending = signal(false);
   protected error = signal<string | null>(null);
-  private shouldScrollToBottom = false;
   private lastMessageCount = 0;
+  private lastWorkspaceId: string | null = null;
 
   protected activeWorkspace = this.cloudWorkspace.activeWorkspace;
 
@@ -433,29 +433,38 @@ export class ChatPanelComponent implements AfterViewChecked {
   });
 
   constructor() {
-    // Clear unread count when viewing chat
+    // Set viewing workspace and clear unread count when workspace changes
     effect(() => {
       const ws = this.activeWorkspace();
-      if (ws) {
-        this.chatService.clearUnreadCount(ws.id);
-      }
+      this.chatService.setViewingWorkspace(ws?.id ?? null);
     });
 
-    // Auto-scroll when new messages arrive
+    // Auto-scroll when new messages arrive or workspace changes
     effect(() => {
       const msgs = this.messages();
-      if (msgs.length > this.lastMessageCount) {
-        this.shouldScrollToBottom = true;
+      const ws = this.activeWorkspace();
+
+      // Scroll when messages change or workspace changes
+      if (msgs.length !== this.lastMessageCount || ws?.id !== this.lastWorkspaceId) {
+        this.lastWorkspaceId = ws?.id ?? null;
         this.lastMessageCount = msgs.length;
+        // Use setTimeout to ensure DOM is updated before scrolling
+        setTimeout(() => this.scrollToBottom(), 0);
       }
     });
   }
 
-  ngAfterViewChecked(): void {
-    if (this.shouldScrollToBottom && this.messageContainer) {
-      this.scrollToBottom();
-      this.shouldScrollToBottom = false;
+  ngOnInit(): void {
+    // Set viewing workspace when chat panel opens
+    const ws = this.activeWorkspace();
+    if (ws) {
+      this.chatService.setViewingWorkspace(ws.id);
     }
+  }
+
+  ngOnDestroy(): void {
+    // Clear viewing workspace when chat panel closes
+    this.chatService.setViewingWorkspace(null);
   }
 
   protected isOwnMessage(message: ChatMessage): boolean {

@@ -97,7 +97,10 @@ const dragState = {
                 <ui-dropdown-item (clicked)="action.emit({ type: 'pushToCloud', node })">Push to Cloud...</ui-dropdown-item>
               }
               <ui-dropdown-item (clicked)="action.emit({ type: 'close', node })">Close</ui-dropdown-item>
+              <ui-dropdown-divider />
+              <ui-dropdown-item (clicked)="action.emit({ type: 'deleteCollection', node })">Delete Collection</ui-dropdown-item>
             } @else if (!isReadOnly(node)) {
+              <ui-dropdown-item (clicked)="action.emit({ type: 'duplicate', node })">Duplicate</ui-dropdown-item>
               <ui-dropdown-item (clicked)="action.emit({ type: 'rename', node })">Rename</ui-dropdown-item>
               <ui-dropdown-item (clicked)="action.emit({ type: 'delete', node })">Delete</ui-dropdown-item>
             }

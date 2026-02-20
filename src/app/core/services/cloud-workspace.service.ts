@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { ApiClientService } from './api-client.service';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
-import { Workspace, CloudCollection, WorkspaceMember, WorkspaceInvite } from '../models/cloud.model';
+import { Workspace, CloudCollection, WorkspaceMember, WorkspaceInvite, WorkspaceApiKey, WorkspaceApiKeyCreated } from '../models/cloud.model';
 import { Collection } from '../models/collection.model';
 import { isIpcError } from '@shared/ipc-types';
 
@@ -131,6 +131,27 @@ export class CloudWorkspaceService {
   async declineInvite(inviteId: string): Promise<void> {
     await this.apiClient.post(`/invites/${inviteId}/decline`);
     this.pendingInvites.update(invites => invites.filter(i => i.id !== inviteId));
+  }
+
+  // API Key management
+  async getApiKeys(workspaceId: string): Promise<WorkspaceApiKey[]> {
+    return this.apiClient.get<WorkspaceApiKey[]>(`/workspaces/${workspaceId}/api-keys`);
+  }
+
+  async createApiKey(
+    workspaceId: string,
+    name: string,
+    expiresAt?: string
+  ): Promise<WorkspaceApiKeyCreated> {
+    const body: { name: string; expires_at?: string } = { name };
+    if (expiresAt) {
+      body.expires_at = expiresAt;
+    }
+    return this.apiClient.post<WorkspaceApiKeyCreated>(`/workspaces/${workspaceId}/api-keys`, body);
+  }
+
+  async revokeApiKey(workspaceId: string, keyId: string): Promise<void> {
+    await this.apiClient.delete(`/workspaces/${workspaceId}/api-keys/${keyId}`);
   }
 
   // Collection management

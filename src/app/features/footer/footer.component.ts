@@ -60,19 +60,12 @@ import { SettingsDialogComponent } from '../settings/settings.dialog';
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
         </ui-button>
-        @if (cloudWorkspace.activeWorkspace()) {
-          <ui-button variant="ghost" size="sm" (clicked)="chatToggle.emit()" class="chat-button" uiTooltip="Toggle chat">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            @if (totalUnreadCount() > 0) {
-              <span class="unread-badge">{{ totalUnreadCount() > 99 ? '99+' : totalUnreadCount() }}</span>
-            }
-          </ui-button>
-        }
       </div>
       <div class="footer-right">
-        <app-presence-avatars />
+        <app-presence-avatars
+          [showChatToggle]="!!cloudWorkspace.activeWorkspace()"
+          [unreadCount]="totalUnreadCount()"
+          (chatToggle)="chatToggle.emit()" />
         @if (realtime.lastAction(); as action) {
           <span class="last-action">{{ action.message }}</span>
         }
@@ -276,28 +269,6 @@ import { SettingsDialogComponent } from '../settings/settings.dialog';
     @keyframes fade-in {
       from { opacity: 0; transform: translateY(2px); }
       to { opacity: 1; transform: translateY(0); }
-    }
-
-    .chat-button {
-      position: relative;
-    }
-
-    .unread-badge {
-      position: absolute;
-      top: 2px;
-      right: 2px;
-      min-width: 14px;
-      height: 14px;
-      padding: 0 4px;
-      border-radius: 7px;
-      background-color: var(--ui-error);
-      color: white;
-      font-size: 0.625rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
     }
   `]
 })

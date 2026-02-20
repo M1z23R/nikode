@@ -23,6 +23,7 @@ export class ChatService implements OnDestroy {
   private _pendingKeyRequests = signal<Set<string>>(new Set());
   private _hasWorkspaceKey = signal<Map<string, boolean>>(new Map());
   private _unreadCount = signal<Map<string, number>>(new Map());
+  private _viewingWorkspaceId = signal<string | null>(null);
 
   readonly messages = this._messages.asReadonly();
   readonly pendingKeyRequests = this._pendingKeyRequests.asReadonly();
@@ -110,6 +111,14 @@ export class ChatService implements OnDestroy {
       n.set(workspaceId, 0);
       return n;
     });
+  }
+
+  /** Mark a workspace chat as being actively viewed (prevents unread count increment) */
+  setViewingWorkspace(workspaceId: string | null): void {
+    this._viewingWorkspaceId.set(workspaceId);
+    if (workspaceId) {
+      this.clearUnreadCount(workspaceId);
+    }
   }
 
   /** Check if workspace has an encryption key */
@@ -224,9 +233,10 @@ export class ChatService implements OnDestroy {
       return n;
     });
 
-    // Increment unread count if not from current user
+    // Increment unread count if not from current user and not currently viewing this workspace's chat
     const currentUserId = this.authService.user()?.id;
-    if (data.sender_id !== currentUserId) {
+    const isViewingThisWorkspace = this._viewingWorkspaceId() === workspaceId;
+    if (data.sender_id !== currentUserId && !isViewingThisWorkspace) {
       this._unreadCount.update(m => {
         const n = new Map(m);
         n.set(workspaceId, (n.get(workspaceId) ?? 0) + 1);

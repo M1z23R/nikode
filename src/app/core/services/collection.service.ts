@@ -101,6 +101,22 @@ export class CollectionService implements OnDestroy {
     this.openCollections.update(cols => cols.filter(c => c.path !== path));
   }
 
+  async deleteCollection(path: string): Promise<void> {
+    // Stop file watcher for this collection
+    await this.api.unwatchCollection(path);
+
+    // Remove from recent
+    await this.api.removeRecent(path);
+
+    // Delete the collection from disk
+    const result = await this.api.deleteCollection(path);
+    if (isIpcError(result)) {
+      throw new Error(result.error.userMessage);
+    }
+
+    this.openCollections.update(cols => cols.filter(c => c.path !== path));
+  }
+
   toggleExpanded(path: string): void {
     this.openCollections.update(cols =>
       cols.map(c => c.path === path ? { ...c, expanded: !c.expanded } : c)
@@ -209,6 +225,32 @@ export class CollectionService implements OnDestroy {
     };
 
     this.updateCollection(collectionPath, updatedCollection);
+  }
+
+  cloneItem(collectionPath: string, itemId: string, clonedItem: CollectionItem): void {
+    const col = this.getCollection(collectionPath);
+    if (!col) return;
+
+    const updatedCollection = {
+      ...col.collection,
+      items: this.insertItemAfter(col.collection.items, itemId, clonedItem)
+    };
+
+    this.updateCollection(collectionPath, updatedCollection);
+  }
+
+  private insertItemAfter(items: CollectionItem[], afterId: string, newItem: CollectionItem): CollectionItem[] {
+    const result: CollectionItem[] = [];
+    for (const item of items) {
+      result.push(item);
+      if (item.id === afterId) {
+        result.push(newItem);
+      } else if (item.items) {
+        const updatedItem = { ...item, items: this.insertItemAfter(item.items, afterId, newItem) };
+        result[result.length - 1] = updatedItem;
+      }
+    }
+    return result;
   }
 
   moveItem(collectionPath: string, itemId: string, targetId: string | null, position: 'before' | 'after' | 'inside'): void {

@@ -678,6 +678,126 @@ export class UnifiedCollectionService {
     }
   }
 
+  // Delete collection (both local and cloud)
+  async deleteCollection(collectionId: string): Promise<boolean> {
+    if (this.isCloudId(collectionId)) {
+      return this.deleteCloudCollection(collectionId);
+    } else {
+      return this.deleteLocalCollection(collectionId);
+    }
+  }
+
+  private async deleteCloudCollection(collectionId: string): Promise<boolean> {
+    const parsed = this.parseCloudId(collectionId);
+    if (!parsed) return false;
+
+    // Check if user is owner of the workspace
+    const workspace = this.cloudWorkspaceService.activeWorkspace();
+    if (!workspace || workspace.role !== 'owner') {
+      this.toastService.error('Only workspace owners can delete collections');
+      return false;
+    }
+
+    if (!this.networkStatusService.isOnline()) {
+      this.toastService.error('Cannot delete collection while offline');
+      return false;
+    }
+
+    this.cloudSyncStatus.syncing('Deleting...');
+    try {
+      await this.cloudWorkspaceService.deleteCollection(parsed.workspaceId, parsed.collectionId);
+      this.openCloudCollections.update(cols => cols.filter(c => c.id !== collectionId));
+      this.cloudSyncStatus.success('Collection deleted');
+      return true;
+    } catch (err: any) {
+      this.cloudSyncStatus.error('Delete failed');
+      this.toastService.error(err?.message ?? 'Failed to delete collection');
+      return false;
+    }
+  }
+
+  private async deleteLocalCollection(collectionId: string): Promise<boolean> {
+    try {
+      await this.collectionService.deleteCollection(collectionId);
+      return true;
+    } catch (err: any) {
+      this.toastService.error(err?.message ?? 'Failed to delete collection');
+      return false;
+    }
+  }
+
+  // Clone/duplicate an item (folder or request)
+  cloneItem(collectionId: string, itemId: string): void {
+    const unified = this.getCollection(collectionId);
+    if (!unified) return;
+
+    if (unified.isReadOnly) {
+      this.toastService.error('Cannot modify collection while offline');
+      return;
+    }
+
+    const item = this.findItemInTree(unified.collection.items, itemId);
+    if (!item) return;
+
+    // Deep clone and regenerate IDs
+    const clonedItem = this.regenerateIds(structuredClone(item));
+    clonedItem.name = `${item.name} (Copy)`;
+
+    // Find parent and insert after the original
+    const parentId = this.findParentId(unified.collection.items, itemId);
+
+    if (this.isCloudId(collectionId)) {
+      const updatedCollection = { ...unified.collection };
+      updatedCollection.items = this.insertItemAfter(updatedCollection.items, itemId, clonedItem);
+      this.updateCloudCollectionLocally(collectionId, updatedCollection);
+    } else {
+      this.collectionService.cloneItem(collectionId, itemId, clonedItem);
+    }
+  }
+
+  private regenerateIds(item: CollectionItem): CollectionItem {
+    const typePrefix = item.type === 'folder' ? 'folder' :
+                       item.type === 'websocket' ? 'ws' :
+                       item.type === 'graphql' ? 'gql' : 'req';
+    item.id = `${typePrefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    if (item.items) {
+      item.items = item.items.map(child => this.regenerateIds(child));
+    }
+    return item;
+  }
+
+  private findParentId(items: CollectionItem[], targetId: string, parentId: string | null = null): string | null {
+    for (const item of items) {
+      if (item.id === targetId) return parentId;
+      if (item.items) {
+        const found = this.findParentId(item.items, targetId, item.id);
+        if (found !== undefined) return found;
+      }
+    }
+    return null;
+  }
+
+  private insertItemAfter(items: CollectionItem[], afterId: string, newItem: CollectionItem): CollectionItem[] {
+    const result: CollectionItem[] = [];
+    for (const item of items) {
+      result.push(item);
+      if (item.id === afterId) {
+        result.push(newItem);
+      } else if (item.items) {
+        const updatedItem = { ...item, items: this.insertItemAfter(item.items, afterId, newItem) };
+        result[result.length - 1] = updatedItem;
+      }
+    }
+    return result;
+  }
+
+  // Check if user can delete cloud collection (must be owner)
+  canDeleteCloudCollection(): boolean {
+    const workspace = this.cloudWorkspaceService.activeWorkspace();
+    return workspace?.role === 'owner';
+  }
+
   // Sync cloud collection (refresh from server)
   async syncCloudCollection(collectionId: string): Promise<void> {
     const parsed = this.parseCloudId(collectionId);

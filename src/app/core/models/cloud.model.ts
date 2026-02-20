@@ -34,3 +34,15 @@ export interface CloudCollection {
   updated_by: string;
   updated_at?: string;
 }
+
+export interface WorkspaceApiKey {
+  id: string;
+  name: string;
+  key_prefix: string;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface WorkspaceApiKeyCreated extends WorkspaceApiKey {
+  key: string; // Only returned on creation
+}

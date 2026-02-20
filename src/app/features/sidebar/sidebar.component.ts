@@ -16,6 +16,7 @@ import { NewCollectionDialogComponent, NewCollectionDialogResult } from './dialo
 import { NewFolderDialogComponent } from './dialogs/new-folder.dialog';
 import { NewRequestDialogComponent, NewRequestDialogResult } from './dialogs/new-request.dialog';
 import { InputDialogComponent, InputDialogData } from '../../shared/dialogs/input.dialog';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/dialogs/confirm.dialog';
 import { ExportCollectionDialogComponent, ExportFormat, ExportCollectionDialogData } from '../../shared/dialogs/export-collection.dialog';
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
 import { PushToCloudDialogComponent, PushToCloudDialogData } from '../workspaces/push-to-cloud.dialog';
@@ -190,6 +191,12 @@ export class SidebarComponent {
         break;
       case 'delete':
         this.deleteItem(nodeData);
+        break;
+      case 'duplicate':
+        this.duplicateItem(nodeData);
+        break;
+      case 'deleteCollection':
+        this.deleteCollection(nodeData);
         break;
     }
   }
@@ -367,9 +374,64 @@ export class SidebarComponent {
     }
   }
 
-  private deleteItem(target: TreeNodeData): void {
-    if (target.itemId && confirm('Are you sure you want to delete this item?')) {
+  private async deleteItem(target: TreeNodeData): Promise<void> {
+    if (!target.itemId) return;
+
+    const itemName = target.item?.name || 'this item';
+    const ref = this.dialogService.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Delete Item',
+          message: `Are you sure you want to delete "${itemName}"? This action cannot be undone.`,
+          confirmLabel: 'Delete',
+          confirmColor: 'danger'
+        }
+      }
+    );
+
+    const confirmed = await ref.afterClosed();
+    if (confirmed) {
       this.unifiedCollectionService.deleteItem(target.collectionPath, target.itemId);
+    }
+  }
+
+  private duplicateItem(target: TreeNodeData): void {
+    if (!target.itemId) return;
+    this.unifiedCollectionService.cloneItem(target.collectionPath, target.itemId);
+  }
+
+  private async deleteCollection(target: TreeNodeData): Promise<void> {
+    const col = this.unifiedCollectionService.getCollection(target.collectionPath);
+    if (!col) return;
+
+    // For cloud collections, check if user is owner
+    if (target.source === 'cloud' && !this.unifiedCollectionService.canDeleteCloudCollection()) {
+      this.toastService.error('Only workspace owners can delete collections');
+      return;
+    }
+
+    const collectionName = col.name;
+    const isCloud = target.source === 'cloud';
+    const message = isCloud
+      ? `Are you sure you want to delete the cloud collection "${collectionName}"? This will permanently delete it from the cloud and cannot be undone.`
+      : `Are you sure you want to delete the collection "${collectionName}"? This will delete the collection folder from disk and cannot be undone.`;
+
+    const ref = this.dialogService.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Delete Collection',
+          message,
+          confirmLabel: 'Delete',
+          confirmColor: 'danger'
+        }
+      }
+    );
+
+    const confirmed = await ref.afterClosed();
+    if (confirmed) {
+      await this.unifiedCollectionService.deleteCollection(target.collectionPath);
     }
   }
 

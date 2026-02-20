@@ -12,6 +12,7 @@ import { CloudWorkspaceService } from '../../core/services/cloud-workspace.servi
 import { Workspace } from '../../core/models/cloud.model';
 import { NewWorkspaceDialogComponent } from './new-workspace.dialog';
 import { WorkspaceMembersDialogComponent } from './workspace-members.dialog';
+import { ManageWorkspaceDialogComponent } from './manage-workspace.dialog';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/dialogs/confirm.dialog';
 import { InputDialogComponent, InputDialogData } from '../../shared/dialogs/input.dialog';
 
@@ -120,6 +121,18 @@ import { InputDialogComponent, InputDialogData } from '../../shared/dialogs/inpu
             <span>Manage Members</span>
           </div>
         </ui-dropdown-item>
+
+        @if (cloudWorkspaceService.activeWorkspace()?.role === 'owner') {
+          <ui-dropdown-item (clicked)="openManageWorkspaceDialog()">
+            <div class="action-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span>API Keys</span>
+            </div>
+          </ui-dropdown-item>
+        }
       }
     </ui-dropdown>
   `,
@@ -225,6 +238,16 @@ export class WorkspaceSwitcherComponent {
 
     this.dialogService.open<WorkspaceMembersDialogComponent, { workspace: Workspace }, void>(
       WorkspaceMembersDialogComponent,
+      { data: { workspace: activeWorkspace } }
+    );
+  }
+
+  openManageWorkspaceDialog(): void {
+    const activeWorkspace = this.cloudWorkspaceService.activeWorkspace();
+    if (!activeWorkspace || activeWorkspace.role !== 'owner') return;
+
+    this.dialogService.open<ManageWorkspaceDialogComponent, { workspace: Workspace }, void>(
+      ManageWorkspaceDialogComponent,
       { data: { workspace: activeWorkspace } }
     );
   }
