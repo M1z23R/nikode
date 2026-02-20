@@ -18,7 +18,7 @@ import { ProxyResponse } from '../../../core/models/request.model';
             </tr>
           </thead>
           <tbody>
-            @for (cookie of response().cookies; track cookie.name) {
+            @for (cookie of response().cookies; track $index) {
               <tr>
                 <td class="cookie-name">{{ cookie.name }}</td>
                 <td class="cookie-value">{{ cookie.value }}</td>

@@ -17,3 +17,7 @@ Available components include:
 - `ui-toast` - toast notifications
 
 **Never use native HTML form elements like `<select>`, `<input>`, `<button>` when an ngx-ui equivalent exists.**
+
+## Angular Signals
+
+**Use `model()` signals with two-way binding (`[(value)]="myModel"`) when no side effects are needed on value change.** Only use `signal()` with separate `[value]`/`(valueChange)` bindings when you need to run side-effect logic in the change handler.

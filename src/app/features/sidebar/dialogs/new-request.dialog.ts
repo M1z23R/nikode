@@ -9,7 +9,7 @@ import {
   DIALOG_REF,
   DialogRef
 } from '@m1z23r/ngx-ui';
-import { HttpMethod, KeyValue, RequestBody } from '../../../core/models/collection.model';
+import { HttpMethod, KeyValue, RequestAuth, RequestBody } from '../../../core/models/collection.model';
 import { parseCurl } from '../../../core/utils/curl';
 
 export interface NewRequestDialogResult {
@@ -20,6 +20,7 @@ export interface NewRequestDialogResult {
   headers?: KeyValue[];
   params?: KeyValue[];
   body?: RequestBody;
+  auth?: RequestAuth;
 }
 
 @Component({
@@ -216,7 +217,8 @@ export class NewRequestDialogComponent {
         url: result.data.url,
         headers: result.data.headers,
         params: result.data.params,
-        body: result.data.body
+        body: result.data.body,
+        ...(result.data.auth ? { auth: result.data.auth } : {})
       });
     } else {
       this.curlError.set(result.error);

@@ -8,7 +8,9 @@ import { HeadersPanelComponent } from './panels/headers-panel.component';
 import { BodyPanelComponent } from './panels/body-panel.component';
 import { VariablesPanelComponent } from './panels/variables-panel.component';
 import { ScriptsPanelComponent } from './panels/scripts-panel.component';
+import { AuthPanelComponent } from './panels/auth-panel.component';
 import { DocsPanelComponent } from './panels/docs-panel.component';
+import { PollingPanelComponent } from './panels/polling-panel.component';
 import { GeneralTabComponent } from '../response-viewer/tabs/general-tab.component';
 import { RequestTabComponent } from '../response-viewer/tabs/request-tab.component';
 import { ResponseTabComponent } from '../response-viewer/tabs/response-tab.component';
@@ -24,10 +26,12 @@ export interface RequestTabData {
     UrlBarComponent,
     ParamsPanelComponent,
     HeadersPanelComponent,
+    AuthPanelComponent,
     BodyPanelComponent,
     VariablesPanelComponent,
     ScriptsPanelComponent,
     DocsPanelComponent,
+    PollingPanelComponent,
     GeneralTabComponent,
     RequestTabComponent,
     ResponseTabComponent,
@@ -53,6 +57,9 @@ export interface RequestTabData {
                 <ui-tab id="headers" [label]="'Headers' + (req.headers.length > 0 ? ' (' + req.headers.length + ')' : '')">
                   <app-headers-panel [request]="req" />
                 </ui-tab>
+                <ui-tab id="auth" label="Auth">
+                  <app-auth-panel [request]="req" />
+                </ui-tab>
                 <ui-tab id="body" label="Body">
                   <app-body-panel [request]="req" />
                 </ui-tab>
@@ -65,12 +72,47 @@ export interface RequestTabData {
                 <ui-tab id="docs" label="Docs">
                   <app-docs-panel [request]="req" />
                 </ui-tab>
+                <ui-tab id="polling" label="Polling">
+                  <app-polling-panel [request]="req" />
+                </ui-tab>
               </ui-tabs>
             </div>
           </ui-split-pane>
           <ui-split-pane [minSize]="20">
             <div class="response-panels">
-              @if (req.loading) {
+              @if (req.polling) {
+                <div class="polling-status-bar">
+                  <ui-spinner size="sm" />
+                  <span>Polling — iteration {{ req.pollingIteration + 1 }}@if (req.pollingMaxIterations > 0) { / {{ req.pollingMaxIterations }}}</span>
+                </div>
+                @if (req.response) {
+                  @if (req.scripts.post.trim()) {
+                    <div class="response-action-bar">
+                      <ui-button variant="ghost" size="sm" (clicked)="workspace.rerunPostScript(req.id)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="1 4 1 10 7 10"/>
+                          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                        </svg>
+                        Re-run Post Script
+                      </ui-button>
+                    </div>
+                  }
+                  <ui-tabs [activeTab]="responseTab()" (activeTabChange)="responseTab.set($any($event))" variant="underline">
+                    <ui-tab id="general" label="General">
+                      <app-general-tab [response]="req.response" />
+                    </ui-tab>
+                    <ui-tab id="request" label="Request">
+                      <app-request-tab [response]="req.response" />
+                    </ui-tab>
+                    <ui-tab id="response" label="Response">
+                      <app-response-tab [response]="req.response" />
+                    </ui-tab>
+                    <ui-tab id="cookies" [label]="'Cookies' + ((req.response.cookies || []).length > 0 ? ' (' + req.response.cookies.length + ')' : '')">
+                      <app-cookies-tab [response]="req.response" />
+                    </ui-tab>
+                  </ui-tabs>
+                }
+              } @else if (req.loading) {
                 <div class="loading-state">
                   <ui-spinner size="lg" />
                   <p>Sending request...</p>
@@ -186,6 +228,12 @@ export interface RequestTabData {
       flex-direction: column;
     }
 
+    :host ::ng-deep .request-panels .ui-tabs__list,
+    :host ::ng-deep .response-panels .ui-tabs__list {
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+
     .response-action-bar {
       display: flex;
       justify-content: flex-end;
@@ -195,6 +243,17 @@ export interface RequestTabData {
       ui-button svg {
         margin-right: 0.25rem;
       }
+    }
+
+    .polling-status-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--ui-border);
+      font-size: 0.8125rem;
+      color: var(--ui-text-muted);
+      background: var(--ui-bg-subtle, var(--ui-bg));
     }
 
     .loading-state, .empty-state {

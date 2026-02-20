@@ -11,6 +11,8 @@ import { CloudWorkspaceService } from '../../core/services/cloud-workspace.servi
 import { APP_VERSION } from '../../core/tokens/version.token';
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
 import { SettingsDialogComponent } from '../settings/settings.dialog';
+import { CookieJarDialogComponent, CookieJarDialogData } from '../cookie-jar/cookie-jar.dialog';
+import { CookieJarService } from '../../core/services/cookie-jar.service';
 import { VaultService } from '../../core/services/vault.service';
 
 @Component({
@@ -70,6 +72,19 @@ import { VaultService } from '../../core/services/vault.service';
         @if (realtime.lastAction(); as action) {
           <span class="last-action">{{ action.message }}</span>
         }
+        <ui-button variant="ghost" size="sm" (clicked)="openCookieJar()" [disabled]="!canRun()" uiTooltip="Cookie Jar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12z"/>
+            <path d="M17 5V4c0-.55-.45-1-1-1h-3V2h-2v1H8c-.55 0-1 .45-1 1v1"/>
+            <circle cx="10" cy="11" r="1"/>
+            <circle cx="14" cy="15" r="1"/>
+            <circle cx="10" cy="16" r=".5"/>
+            <circle cx="14" cy="11" r=".5"/>
+          </svg>
+          @if (cookieCount() > 0) {
+            <span class="cookie-badge">{{ cookieCount() }}</span>
+          }
+        </ui-button>
         @if (cloudWorkspace.activeWorkspace()) {
           <ui-button variant="ghost" size="sm" (clicked)="openVault()" uiTooltip="Vault">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -263,6 +278,22 @@ import { VaultService } from '../../core/services/vault.service';
       stroke: var(--ui-text-muted);
     }
 
+    .cookie-badge {
+      position: absolute;
+      top: 0;
+      right: 0;
+      min-width: 14px;
+      height: 14px;
+      padding: 0 3px;
+      font-size: 0.625rem;
+      font-weight: 600;
+      line-height: 14px;
+      text-align: center;
+      color: white;
+      background-color: var(--ui-primary);
+      border-radius: 7px;
+    }
+
     .last-action {
       font-size: 0.75rem;
       color: var(--ui-text-muted);
@@ -291,6 +322,7 @@ export class FooterComponent implements OnDestroy {
   private dialogService = inject(DialogService);
   private unifiedCollectionService = inject(UnifiedCollectionService);
   private vaultService = inject(VaultService);
+  private cookieJarService = inject(CookieJarService);
 
   private animationFrameId: number | null = null;
   protected autosaveProgress = signal<number | null>(null);
@@ -345,6 +377,12 @@ export class FooterComponent implements OnDestroy {
 
   protected canRun = computed(() => !!this.workspace.activeRequest());
 
+  protected cookieCount = computed(() => {
+    const activeRequest = this.workspace.activeRequest();
+    if (!activeRequest) return 0;
+    return this.cookieJarService.cookieCount(activeRequest.collectionPath);
+  });
+
   protected totalUnreadCount = computed(() => {
     const unreadMap = this.chatService.unreadCount();
     let total = 0;
@@ -360,6 +398,20 @@ export class FooterComponent implements OnDestroy {
     const activeWorkspace = this.cloudWorkspace.activeWorkspace();
     if (!activeWorkspace) return;
     this.vaultService.openVaultTab(activeWorkspace.id);
+  }
+
+  protected openCookieJar(): void {
+    const activeRequest = this.workspace.activeRequest();
+    if (!activeRequest) return;
+
+    this.dialogService.open<CookieJarDialogComponent, CookieJarDialogData, void>(
+      CookieJarDialogComponent,
+      {
+        data: {
+          collectionPath: activeRequest.collectionPath,
+        },
+      }
+    );
   }
 
   protected openRunner(): void {

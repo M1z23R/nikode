@@ -1,4 +1,4 @@
-import { HttpMethod, KeyValue, RequestBody } from '../models/collection.model';
+import { HttpMethod, KeyValue, RequestAuth, RequestBody } from '../models/collection.model';
 import { ProxyRequest } from '../models/request.model';
 
 export interface ParsedCurl {
@@ -7,6 +7,7 @@ export interface ParsedCurl {
   headers: KeyValue[];
   body: RequestBody;
   params: KeyValue[];
+  auth?: RequestAuth;
 }
 
 export type CurlParseResult =
@@ -65,6 +66,7 @@ export function parseCurl(command: string): CurlParseResult {
     let bodyContent = '';
     let bodyType: 'none' | 'json' | 'raw' | 'form-data' | 'x-www-form-urlencoded' = 'none';
     const formEntries: KeyValue[] = [];
+    let auth: RequestAuth | undefined;
 
     let i = 0;
     while (i < tokens.length) {
@@ -137,10 +139,26 @@ export function parseCurl(command: string): CurlParseResult {
         if (method === 'GET') {
           method = 'POST';
         }
+      } else if (token === '-u' || token === '--user') {
+        // Basic auth: -u user:pass
+        i++;
+        if (i < tokens.length) {
+          const credentials = tokens[i];
+          const colonIdx = credentials.indexOf(':');
+          const username = colonIdx >= 0 ? credentials.slice(0, colonIdx) : credentials;
+          const password = colonIdx >= 0 ? credentials.slice(colonIdx + 1) : '';
+          auth = { type: 'basic', basic: { username, password } };
+        }
+      } else if (token === '--oauth2-bearer') {
+        // Bearer token: --oauth2-bearer <token>
+        i++;
+        if (i < tokens.length) {
+          auth = { type: 'bearer', bearer: { token: tokens[i], prefix: 'Bearer' } };
+        }
       } else if (token.startsWith('-')) {
         // Skip other flags (and their values if they look like they take one)
         // Common flags that take values
-        const flagsWithValues = ['-o', '--output', '-u', '--user', '-A', '--user-agent',
+        const flagsWithValues = ['-o', '--output', '-A', '--user-agent',
           '-e', '--referer', '-b', '--cookie', '-c', '--cookie-jar', '--connect-timeout',
           '-m', '--max-time', '-w', '--write-out', '-T', '--upload-file'];
         if (flagsWithValues.includes(token) && i + 1 < tokens.length && !tokens[i + 1].startsWith('-')) {
@@ -178,7 +196,8 @@ export function parseCurl(command: string): CurlParseResult {
         url: baseUrl,
         headers,
         body,
-        params
+        params,
+        ...(auth ? { auth } : {})
       }
     };
   } catch (e) {

@@ -16,6 +16,7 @@ import { scriptCompletions } from './script-completions.extension';
 import { json } from '@codemirror/lang-json';
 import { javascript } from '@codemirror/lang-javascript';
 import { xml } from '@codemirror/lang-xml';
+import { markdown as markdownExtension } from '@codemirror/lang-markdown';
 import { graphql as graphqlExtension, updateSchema as updateGraphQLSchemaExt } from 'cm6-graphql';
 import { GraphQLSchema } from 'graphql';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
@@ -133,7 +134,7 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy {
   @ViewChild('editorContainer', { static: true }) editorContainer!: ElementRef<HTMLDivElement>;
 
   value = model('');
-  language = input<'json' | 'javascript' | 'xml' | 'html' | 'graphql' | 'text'>('json');
+  language = input<'json' | 'javascript' | 'xml' | 'html' | 'graphql' | 'markdown' | 'text'>('json');
   placeholder = input('');
   readonly = input(false);
   showLineNumbers = input(true);
@@ -256,6 +257,8 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy {
       extensions.push(xml());
     } else if (lang === 'graphql') {
       extensions.push(...graphqlExtension(), autocompletion());
+    } else if (lang === 'markdown') {
+      extensions.push(markdownExtension());
     }
 
     const ph = this.placeholder();

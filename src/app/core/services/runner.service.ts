@@ -172,7 +172,7 @@ export class RunnerService {
       endTime: undefined,
     }));
 
-    const config = state.config;
+    const config = this.state().config;
 
     try {
       if (config.mode === 'sequential') {
@@ -313,36 +313,27 @@ export class RunnerService {
     // Pre-resolve environment variables to access dataVariable
     const envVariables = this.resolveEnvironmentVariables(collectionPath, config);
 
+    // Fire all iterations and all requests concurrently
+    const allPromises: Promise<RunnerRequestResult>[] = [];
+
     for (let iteration = 0; iteration < config.iterations; iteration++) {
-      if (this.abortController?.signal.aborted) break;
-
-      this.state.update(s => ({ ...s, currentIteration: iteration }));
-
       const dataVariables = this.getDataVariablesForIteration(config, envVariables, iteration);
 
-      const promises = requests.map((request) =>
-        this.executeRequest(collectionPath, request, iteration, config, dataVariables)
-          .then(result => {
-            this.state.update(s => ({
-              ...s,
-              results: [...s.results, result],
-            }));
-            return result;
-          })
-      );
-
-      const results = await Promise.all(promises);
-
-      // Check for failures if stop on error is enabled
-      if (config.stopOnError && results.some(r => r.status === 'failed')) {
-        break;
-      }
-
-      // Delay between iterations
-      if (config.delayMs > 0 && iteration < config.iterations - 1) {
-        await this.delay(config.delayMs);
+      for (const request of requests) {
+        allPromises.push(
+          this.executeRequest(collectionPath, request, iteration, config, dataVariables)
+            .then(result => {
+              this.state.update(s => ({
+                ...s,
+                results: [...s.results, result],
+              }));
+              return result;
+            })
+        );
       }
     }
+
+    await Promise.all(allPromises);
   }
 
   private async executeRequest(
@@ -449,6 +440,7 @@ export class RunnerService {
         url: resolvedUrl,
         headers,
         body,
+        collectionPath,
       };
 
       const result = await this.api.executeRequest(proxyRequest);

@@ -1,6 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { EnvironmentService } from './environment.service';
 import { ConsoleService } from './console.service';
+import { CookieJarService } from './cookie-jar.service';
+import { ApiService } from './api.service';
+import { Cookie } from '../models/request.model';
 import { ResolvedVariables } from '../models/environment.model';
 import { AssertionResult } from '../models/runner.model';
 
@@ -24,6 +27,7 @@ export interface PreScriptContext {
   collectionPath: string;
   request: ScriptRequest;
   variables: ResolvedVariables;
+  iteration?: number;
 }
 
 export interface PostScriptContext extends PreScriptContext {
@@ -35,44 +39,48 @@ export interface ScriptResult {
   error?: string;
   requestVars: Map<string, string>;
   assertions: AssertionResult[];
+  stopPolling: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
 export class ScriptExecutorService {
   private environmentService = inject(EnvironmentService);
   private consoleService = inject(ConsoleService);
+  private cookieJarService = inject(CookieJarService);
+  private apiService = inject(ApiService);
 
-  executePreScript(script: string, context: PreScriptContext): ScriptResult {
+  executePreScript(script: string, context: PreScriptContext, pollingControl?: { stopped: boolean }): ScriptResult {
     const requestVars = new Map<string, string>();
     const assertions: AssertionResult[] = [];
 
     if (!script.trim()) {
-      return { success: true, requestVars, assertions };
+      return { success: true, requestVars, assertions, stopPolling: false };
     }
 
-    const sandbox = this.buildSandbox(context, requestVars, assertions);
+    const sandbox = this.buildSandbox(context, requestVars, assertions, undefined, pollingControl);
 
-    return this.executeScript(script, sandbox, requestVars, assertions);
+    return this.executeScript(script, sandbox, requestVars, assertions, pollingControl);
   }
 
-  executePostScript(script: string, context: PostScriptContext): ScriptResult {
+  executePostScript(script: string, context: PostScriptContext, pollingControl?: { stopped: boolean }): ScriptResult {
     const requestVars = new Map<string, string>();
     const assertions: AssertionResult[] = [];
 
     if (!script.trim()) {
-      return { success: true, requestVars, assertions };
+      return { success: true, requestVars, assertions, stopPolling: false };
     }
 
-    const sandbox = this.buildSandbox(context, requestVars, assertions, context.response);
+    const sandbox = this.buildSandbox(context, requestVars, assertions, context.response, pollingControl);
 
-    return this.executeScript(script, sandbox, requestVars, assertions);
+    return this.executeScript(script, sandbox, requestVars, assertions, pollingControl);
   }
 
   private buildSandbox(
     context: PreScriptContext,
     requestVars: Map<string, string>,
     assertions: AssertionResult[],
-    response?: ScriptResponse
+    response?: ScriptResponse,
+    pollingControl?: { stopped: boolean }
   ): Record<string, unknown> {
     const { collectionPath, request, variables } = context;
 
@@ -136,6 +144,52 @@ export class ScriptExecutorService {
         if (!condition) {
           throw new Error(message ?? 'Assertion failed');
         }
+      },
+
+      getCookie: (name: string): string | undefined => {
+        const cookies = this.cookieJarService.getCookies(collectionPath);
+        const cookie = cookies.find(c => c.name === name);
+        return cookie?.value;
+      },
+
+      getCookies: (): Array<{ name: string; value: string; domain: string; path: string }> => {
+        return this.cookieJarService.getCookies(collectionPath).map(c => ({
+          name: c.name,
+          value: c.value,
+          domain: c.domain,
+          path: c.path,
+        }));
+      },
+
+      setCookie: (name: string, value: string, domain?: string, cookiePath?: string): void => {
+        const cookies = [...this.cookieJarService.getCookies(collectionPath)];
+        const d = domain || '';
+        const p = cookiePath || '/';
+        const idx = cookies.findIndex(
+          c => c.name === name && c.domain.toLowerCase() === d.toLowerCase() && c.path === p
+        );
+        const newCookie: Cookie = { name, value, domain: d, path: p, expires: '', httpOnly: false, secure: false };
+        if (idx !== -1) {
+          cookies[idx] = newCookie;
+        } else {
+          cookies.push(newCookie);
+        }
+        // Fire-and-forget: save cookies and reload cache
+        void this.apiService.saveCookies(collectionPath, cookies).then(() => {
+          this.cookieJarService.loadCookies(collectionPath);
+        });
+      },
+
+      clearCookies: (): void => {
+        void this.cookieJarService.clearCookies(collectionPath);
+      },
+
+      iteration: context.iteration ?? 0,
+
+      stopPolling: (): void => {
+        if (pollingControl) {
+          pollingControl.stopped = true;
+        }
       }
     };
 
@@ -169,7 +223,8 @@ export class ScriptExecutorService {
     script: string,
     sandbox: Record<string, unknown>,
     requestVars: Map<string, string>,
-    assertions: AssertionResult[]
+    assertions: AssertionResult[],
+    pollingControl?: { stopped: boolean }
   ): ScriptResult {
     const keys = Object.keys(sandbox);
     const values = Object.values(sandbox);
@@ -177,11 +232,11 @@ export class ScriptExecutorService {
     try {
       const fn = new Function(...keys, script);
       fn(...values);
-      return { success: true, requestVars, assertions };
+      return { success: true, requestVars, assertions, stopPolling: pollingControl?.stopped ?? false };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.consoleService.error(`Script error: ${errorMessage}`);
-      return { success: false, error: errorMessage, requestVars, assertions };
+      return { success: false, error: errorMessage, requestVars, assertions, stopPolling: pollingControl?.stopped ?? false };
     }
   }
 

@@ -22,8 +22,8 @@ export interface OpenCollectionDialogResult {
       <ui-radio-group [(value)]="mode" label="">
         <ui-radio value="folder">
           <div class="option">
-            <span class="option-title">Open Folder</span>
-            <span class="option-description">Open an existing Nikode collection</span>
+            <span class="option-title">Open File</span>
+            <span class="option-description">Open an existing .nikode.json file</span>
           </div>
         </ui-radio>
         <ui-radio value="file">

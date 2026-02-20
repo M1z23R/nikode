@@ -1,14 +1,11 @@
 const fs = require('fs');
-const path = require('path');
-
-const COLLECTION_FILE_NAME = 'nikode.json';
 
 /**
  * Service for watching collection files for external changes
  */
 class FileWatcherService {
   constructor() {
-    // Map of collection path -> FSWatcher
+    // Map of collection file path -> FSWatcher
     this.watchers = new Map();
     // The main window reference (set via setWindow)
     this.mainWindow = null;
@@ -27,33 +24,31 @@ class FileWatcherService {
   }
 
   /**
-   * Start watching a collection directory for changes to nikode.json
-   * @param {string} collectionPath - The directory containing nikode.json
+   * Start watching a collection file for changes
+   * @param {string} collectionFilePath - Full path to the .nikode.json file
    * @returns {boolean} True if watching started successfully
    */
-  watch(collectionPath) {
+  watch(collectionFilePath) {
     // Don't double-watch
-    if (this.watchers.has(collectionPath)) {
-      console.log('Already watching:', collectionPath);
+    if (this.watchers.has(collectionFilePath)) {
+      console.log('Already watching:', collectionFilePath);
       return true;
     }
 
-    const filePath = path.join(collectionPath, COLLECTION_FILE_NAME);
-
     try {
-      const watcher = fs.watch(filePath, (eventType, filename) => {
+      const watcher = fs.watch(collectionFilePath, (eventType, filename) => {
         if (eventType === 'change') {
-          this.handleChange(collectionPath);
+          this.handleChange(collectionFilePath);
         }
       });
 
       watcher.on('error', (error) => {
         console.error('File watcher error:', error);
-        this.unwatch(collectionPath);
+        this.unwatch(collectionFilePath);
       });
 
-      this.watchers.set(collectionPath, watcher);
-      console.log('Started watching:', collectionPath);
+      this.watchers.set(collectionFilePath, watcher);
+      console.log('Started watching:', collectionFilePath);
       return true;
     } catch (error) {
       console.error('Failed to start file watcher:', error);

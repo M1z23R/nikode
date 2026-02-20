@@ -46,6 +46,7 @@
     "@codemirror/commands": "^6.10.2",
     "@codemirror/lang-javascript": "^6.2.4",
     "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-markdown": "^6.5.0",
     "@codemirror/lang-xml": "^6.1.0",
     "@codemirror/language": "^6.12.1",
     "@codemirror/lint": "^6.9.4",
@@ -56,6 +57,8 @@
     "cm6-graphql": "^0.2.1",
     "codemirror": "^6.0.2",
     "graphql": "^16.12.0",
+    "marked": "^17.0.3",
+    "ngx-markdown": "^21.1.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "ws": "^8.19.0"

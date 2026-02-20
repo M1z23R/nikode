@@ -12,7 +12,6 @@ import { isIpcError } from '@shared/ipc-types';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { CloudWorkspaceService } from '../../../core/services/cloud-workspace.service';
-import { Workspace } from '../../../core/models/cloud.model';
 
 export interface NewCollectionDialogResult {
   type: 'local' | 'cloud';
@@ -60,16 +59,7 @@ export interface NewCollectionDialogResult {
           placeholder="My API Collection" />
 
         @if (collectionType() === 'local') {
-          <div class="path-picker">
-            <ui-input
-              label="Location"
-              [value]="path()"
-              (valueChange)="path.set($any($event))"
-              placeholder="/path/to/new/collection"
-              hint="A nikode.json file will be created in this folder"
-              (keydown.enter)="submit()" />
-            <ui-button variant="ghost" (clicked)="browse()">Browse</ui-button>
-          </div>
+          <p class="hint-text">You'll choose a save location when you click Create</p>
         } @else {
           <div class="form-group">
             <ui-select label="Workspace" [(value)]="selectedWorkspaceId">
@@ -138,20 +128,6 @@ export interface NewCollectionDialogResult {
       text-align: center;
     }
 
-    .path-picker {
-      display: flex;
-      gap: 0.5rem;
-      align-items: flex-end;
-    }
-
-    .path-picker ui-input {
-      flex: 1;
-    }
-
-    .path-picker ui-button {
-      margin-bottom: 1.25rem;
-    }
-
     .form-group {
       margin-bottom: 0;
     }
@@ -165,7 +141,6 @@ export class NewCollectionDialogComponent {
 
   collectionType = signal<'local' | 'cloud'>('local');
   name = signal('');
-  path = signal('');
   selectedWorkspaceId = signal('');
 
   workspaces = this.cloudWorkspaceService.workspaces;
@@ -186,46 +161,47 @@ export class NewCollectionDialogComponent {
     const nameValid = this.name().trim().length > 0;
 
     if (this.collectionType() === 'local') {
-      return nameValid && this.path().trim().length > 0;
+      return nameValid;
     } else {
       return nameValid && this.selectedWorkspaceId().length > 0;
     }
   });
 
-  async browse(): Promise<void> {
-    const result = await this.api.showOpenDialog({
-      title: 'Select Location for New Collection',
-      properties: ['openDirectory', 'createDirectory']
-    });
-
-    if (isIpcError(result)) {
-      return;
-    }
-
-    if (!result.data.canceled && result.data.filePaths.length > 0) {
-      this.path.set(result.data.filePaths[0]);
-    }
-  }
-
   cancel(): void {
     this.dialogRef.close(undefined);
   }
 
-  submit(): void {
-    if (this.isValid()) {
-      if (this.collectionType() === 'local') {
-        this.dialogRef.close({
-          type: 'local',
-          name: this.name().trim(),
-          path: this.path().trim()
-        });
-      } else {
-        this.dialogRef.close({
-          type: 'cloud',
-          name: this.name().trim(),
-          workspaceId: this.selectedWorkspaceId()
-        });
+  async submit(): Promise<void> {
+    if (!this.isValid()) return;
+
+    if (this.collectionType() === 'local') {
+      // Show native Save dialog so the user picks file location
+      const name = this.name().trim();
+      const defaultFileName = name.toLowerCase().replace(/\s+/g, '-') + '.nikode.json';
+
+      const result = await this.api.showSaveDialog({
+        title: 'Save New Collection',
+        defaultPath: defaultFileName,
+        filters: [
+          { name: 'Nikode Collections', extensions: ['nikode.json'] }
+        ]
+      });
+
+      if (isIpcError(result) || result.data.canceled || !result.data.filePath) {
+        return;
       }
+
+      this.dialogRef.close({
+        type: 'local',
+        name,
+        path: result.data.filePath
+      });
+    } else {
+      this.dialogRef.close({
+        type: 'cloud',
+        name: this.name().trim(),
+        workspaceId: this.selectedWorkspaceId()
+      });
     }
   }
 }

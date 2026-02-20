@@ -7,12 +7,13 @@ import { UnifiedCollectionService } from './unified-collection.service';
 import { EnvironmentService } from './environment.service';
 import { HttpLogService } from './http-log.service';
 import { ScriptExecutorService, ScriptRequest } from './script-executor.service';
-import { OpenRequest, createOpenRequest, ProxyRequest } from '../models/request.model';
-import { CollectionItem, KeyValue, RequestBody, Scripts } from '../models/collection.model';
+import { OpenRequest, createOpenRequest, ProxyRequest, ProxyResponse } from '../models/request.model';
+import { CollectionItem, KeyValue, RequestAuth, RequestBody, Scripts } from '../models/collection.model';
 import { ResolvedVariables } from '../models/environment.model';
 import { resolveVariables } from '../utils/variable-resolver';
 import { RequestTabContentComponent, RequestTabData } from '../../features/request-editor/request-tab-content.component';
 import { SettingsService } from './settings.service';
+import { CookieJarService } from './cookie-jar.service';
 
 @Injectable({ providedIn: 'root' })
 export class WorkspaceService {
@@ -24,12 +25,15 @@ export class WorkspaceService {
   private toastService = inject(ToastService);
   private scriptExecutor = inject(ScriptExecutorService);
   private settingsService = inject(SettingsService);
+  private cookieJarService = inject(CookieJarService);
   private tabsService = inject(TabsService);
 
   private openRequests = signal<OpenRequest[]>([]);
   private darkMode = signal(false);
   private autosaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private autosaveStartTimes = new Map<string, number>();
+  private pollingTimers = new Map<string, { timer: ReturnType<typeof setTimeout>; resolve: () => void }>();
+  private pollingControls = new Map<string, { stopped: boolean }>();
 
   // Exposed for footer countdown indicator
   readonly autosaveCountdown = signal<{ startTime: number; delayMs: number } | null>(null);
@@ -115,6 +119,7 @@ export class WorkspaceService {
 
     // Handle tab close
     tabRef.afterClosed().then(() => {
+      this.stopPolling(requestId);
       this.cancelScheduledSave(requestId);
       this.openRequests.update(reqs => reqs.filter(r => r.id !== requestId));
     });
@@ -219,6 +224,10 @@ export class WorkspaceService {
     this.updateRequest(requestId, { params });
   }
 
+  updateRequestAuth(requestId: string, auth: RequestAuth): void {
+    this.updateRequest(requestId, { auth });
+  }
+
   updateRequestDocs(requestId: string, docs: string): void {
     this.updateRequest(requestId, { docs });
   }
@@ -237,8 +246,12 @@ export class WorkspaceService {
       params: request.params,
       headers: request.headers,
       body: request.body,
+      auth: request.auth,
       scripts: request.scripts,
-      docs: request.docs
+      docs: request.docs,
+      pollingEnabled: request.pollingEnabled,
+      pollingInterval: request.pollingInterval,
+      pollingMaxIterations: request.pollingMaxIterations,
     };
 
     // Use unified service to update and save (handles both local and cloud)
@@ -255,6 +268,15 @@ export class WorkspaceService {
   async sendRequest(requestId: string): Promise<void> {
     const request = this.openRequests().find(r => r.id === requestId);
     if (!request) return;
+
+    if (request.pollingEnabled) {
+      if (request.polling) {
+        this.stopPolling(requestId);
+      } else {
+        this.startPolling(requestId);
+      }
+      return;
+    }
 
     // Set loading
     this.openRequests.update(reqs =>
@@ -309,6 +331,11 @@ export class WorkspaceService {
     }
 
     const response = result.data;
+
+    // Refresh cookie cache if response has cookies
+    if (response.cookies?.length > 0) {
+      this.cookieJarService.loadCookies(request.collectionPath);
+    }
 
     // Execute post-script if exists
     if (request.scripts.post?.trim()) {
@@ -408,11 +435,50 @@ export class WorkspaceService {
       }
     }
 
+    // Inject auth
+    if (request.auth && request.auth.type !== 'none') {
+      switch (request.auth.type) {
+        case 'basic': {
+          const username = resolveVariables(request.auth.basic?.username || '', variables);
+          const password = resolveVariables(request.auth.basic?.password || '', variables);
+          headers['Authorization'] = 'Basic ' + btoa(username + ':' + password);
+          break;
+        }
+        case 'bearer': {
+          const token = resolveVariables(request.auth.bearer?.token || '', variables);
+          const prefix = resolveVariables(request.auth.bearer?.prefix || 'Bearer', variables);
+          headers['Authorization'] = prefix + ' ' + token;
+          break;
+        }
+        case 'api-key': {
+          const key = resolveVariables(request.auth.apiKey?.key || '', variables);
+          const value = resolveVariables(request.auth.apiKey?.value || '', variables);
+          if (key) {
+            if (request.auth.apiKey?.addTo === 'query') {
+              const separator = resolvedUrl.includes('?') ? '&' : '?';
+              resolvedUrl = resolvedUrl + separator + encodeURIComponent(key) + '=' + encodeURIComponent(value);
+            } else {
+              headers[key] = value;
+            }
+          }
+          break;
+        }
+        case 'oauth2': {
+          const accessToken = resolveVariables(request.auth.oauth2?.accessToken || '', variables);
+          if (accessToken) {
+            headers['Authorization'] = 'Bearer ' + accessToken;
+          }
+          break;
+        }
+      }
+    }
+
     return {
       method: request.method,
       url: resolvedUrl,
       headers,
-      body
+      body,
+      collectionPath: request.collectionPath
     };
   }
 
@@ -481,8 +547,12 @@ export class WorkspaceService {
           params: item.params ?? [],
           headers: item.headers ?? [],
           body: item.body ?? { type: 'none' },
+          auth: item.auth ?? { type: 'none' },
           scripts: item.scripts ?? { pre: '', post: '' },
-          docs: item.docs ?? ''
+          docs: item.docs ?? '',
+          pollingEnabled: item.pollingEnabled ?? false,
+          pollingInterval: item.pollingInterval ?? 5,
+          pollingMaxIterations: item.pollingMaxIterations ?? 0,
         };
       })
     );
@@ -492,6 +562,179 @@ export class WorkspaceService {
       if (req.collectionPath === collectionPath && !req.dirty) {
         this.tabsService.updateLabel(req.id, req.name);
       }
+    }
+  }
+
+  private startPolling(requestId: string): void {
+    this.openRequests.update(reqs =>
+      reqs.map(r => r.id === requestId ? { ...r, polling: true, pollingIteration: 0, loading: true, response: undefined } : r)
+    );
+
+    const pollingControl = { stopped: false };
+    this.pollingControls.set(requestId, pollingControl);
+    this.executePollingLoop(requestId, pollingControl);
+  }
+
+  private async executePollingLoop(requestId: string, pollingControl: { stopped: boolean }): Promise<void> {
+    let iteration = 0;
+
+    try {
+      while (!pollingControl.stopped) {
+        const request = this.openRequests().find(r => r.id === requestId);
+        if (!request) break;
+
+        // Check max iterations
+        if (request.pollingMaxIterations > 0 && iteration >= request.pollingMaxIterations) break;
+
+        // Update iteration counter
+        this.openRequests.update(reqs =>
+          reqs.map(r => r.id === requestId ? { ...r, pollingIteration: iteration } : r)
+        );
+
+        const result = await this.executeSingleRequest(requestId, iteration, pollingControl);
+        if (!result.success) break;
+        if (pollingControl.stopped) break;
+
+        iteration++;
+
+        // Check max iterations after this iteration completed
+        const currentRequest = this.openRequests().find(r => r.id === requestId);
+        if (!currentRequest) break;
+        if (currentRequest.pollingMaxIterations > 0 && iteration >= currentRequest.pollingMaxIterations) break;
+
+        // Wait for interval (resolve is stored so stopPolling can unblock it)
+        await new Promise<void>(resolve => {
+          const timer = setTimeout(() => {
+            this.pollingTimers.delete(requestId);
+            resolve();
+          }, (currentRequest.pollingInterval ?? 5) * 1000);
+          this.pollingTimers.set(requestId, { timer, resolve });
+        });
+      }
+    } finally {
+      // Always clean up polling state
+      this.pollingControls.delete(requestId);
+      this.pollingTimers.delete(requestId);
+
+      this.openRequests.update(reqs =>
+        reqs.map(r => r.id === requestId ? { ...r, polling: false, loading: false } : r)
+      );
+    }
+  }
+
+  private async executeSingleRequest(
+    requestId: string,
+    iteration: number,
+    pollingControl: { stopped: boolean }
+  ): Promise<{ success: boolean; response?: ProxyResponse }> {
+    const request = this.openRequests().find(r => r.id === requestId);
+    if (!request) return { success: false };
+
+    // Resolve variables
+    let variables = this.environmentService.resolveVariables(request.collectionPath);
+
+    // Build initial request for pre-script
+    let proxyRequest = this.buildProxyRequest(request, variables);
+
+    // Execute pre-script if exists
+    let requestVars = new Map<string, string>();
+    if (request.scripts.pre?.trim()) {
+      const scriptRequest: ScriptRequest = {
+        method: proxyRequest.method,
+        url: proxyRequest.url,
+        headers: proxyRequest.headers,
+        body: proxyRequest.body
+      };
+
+      const preResult = this.scriptExecutor.executePreScript(request.scripts.pre, {
+        collectionPath: request.collectionPath,
+        request: scriptRequest,
+        variables,
+        iteration
+      }, pollingControl);
+
+      if (preResult.stopPolling) {
+        pollingControl.stopped = true;
+        return { success: true };
+      }
+
+      requestVars = preResult.requestVars;
+
+      // Re-resolve variables with request-scoped vars merged in
+      if (requestVars.size > 0) {
+        variables = this.mergeVariables(
+          this.environmentService.resolveVariables(request.collectionPath),
+          requestVars
+        );
+        proxyRequest = this.buildProxyRequest(request, variables);
+      }
+    }
+
+    const result = await this.api.executeRequest(proxyRequest);
+
+    if (isIpcError(result)) {
+      this.toastService.error(result.error.userMessage);
+      return { success: false };
+    }
+
+    const response = result.data;
+
+    // Refresh cookie cache if response has cookies
+    if (response.cookies?.length > 0) {
+      this.cookieJarService.loadCookies(request.collectionPath);
+    }
+
+    // Store response on the open request so UI shows latest
+    this.openRequests.update(reqs =>
+      reqs.map(r => r.id === requestId ? { ...r, response } : r)
+    );
+
+    // Log each iteration to history
+    this.httpLogService.log(proxyRequest, response);
+
+    // Execute post-script if exists
+    if (request.scripts.post?.trim()) {
+      const scriptRequest: ScriptRequest = {
+        method: proxyRequest.method,
+        url: proxyRequest.url,
+        headers: proxyRequest.headers,
+        body: proxyRequest.body
+      };
+
+      const postResult = this.scriptExecutor.executePostScript(request.scripts.post, {
+        collectionPath: request.collectionPath,
+        request: scriptRequest,
+        variables,
+        response: {
+          statusCode: response.statusCode,
+          statusText: response.statusText,
+          headers: response.headers,
+          body: response.body,
+          time: response.time,
+          size: response.size
+        },
+        iteration
+      }, pollingControl);
+
+      if (postResult.stopPolling) {
+        pollingControl.stopped = true;
+      }
+    }
+
+    return { success: true, response };
+  }
+
+  stopPolling(requestId: string): void {
+    const control = this.pollingControls.get(requestId);
+    if (control) {
+      control.stopped = true;
+    }
+
+    const entry = this.pollingTimers.get(requestId);
+    if (entry) {
+      clearTimeout(entry.timer);
+      entry.resolve(); // unblock the await so the loop can exit
+      this.pollingTimers.delete(requestId);
     }
   }
 }

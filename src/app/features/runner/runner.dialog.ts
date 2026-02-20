@@ -72,22 +72,26 @@ export interface RunnerDialogData {
                 min="1"
                 max="1000" />
 
-              <ui-input
-                label="Delay (ms)"
-                type="number"
-                [value]="delayMs().toString()"
-                (valueChange)="onDelayChange($any($event))"
-                min="0"
-                max="60000" />
+              @if (mode() === 'sequential') {
+                <ui-input
+                  label="Delay (ms)"
+                  type="number"
+                  [value]="delayMs().toString()"
+                  (valueChange)="onDelayChange($any($event))"
+                  min="0"
+                  max="60000" />
+              }
             </div>
 
-            <div class="config-row">
-              <ui-checkbox
-                [checked]="stopOnError()"
-                (checkedChange)="onStopOnErrorChange($event)">
-                Stop on first error
-              </ui-checkbox>
-            </div>
+            @if (mode() === 'sequential') {
+              <div class="config-row">
+                <ui-checkbox
+                  [checked]="stopOnError()"
+                  (checkedChange)="onStopOnErrorChange($event)">
+                  Stop on first error
+                </ui-checkbox>
+              </div>
+            }
 
             <!-- Data Source -->
             <div class="data-source-section">
@@ -130,7 +134,7 @@ export interface RunnerDialogData {
                   }
                 </ui-select>
                 @if (arrayVariables().length === 0) {
-                  <p class="no-variables-hint">No variables containing arrays found. Use a post-script to store an array: <code>nk.setEnv('data', JSON.stringify([...]))</code></p>
+                  <p class="no-variables-hint">No variables containing arrays found. Use a post-script to store an array:<br/><code>nk.setEnv('data', JSON.stringify([...]))</code></p>
                 }
               }
             </div>

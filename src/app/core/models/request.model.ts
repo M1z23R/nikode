@@ -1,10 +1,11 @@
-import { CollectionItem, HttpMethod, KeyValue, RequestBody, Scripts } from './collection.model';
+import { CollectionItem, HttpMethod, KeyValue, RequestAuth, RequestBody, Scripts } from './collection.model';
 
 export interface ProxyRequest {
   method: HttpMethod;
   url: string;
   headers: Record<string, string>;
   body?: string;
+  collectionPath?: string;
 }
 
 export interface ProxyResponse {
@@ -46,11 +47,19 @@ export interface OpenRequest {
   params: KeyValue[];
   headers: KeyValue[];
   body: RequestBody;
+  auth: RequestAuth;
   scripts: Scripts;
   docs: string;
   dirty: boolean;
   response?: ProxyResponse;
   loading: boolean;
+  // Persisted polling config
+  pollingEnabled: boolean;
+  pollingInterval: number;
+  pollingMaxIterations: number;
+  // Transient runtime state
+  polling: boolean;
+  pollingIteration: number;
 }
 
 export function createOpenRequest(collectionPath: string, item: CollectionItem): OpenRequest {
@@ -64,9 +73,15 @@ export function createOpenRequest(collectionPath: string, item: CollectionItem):
     params: item.params ? [...item.params] : [],
     headers: item.headers ? [...item.headers] : [],
     body: item.body ? { ...item.body, entries: item.body.entries ? [...item.body.entries] : undefined } : { type: 'none' },
+    auth: item.auth ? { ...item.auth } : { type: 'none' },
     scripts: item.scripts ? { ...item.scripts } : { pre: '', post: '' },
     docs: item.docs || '',
     dirty: false,
     loading: false,
+    pollingEnabled: item.pollingEnabled ?? false,
+    pollingInterval: item.pollingInterval ?? 5,
+    pollingMaxIterations: item.pollingMaxIterations ?? 0,
+    polling: false,
+    pollingIteration: 0,
   };
 }
