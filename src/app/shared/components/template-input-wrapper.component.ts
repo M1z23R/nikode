@@ -7,6 +7,7 @@ import {
 } from '@m1z23r/ngx-ui';
 import { EnvironmentService } from '../../core/services/environment.service';
 import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
+import { DYNAMIC_VARIABLE_LIST, isDynamicVariable } from '../../core/utils/dynamic-variables';
 
 @Component({
   selector: 'app-template-input',
@@ -26,32 +27,36 @@ import { UnifiedCollectionService } from '../../core/services/unified-collection
         let-close="close">
         <div class="var-popover">
           <div class="var-popover-header">
-            <span class="var-popover-label">Variable</span>
+            <span class="var-popover-label">{{ isDynamic(key) ? 'Dynamic Variable' : 'Variable' }}</span>
             <span class="var-popover-key">{{ key }}</span>
           </div>
-          <div class="var-popover-body">
-            <ui-input
-              class="var-popover-input"
-              [value]="val"
-              (valueChange)="editValue = $event.toString()"
-              placeholder="Enter value..."
-              (keydown.enter)="saveVariable(key, editValue || val, close)" />
-            <ui-button
-              size="sm"
-              variant="ghost"
-              (clicked)="saveVariable(key, editValue || val, close)"
-              title="Save">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                <polyline points="17 21 17 13 7 13 7 21"/>
-                <polyline points="7 3 7 8 15 8"/>
-              </svg>
-            </ui-button>
-          </div>
-          @if (state === 'unknown') {
-            <div class="var-popover-status">Not defined in environment</div>
-          } @else if (state === 'unset') {
-            <div class="var-popover-status unset">Value is empty</div>
+          @if (isDynamic(key)) {
+            <div class="var-popover-desc">{{ val }}</div>
+          } @else {
+            <div class="var-popover-body">
+              <ui-input
+                class="var-popover-input"
+                [value]="val"
+                (valueChange)="editValue = $event.toString()"
+                placeholder="Enter value..."
+                (keydown.enter)="saveVariable(key, editValue || val, close)" />
+              <ui-button
+                size="sm"
+                variant="ghost"
+                (clicked)="saveVariable(key, editValue || val, close)"
+                title="Save">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+              </ui-button>
+            </div>
+            @if (state === 'unknown') {
+              <div class="var-popover-status">Not defined in environment</div>
+            } @else if (state === 'unset') {
+              <div class="var-popover-status unset">Value is empty</div>
+            }
           }
         </div>
       </ng-template>
@@ -105,6 +110,12 @@ import { UnifiedCollectionService } from '../../core/services/unified-collection
       min-width: 0;
     }
 
+    .var-popover-desc {
+      font-size: 12px;
+      color: var(--ui-text-secondary);
+      padding: 4px 0;
+    }
+
     .var-popover-status {
       margin-top: 10px;
       padding-top: 10px;
@@ -133,7 +144,12 @@ export class TemplateInputWrapperComponent {
   editValue: string = '';
 
   get templateVars() {
-    return this.environmentService.getTemplateVariables(this.collectionPath());
+    const envVars = this.environmentService.getTemplateVariables(this.collectionPath());
+    return [...envVars, ...DYNAMIC_VARIABLE_LIST.map(d => ({ key: d.key, value: d.description }))];
+  }
+
+  isDynamic(key: string): boolean {
+    return isDynamicVariable(key);
   }
 
   saveVariable(key: string, value: string, close: () => void): void {

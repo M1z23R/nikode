@@ -5,6 +5,7 @@ import { ApiService } from './api.service';
 import { UnifiedCollectionService } from './unified-collection.service';
 import { Secrets, ResolvedVariables } from '../models/environment.model';
 import { Environment, Variable, UnifiedCollection } from '../models/collection.model';
+import { isDynamicVariable, getDynamicVariableDescription } from '../utils/dynamic-variables';
 
 @Injectable({ providedIn: 'root' })
 export class EnvironmentService {
@@ -146,7 +147,11 @@ export class EnvironmentService {
   /**
    * Gets detailed variable info including secret status for tooltip display.
    */
-  getVariableInfo(collectionPath: string, key: string): { value: string | undefined; isSecret: boolean } | undefined {
+  getVariableInfo(collectionPath: string, key: string): { value: string | undefined; isSecret: boolean; isDynamic?: boolean } | undefined {
+    if (isDynamicVariable(key)) {
+      return { value: getDynamicVariableDescription(key), isSecret: false, isDynamic: true };
+    }
+
     const env = this.getActiveEnvironment(collectionPath);
     if (!env) return undefined;
 

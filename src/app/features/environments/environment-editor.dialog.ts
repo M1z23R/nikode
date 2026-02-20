@@ -21,6 +21,7 @@ import {
   ExportEnvironmentResult
 } from '../../shared/dialogs/export-environment.dialog';
 import { isIpcError } from '@shared/ipc-types';
+import { DYNAMIC_VARIABLE_LIST } from '../../core/utils/dynamic-variables';
 
 export interface EnvironmentEditorDialogData {
   collectionPath: string;
@@ -146,6 +147,41 @@ export interface EnvironmentEditorDialogData {
               </table>
               <ui-button variant="ghost" size="sm" (clicked)="addVariable()">Add Variable</ui-button>
             </div>
+
+            <div class="dynamic-section">
+              <ui-button
+                variant="ghost"
+                size="sm"
+                class="dynamic-toggle"
+                (clicked)="toggleDynamicVars()">
+                <svg
+                  width="12" height="12" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2"
+                  [style.transform]="showDynamicVars() ? 'rotate(90deg)' : ''"
+                  style="transition: transform 0.15s">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+                Dynamic Variables
+              </ui-button>
+              @if (showDynamicVars()) {
+                <table class="dynamic-table">
+                  <thead>
+                    <tr>
+                      <th>Variable</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (dv of dynamicVars; track dv.key) {
+                      <tr>
+                        <td><code>{{ '{{' + dv.key + '}}' }}</code></td>
+                        <td>{{ dv.description }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
           </div>
         }
       </div>
@@ -241,6 +277,49 @@ export interface EnvironmentEditorDialogData {
         font-family: monospace;
       }
     }
+
+    .dynamic-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--ui-border);
+    }
+
+    .dynamic-toggle {
+      font-size: 0.875rem;
+      font-weight: 600;
+      gap: 0.375rem;
+    }
+
+    .dynamic-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+
+      th, td {
+        padding: 0.375rem 0.5rem;
+        text-align: left;
+      }
+
+      th {
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        color: var(--ui-text-muted);
+      }
+
+      td {
+        font-size: 0.8125rem;
+        color: var(--ui-text-secondary);
+      }
+
+      code {
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 0.8125rem;
+        background-color: var(--ui-bg-secondary);
+        padding: 0.125rem 0.375rem;
+        border-radius: 4px;
+      }
+    }
   `]
 })
 export class EnvironmentEditorDialogComponent implements OnInit {
@@ -256,6 +335,9 @@ export class EnvironmentEditorDialogComponent implements OnInit {
   selectedEnvId = signal('');
   // Track secrets for ALL environments, keyed by env ID
   allSecrets = signal<Record<string, Record<string, string>>>({});
+
+  dynamicVars = DYNAMIC_VARIABLE_LIST;
+  showDynamicVars = signal(false);
 
   // Computed signal for the current environment's secrets
   secrets = computed(() => this.allSecrets()[this.selectedEnvId()] || {});
@@ -322,6 +404,10 @@ export class EnvironmentEditorDialogComponent implements OnInit {
 
   updateEnvName(name: string): void {
     this.environmentService.updateEnvironment(this.data.collectionPath, this.selectedEnvId(), { name });
+  }
+
+  toggleDynamicVars(): void {
+    this.showDynamicVars.update(v => !v);
   }
 
   addVariable(): void {

@@ -1,11 +1,14 @@
 import { EditorView, hoverTooltip } from '@codemirror/view';
+import { isDynamicVariable, resolveDynamicVariable, getDynamicVariableDescription } from '../../core/utils/dynamic-variables';
 
-const VARIABLE_PATTERN = /\{\{(\w+)\}\}/g;
+const VARIABLE_PATTERN = /\{\{(\$?\w+)\}\}/g;
 
 export interface VariableInfo {
   name: string;
   value: string | undefined;
   isSecret: boolean;
+  isDynamic?: boolean;
+  dynamicDescription?: string;
 }
 
 export type VariableResolver = (name: string) => VariableInfo | undefined;
@@ -33,6 +36,23 @@ export function variableTooltip(config: VariableTooltipConfig) {
 
       if (posInLine >= varStart && posInLine <= varEnd) {
         const varName = match[1];
+
+        if (isDynamicVariable(varName)) {
+          const dynamicInfo: VariableInfo = {
+            name: varName,
+            value: resolveDynamicVariable(varName),
+            isSecret: false,
+            isDynamic: true,
+            dynamicDescription: getDynamicVariableDescription(varName),
+          };
+          return {
+            pos: from + varStart,
+            end: from + varEnd,
+            above: true,
+            create: () => createTooltipDOM(varName, dynamicInfo)
+          };
+        }
+
         const info = config.resolver(varName);
 
         return {
@@ -59,12 +79,33 @@ function createTooltipDOM(
   const value = info?.value ?? '';
   const isSecret = info?.isSecret ?? false;
   const isDefined = info?.value !== undefined;
+  const isDynamic = info?.isDynamic ?? false;
 
   // Name row
   const nameRow = document.createElement('div');
   nameRow.className = 'cm-var-tooltip-name';
-  nameRow.innerHTML = `<span class="label">Variable</span><span class="value">${name}</span>`;
+  nameRow.innerHTML = `<span class="label">${isDynamic ? 'Dynamic Variable' : 'Variable'}</span><span class="value">${name}</span>`;
   container.appendChild(nameRow);
+
+  // Dynamic variable: read-only display
+  if (isDynamic) {
+    if (info?.dynamicDescription) {
+      const descRow = document.createElement('div');
+      descRow.className = 'cm-var-tooltip-desc';
+      descRow.textContent = info.dynamicDescription;
+      container.appendChild(descRow);
+    }
+
+    const sampleRow = document.createElement('div');
+    sampleRow.className = 'cm-var-tooltip-row';
+    const sampleSpan = document.createElement('span');
+    sampleSpan.className = 'cm-var-tooltip-sample';
+    sampleSpan.textContent = value;
+    sampleRow.appendChild(sampleSpan);
+    container.appendChild(sampleRow);
+
+    return { dom: container };
+  }
 
   // Value row
   const valueRow = document.createElement('div');
@@ -272,6 +313,17 @@ export const variableTooltipTheme = EditorView.baseTheme({
   '.cm-var-tooltip-btn.success': {
     background: 'var(--ui-success)',
     color: '#fff',
+  },
+  '.cm-var-tooltip-desc': {
+    fontSize: '12px',
+    color: 'var(--ui-text-secondary)',
+    marginBottom: '8px',
+  },
+  '.cm-var-tooltip-sample': {
+    fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+    fontSize: '13px',
+    color: 'var(--ui-text-muted)',
+    wordBreak: 'break-all',
   },
   '.cm-var-tooltip-status': {
     marginTop: '10px',

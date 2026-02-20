@@ -2,6 +2,7 @@ import { Component, input, inject, computed } from '@angular/core';
 import { OpenRequest } from '../../../core/models/request.model';
 import { EnvironmentService } from '../../../core/services/environment.service';
 import { extractVariableNames } from '../../../core/utils/variable-resolver';
+import { isDynamicVariable, resolveDynamicVariable } from '../../../core/utils/dynamic-variables';
 import { GetPipe } from '../../../shared/pipes/get.pipe';
 
 @Component({
@@ -26,9 +27,14 @@ import { GetPipe } from '../../../shared/pipes/get.pipe';
             </tr>
           </thead>
           <tbody>
-            @for (varName of usedVariables(); track varName) {
+            @for (varName of usedVariables(); track $index) {
               <tr>
-                <td><code>{{ '{{' + varName + '}}' }}</code></td>
+                <td>
+                  <code>{{ '{{' + varName + '}}' }}</code>
+                  @if (isDynamic(varName)) {
+                    <span class="dynamic-badge">Dynamic</span>
+                  }
+                </td>
                 <td>
                   @let value = resolvedVariables() | get: varName;
                   @if (value !== undefined) {
@@ -105,6 +111,18 @@ import { GetPipe } from '../../../shared/pipes/get.pipe';
       font-style: italic;
       font-size: 0.875rem;
     }
+
+    .dynamic-badge {
+      display: inline-block;
+      margin-left: 0.5rem;
+      padding: 0.0625rem 0.375rem;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      border-radius: 4px;
+      background-color: var(--ui-bg-tertiary);
+      color: var(--ui-text-secondary);
+      vertical-align: middle;
+    }
   `]
 })
 export class VariablesPanelComponent {
@@ -124,6 +142,18 @@ export class VariablesPanelComponent {
   });
 
   resolvedVariables = computed(() => {
-    return this.environmentService.resolveVariables(this.request().collectionPath);
+    const envResolved = this.environmentService.resolveVariables(this.request().collectionPath);
+    const used = this.usedVariables();
+    const merged = { ...envResolved };
+    for (const name of used) {
+      if (isDynamicVariable(name)) {
+        merged[name] = resolveDynamicVariable(name) ?? '';
+      }
+    }
+    return merged;
   });
+
+  isDynamic(name: string): boolean {
+    return isDynamicVariable(name);
+  }
 }

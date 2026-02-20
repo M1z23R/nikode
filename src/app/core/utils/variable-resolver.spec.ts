@@ -70,6 +70,29 @@ describe('variable-resolver', () => {
       });
       expect(result).toBe('{"token": "abc123"}');
     });
+
+    it('should resolve $-prefixed dynamic variables', () => {
+      const result = resolveVariables('ts={{$timestamp}}', {});
+      expect(result).not.toBe('ts={{$timestamp}}');
+      expect(result).toMatch(/^ts=\d+$/);
+    });
+
+    it('should resolve dynamic variables alongside regular variables', () => {
+      const result = resolveVariables('{{host}}/{{$randomInt}}', { host: 'example.com' });
+      expect(result).toMatch(/^example\.com\/\d+$/);
+    });
+
+    it('should leave unknown $-prefixed variables unchanged', () => {
+      const result = resolveVariables('{{$unknown}}', {});
+      expect(result).toBe('{{$unknown}}');
+    });
+
+    it('should not let user variables override dynamic variables ($ prefix is reserved)', () => {
+      // Dynamic variables take precedence since they're checked first
+      const result = resolveVariables('{{$timestamp}}', { $timestamp: 'user-value' });
+      expect(result).not.toBe('user-value');
+      expect(result).toMatch(/^\d+$/);
+    });
   });
 
   describe('extractVariableNames', () => {
@@ -113,6 +136,16 @@ describe('variable-resolver', () => {
       const result = extractVariableNames('{{b}}');
       expect(result).toEqual(['b']);
     });
+
+    it('should extract $-prefixed variable names', () => {
+      const result = extractVariableNames('{{$timestamp}} and {{$randomInt}}');
+      expect(result).toEqual(['$timestamp', '$randomInt']);
+    });
+
+    it('should extract mixed regular and $-prefixed variable names', () => {
+      const result = extractVariableNames('{{host}}/{{$randomUUID}}');
+      expect(result).toEqual(['host', '$randomUUID']);
+    });
   });
 
   describe('hasVariables', () => {
@@ -141,6 +174,14 @@ describe('variable-resolver', () => {
     it('should handle consecutive calls (regex state reset)', () => {
       hasVariables('{{a}}');
       expect(hasVariables('plain')).toBe(false);
+    });
+
+    it('should return true for $-prefixed variables', () => {
+      expect(hasVariables('{{$timestamp}}')).toBe(true);
+    });
+
+    it('should return true for mixed regular and $-prefixed variables', () => {
+      expect(hasVariables('{{host}} {{$randomInt}}')).toBe(true);
     });
   });
 });
