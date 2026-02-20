@@ -176,17 +176,13 @@ export interface CookieJarDialogData {
       color: var(--ui-text-muted);
     }
 
-    .cell-flags {
-      display: flex;
-      gap: 0.25rem;
-    }
-
     .flag {
       font-size: 0.6875rem;
       padding: 0.0625rem 0.25rem;
       border-radius: 2px;
       background-color: var(--ui-bg-secondary);
       color: var(--ui-text-muted);
+      margin-right: 0.25rem;
     }
 
     .cell-actions {

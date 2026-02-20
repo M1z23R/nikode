@@ -53,6 +53,13 @@ export interface OpenRequest {
   dirty: boolean;
   response?: ProxyResponse;
   loading: boolean;
+  // Persisted polling config
+  pollingEnabled: boolean;
+  pollingInterval: number;
+  pollingMaxIterations: number;
+  // Transient runtime state
+  polling: boolean;
+  pollingIteration: number;
 }
 
 export function createOpenRequest(collectionPath: string, item: CollectionItem): OpenRequest {
@@ -71,5 +78,10 @@ export function createOpenRequest(collectionPath: string, item: CollectionItem):
     docs: item.docs || '',
     dirty: false,
     loading: false,
+    pollingEnabled: item.pollingEnabled ?? false,
+    pollingInterval: item.pollingInterval ?? 5,
+    pollingMaxIterations: item.pollingMaxIterations ?? 0,
+    polling: false,
+    pollingIteration: 0,
   };
 }

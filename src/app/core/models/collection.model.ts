@@ -32,6 +32,9 @@ export interface CollectionItem {
   scripts?: Scripts;         // For requests
   auth?: RequestAuth;         // For requests - authentication
   docs?: string;             // For requests - documentation/notes
+  pollingEnabled?: boolean;
+  pollingInterval?: number;      // seconds
+  pollingMaxIterations?: number;  // 0 = unlimited
   // WebSocket-specific
   wsProtocols?: string[];
   wsAutoReconnect?: boolean;
@@ -93,6 +96,7 @@ export interface RequestAuth {
 }
 
 export interface OpenCollection {
+  /** Full file path to the .nikode.json collection file */
   path: string;
   collection: Collection;
   expanded: boolean;

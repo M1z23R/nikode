@@ -373,17 +373,21 @@ export class CollectionService implements OnDestroy {
     }
 
     if (result.mode === 'folder') {
-      // Open Folder mode: show directory picker
-      const dirResult = await this.api.showOpenDialog({
-        title: 'Select Collection Folder',
-        properties: ['openDirectory']
+      // Open File mode: show file picker for .nikode.json files
+      const fileResult = await this.api.showOpenDialog({
+        title: 'Open Collection File',
+        properties: ['openFile'],
+        filters: [
+          { name: 'Nikode Collections', extensions: ['nikode.json'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
       });
 
-      if (isIpcError(dirResult) || dirResult.data.canceled || dirResult.data.filePaths.length === 0) {
+      if (isIpcError(fileResult) || fileResult.data.canceled || fileResult.data.filePaths.length === 0) {
         return false;
       }
 
-      return this.openCollection(dirResult.data.filePaths[0]);
+      return this.openCollection(fileResult.data.filePaths[0]);
     } else {
       // Import File mode: show file picker, detect format, import
       const fileResult = await this.api.showOpenDialog({
@@ -429,17 +433,20 @@ export class CollectionService implements OnDestroy {
       return this.importPostmanEnv(sourcePath);
     }
 
-    // Show destination picker
-    const targetResult = await this.api.showOpenDialog({
-      title: 'Select Destination Folder',
-      properties: ['openDirectory', 'createDirectory']
+    // Show save dialog for destination .nikode.json file
+    const targetResult = await this.api.showSaveDialog({
+      title: 'Save Imported Collection As',
+      defaultPath: 'imported.nikode.json',
+      filters: [
+        { name: 'Nikode Collections', extensions: ['nikode.json'] }
+      ]
     });
 
-    if (isIpcError(targetResult) || targetResult.data.canceled || targetResult.data.filePaths.length === 0) {
+    if (isIpcError(targetResult) || targetResult.data.canceled || !targetResult.data.filePath) {
       return false;
     }
 
-    const targetPath = targetResult.data.filePaths[0];
+    const targetPath = targetResult.data.filePath;
 
     // Route to appropriate import method
     if (format === 'openapi') {
@@ -475,17 +482,20 @@ export class CollectionService implements OnDestroy {
 
     const sourcePath = sourceResult.data.filePaths[0];
 
-    // Step 2: Select target directory
-    const targetResult = await this.api.showOpenDialog({
-      title: 'Select Destination Folder',
-      properties: ['openDirectory', 'createDirectory']
+    // Step 2: Select target file path
+    const targetResult = await this.api.showSaveDialog({
+      title: 'Save Imported Collection As',
+      defaultPath: 'imported.nikode.json',
+      filters: [
+        { name: 'Nikode Collections', extensions: ['nikode.json'] }
+      ]
     });
 
-    if (isIpcError(targetResult) || targetResult.data.canceled || targetResult.data.filePaths.length === 0) {
+    if (isIpcError(targetResult) || targetResult.data.canceled || !targetResult.data.filePath) {
       return false; // User cancelled or error
     }
 
-    const targetPath = targetResult.data.filePaths[0];
+    const targetPath = targetResult.data.filePath;
 
     // Step 3: Import the collection
     return this.importCollection(sourcePath, targetPath);
@@ -551,17 +561,20 @@ export class CollectionService implements OnDestroy {
 
     const sourcePath = sourceResult.data.filePaths[0];
 
-    // Step 2: Select target directory
-    const targetResult = await this.api.showOpenDialog({
-      title: 'Select Destination Folder',
-      properties: ['openDirectory', 'createDirectory']
+    // Step 2: Select target file path
+    const targetResult = await this.api.showSaveDialog({
+      title: 'Save Imported Collection As',
+      defaultPath: 'imported.nikode.json',
+      filters: [
+        { name: 'Nikode Collections', extensions: ['nikode.json'] }
+      ]
     });
 
-    if (isIpcError(targetResult) || targetResult.data.canceled || targetResult.data.filePaths.length === 0) {
+    if (isIpcError(targetResult) || targetResult.data.canceled || !targetResult.data.filePath) {
       return false;
     }
 
-    const targetPath = targetResult.data.filePaths[0];
+    const targetPath = targetResult.data.filePath;
 
     // Step 3: Import the OpenAPI spec
     return this.importOpenApi(sourcePath, targetPath);

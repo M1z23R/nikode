@@ -431,7 +431,6 @@ ipcMain.handle(
   'show-open-dialog',
   wrapHandler(async (event, options) => {
     const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openDirectory', 'createDirectory'],
       ...options,
     });
     return result;
@@ -480,7 +479,7 @@ ipcMain.handle(
 
     // Ensure target directory exists
     const fs = require('fs/promises');
-    await fs.mkdir(targetPath, { recursive: true });
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
 
     // Write the collection
     await fileService.writeCollection(targetPath, collection);
@@ -501,7 +500,7 @@ ipcMain.handle(
 
     // Ensure target directory exists
     const fs = require('fs/promises');
-    await fs.mkdir(targetPath, { recursive: true });
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
 
     // Write the collection
     await fileService.writeCollection(targetPath, collection);

@@ -68,12 +68,19 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
             variant="ghost"
             size="sm"
             (clicked)="onSend()"
-            [loading]="request().loading"
-            title="Send request">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M5 12h14"/>
-              <path d="m12 5 7 7-7 7"/>
-            </svg>
+            [loading]="request().loading && !request().polling"
+            [title]="request().polling ? 'Stop polling' : request().pollingEnabled ? 'Start polling' : 'Send request'"
+            [class.polling-active]="request().polling">
+            @if (request().polling) {
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="4" y="4" width="16" height="16" rx="2"/>
+              </svg>
+            } @else {
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14"/>
+                <path d="m12 5 7 7-7 7"/>
+              </svg>
+            }
           </ui-button>
         </div>
       </div>
@@ -116,6 +123,10 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
       display: flex;
       gap: 0.25rem;
       align-items: center;
+    }
+
+    .polling-active {
+      color: var(--ui-danger, #ef4444);
     }
   `]
 })

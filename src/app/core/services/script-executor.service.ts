@@ -27,6 +27,7 @@ export interface PreScriptContext {
   collectionPath: string;
   request: ScriptRequest;
   variables: ResolvedVariables;
+  iteration?: number;
 }
 
 export interface PostScriptContext extends PreScriptContext {
@@ -38,6 +39,7 @@ export interface ScriptResult {
   error?: string;
   requestVars: Map<string, string>;
   assertions: AssertionResult[];
+  stopPolling: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -47,37 +49,38 @@ export class ScriptExecutorService {
   private cookieJarService = inject(CookieJarService);
   private apiService = inject(ApiService);
 
-  executePreScript(script: string, context: PreScriptContext): ScriptResult {
+  executePreScript(script: string, context: PreScriptContext, pollingControl?: { stopped: boolean }): ScriptResult {
     const requestVars = new Map<string, string>();
     const assertions: AssertionResult[] = [];
 
     if (!script.trim()) {
-      return { success: true, requestVars, assertions };
+      return { success: true, requestVars, assertions, stopPolling: false };
     }
 
-    const sandbox = this.buildSandbox(context, requestVars, assertions);
+    const sandbox = this.buildSandbox(context, requestVars, assertions, undefined, pollingControl);
 
-    return this.executeScript(script, sandbox, requestVars, assertions);
+    return this.executeScript(script, sandbox, requestVars, assertions, pollingControl);
   }
 
-  executePostScript(script: string, context: PostScriptContext): ScriptResult {
+  executePostScript(script: string, context: PostScriptContext, pollingControl?: { stopped: boolean }): ScriptResult {
     const requestVars = new Map<string, string>();
     const assertions: AssertionResult[] = [];
 
     if (!script.trim()) {
-      return { success: true, requestVars, assertions };
+      return { success: true, requestVars, assertions, stopPolling: false };
     }
 
-    const sandbox = this.buildSandbox(context, requestVars, assertions, context.response);
+    const sandbox = this.buildSandbox(context, requestVars, assertions, context.response, pollingControl);
 
-    return this.executeScript(script, sandbox, requestVars, assertions);
+    return this.executeScript(script, sandbox, requestVars, assertions, pollingControl);
   }
 
   private buildSandbox(
     context: PreScriptContext,
     requestVars: Map<string, string>,
     assertions: AssertionResult[],
-    response?: ScriptResponse
+    response?: ScriptResponse,
+    pollingControl?: { stopped: boolean }
   ): Record<string, unknown> {
     const { collectionPath, request, variables } = context;
 
@@ -179,6 +182,14 @@ export class ScriptExecutorService {
 
       clearCookies: (): void => {
         void this.cookieJarService.clearCookies(collectionPath);
+      },
+
+      iteration: context.iteration ?? 0,
+
+      stopPolling: (): void => {
+        if (pollingControl) {
+          pollingControl.stopped = true;
+        }
       }
     };
 
@@ -212,7 +223,8 @@ export class ScriptExecutorService {
     script: string,
     sandbox: Record<string, unknown>,
     requestVars: Map<string, string>,
-    assertions: AssertionResult[]
+    assertions: AssertionResult[],
+    pollingControl?: { stopped: boolean }
   ): ScriptResult {
     const keys = Object.keys(sandbox);
     const values = Object.values(sandbox);
@@ -220,11 +232,11 @@ export class ScriptExecutorService {
     try {
       const fn = new Function(...keys, script);
       fn(...values);
-      return { success: true, requestVars, assertions };
+      return { success: true, requestVars, assertions, stopPolling: pollingControl?.stopped ?? false };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.consoleService.error(`Script error: ${errorMessage}`);
-      return { success: false, error: errorMessage, requestVars, assertions };
+      return { success: false, error: errorMessage, requestVars, assertions, stopPolling: pollingControl?.stopped ?? false };
     }
   }
 

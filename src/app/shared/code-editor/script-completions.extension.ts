@@ -72,6 +72,19 @@ const nkCompletions: Completion[] = [
     info: 'The response object (post-response only)',
     detail: '{ status, headers, body, time }',
   },
+  {
+    label: 'iteration',
+    type: 'property',
+    info: 'Current polling iteration index (0-based)',
+    detail: 'number',
+  },
+  {
+    label: 'stopPolling',
+    type: 'function',
+    info: 'Stop the polling loop after current iteration',
+    detail: '() => void',
+    apply: 'stopPolling()',
+  },
 ];
 
 // console.* completions

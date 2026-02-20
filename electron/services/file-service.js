@@ -1,23 +1,18 @@
 const fs = require('fs/promises');
 const path = require('path');
 
-const COLLECTION_FILE_NAME = 'nikode.json';
-
 class FileService {
-  async readCollection(dirPath) {
-    const filePath = path.join(dirPath, COLLECTION_FILE_NAME);
+  async readCollection(filePath) {
     const data = await fs.readFile(filePath, 'utf-8');
     return JSON.parse(data);
   }
 
-  async writeCollection(dirPath, collection) {
-    const filePath = path.join(dirPath, COLLECTION_FILE_NAME);
+  async writeCollection(filePath, collection) {
     const data = JSON.stringify(collection, null, 2);
     await fs.writeFile(filePath, data, 'utf-8');
   }
 
-  async collectionExists(dirPath) {
-    const filePath = path.join(dirPath, COLLECTION_FILE_NAME);
+  async collectionExists(filePath) {
     try {
       await fs.access(filePath);
       return true;
@@ -26,13 +21,12 @@ class FileService {
     }
   }
 
-  async deleteCollection(dirPath) {
-    const filePath = path.join(dirPath, COLLECTION_FILE_NAME);
+  async deleteCollection(filePath) {
     await fs.unlink(filePath);
   }
 
-  async createCollection(dirPath, name) {
-    await fs.mkdir(dirPath, { recursive: true });
+  async createCollection(filePath, name) {
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
 
     const collection = {
       name,
@@ -48,18 +42,18 @@ class FileService {
       items: [],
     };
 
-    await this.writeCollection(dirPath, collection);
+    await this.writeCollection(filePath, collection);
     return collection;
   }
 
   /**
    * Export a collection to a specific format
-   * @param {string} dirPath - Path to the collection directory
+   * @param {string} filePath - Path to the collection file
    * @param {'json' | 'yaml'} format - Export format
    * @returns {Promise<string>} The exported content as a string
    */
-  async exportCollection(dirPath, format = 'json') {
-    const collection = await this.readCollection(dirPath);
+  async exportCollection(filePath, format = 'json') {
+    const collection = await this.readCollection(filePath);
 
     if (format === 'json') {
       return JSON.stringify(collection, null, 2);
@@ -72,12 +66,12 @@ class FileService {
   }
 
   /**
-   * Import a collection from a source file to a target directory
+   * Import a collection from a source file to a target file path
    * @param {string} sourcePath - Path to the source file (JSON or YAML)
-   * @param {string} targetPath - Path to the target directory
+   * @param {string} targetFilePath - Full path to the target .nikode.json file
    * @returns {Promise<object>} The imported collection
    */
-  async importCollection(sourcePath, targetPath) {
+  async importCollection(sourcePath, targetFilePath) {
     const data = await fs.readFile(sourcePath, 'utf-8');
     const ext = path.extname(sourcePath).toLowerCase();
 
@@ -99,10 +93,10 @@ class FileService {
     this.validateCollection(collection);
 
     // Ensure target directory exists
-    await fs.mkdir(targetPath, { recursive: true });
+    await fs.mkdir(path.dirname(targetFilePath), { recursive: true });
 
     // Write the collection
-    await this.writeCollection(targetPath, collection);
+    await this.writeCollection(targetFilePath, collection);
 
     return collection;
   }
