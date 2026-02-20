@@ -10,6 +10,7 @@ dist-electron/
 
 # Electron
 *.asar
+electron/build-config.json
 
 # IDE
 .idea/
