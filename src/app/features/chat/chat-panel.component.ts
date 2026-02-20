@@ -113,7 +113,7 @@ import { ChatMessage } from '../../core/models/chat.model';
               size="sm"
               [disabled]="!canSend()"
               (clicked)="sendMessage()"
-              uiTooltip="Send message">
+              [uiTooltip]="sendTooltip()">
               @if (sending()) {
                 <svg class="spinning" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
@@ -425,11 +425,25 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     return this.chatService.pendingKeyRequests().has(ws.id);
   });
 
+  protected rateLimited = signal(false);
+  private messageTimes: number[] = [];
+  private rateLimitTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly RATE_LIMIT_MAX = 10;
+  private readonly RATE_LIMIT_WINDOW_MS = 10_000;
+
   protected canSend = computed(() => {
     return this.messageText().trim().length > 0 &&
            this.chatService.isConnected() &&
            this.hasKey() &&
-           !this.sending();
+           !this.sending() &&
+           !this.rateLimited();
+  });
+
+  protected sendTooltip = computed(() => {
+    if (this.rateLimited()) {
+      return 'Rate limit reached (10 messages per 10 seconds). Please wait...';
+    }
+    return 'Send message';
   });
 
   constructor() {
@@ -465,6 +479,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     // Clear viewing workspace when chat panel closes
     this.chatService.setViewingWorkspace(null);
+    if (this.rateLimitTimer) {
+      clearTimeout(this.rateLimitTimer);
+    }
   }
 
   protected isOwnMessage(message: ChatMessage): boolean {
@@ -521,11 +538,46 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     try {
       await this.chatService.sendMessage(ws.id, text);
       this.messageText.set('');
+      this.recordMessageSent();
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Failed to send message');
     } finally {
       this.sending.set(false);
     }
+  }
+
+  private recordMessageSent(): void {
+    const now = Date.now();
+    this.messageTimes.push(now);
+    this.pruneMessageTimes(now);
+
+    if (this.messageTimes.length >= this.RATE_LIMIT_MAX) {
+      this.rateLimited.set(true);
+      this.scheduleRateLimitClear();
+    }
+  }
+
+  private pruneMessageTimes(now: number): void {
+    const cutoff = now - this.RATE_LIMIT_WINDOW_MS;
+    this.messageTimes = this.messageTimes.filter(t => t > cutoff);
+  }
+
+  private scheduleRateLimitClear(): void {
+    if (this.rateLimitTimer) {
+      clearTimeout(this.rateLimitTimer);
+    }
+
+    const oldest = this.messageTimes[0];
+    const delay = oldest + this.RATE_LIMIT_WINDOW_MS - Date.now() + 50; // +50ms buffer
+
+    this.rateLimitTimer = setTimeout(() => {
+      this.pruneMessageTimes(Date.now());
+      if (this.messageTimes.length < this.RATE_LIMIT_MAX) {
+        this.rateLimited.set(false);
+      } else {
+        this.scheduleRateLimitClear();
+      }
+    }, Math.max(delay, 0));
   }
 
   private scrollToBottom(): void {

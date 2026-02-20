@@ -46,3 +46,20 @@ export interface WorkspaceApiKey {
 export interface WorkspaceApiKeyCreated extends WorkspaceApiKey {
   key: string; // Only returned on creation
 }
+
+export interface VaultMeta {
+  salt: string;           // base64
+  verification: string;   // base64 encrypted blob
+}
+
+export interface VaultItem {
+  id: string;
+  data: string;           // base64 encrypted blob
+}
+
+// Client-side only (after decryption)
+export interface DecryptedVaultItem {
+  id: string;
+  name: string;
+  value: string;
+}

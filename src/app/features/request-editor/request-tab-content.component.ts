@@ -1,5 +1,5 @@
 import { Component, inject, signal, computed, afterNextRender } from '@angular/core';
-import { TabsComponent, TabComponent, TAB_DATA, SplitComponent, SplitPaneComponent, SpinnerComponent } from '@m1z23r/ngx-ui';
+import { TabsComponent, TabComponent, TAB_DATA, SplitComponent, SplitPaneComponent, SpinnerComponent, ButtonComponent } from '@m1z23r/ngx-ui';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { UrlBarComponent } from './url-bar.component';
@@ -36,7 +36,8 @@ export interface RequestTabData {
     TabComponent,
     SplitComponent,
     SplitPaneComponent,
-    SpinnerComponent
+    SpinnerComponent,
+    ButtonComponent
   ],
   template: `
     @if (request(); as req) {
@@ -75,6 +76,17 @@ export interface RequestTabData {
                   <p>Sending request...</p>
                 </div>
               } @else if (req.response) {
+                @if (req.scripts.post.trim()) {
+                  <div class="response-action-bar">
+                    <ui-button variant="ghost" size="sm" (clicked)="workspace.rerunPostScript(req.id)">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="1 4 1 10 7 10"/>
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                      </svg>
+                      Re-run Post Script
+                    </ui-button>
+                  </div>
+                }
                 <ui-tabs [activeTab]="responseTab()" (activeTabChange)="responseTab.set($any($event))" variant="underline">
                   <ui-tab id="general" label="General">
                     <app-general-tab [response]="req.response" />
@@ -174,6 +186,17 @@ export interface RequestTabData {
       flex-direction: column;
     }
 
+    .response-action-bar {
+      display: flex;
+      justify-content: flex-end;
+      padding: 0.25rem 0.5rem;
+      border-bottom: 1px solid var(--ui-border);
+
+      ui-button svg {
+        margin-right: 0.25rem;
+      }
+    }
+
     .loading-state, .empty-state {
       display: flex;
       flex-direction: column;
@@ -191,7 +214,7 @@ export interface RequestTabData {
 })
 export class RequestTabContentComponent {
   private readonly data = inject(TAB_DATA) as RequestTabData;
-  private readonly workspace = inject(WorkspaceService);
+  readonly workspace = inject(WorkspaceService);
   private readonly settingsService = inject(SettingsService);
 
   requestTab = signal<string | number>(0);

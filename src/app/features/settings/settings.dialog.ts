@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, computed, ElementRef, viewChildren, afterNextRender, Injector } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy, computed, ElementRef, viewChildren, afterNextRender, Injector } from '@angular/core';
 import {
   ModalComponent,
   ButtonComponent,
@@ -435,7 +435,7 @@ type SettingsTab = 'general' | 'network' | 'shortcuts' | 'about';
     }
   `]
 })
-export class SettingsDialogComponent implements OnInit {
+export class SettingsDialogComponent implements OnInit, OnDestroy {
   readonly dialogRef = inject(DIALOG_REF) as DialogRef<void>;
   private settingsService = inject(SettingsService);
   private keyboardShortcutService = inject(KeyboardShortcutService);
@@ -476,8 +476,13 @@ export class SettingsDialogComponent implements OnInit {
     this.keyboardShortcutService.setEnabled(false);
   }
 
-  cancel(): void {
+  ngOnDestroy(): void {
+    // Always re-enable shortcuts when the dialog is destroyed,
+    // regardless of how it was closed (save, cancel, backdrop click, escape, close button)
     this.keyboardShortcutService.setEnabled(true);
+  }
+
+  cancel(): void {
     this.dialogRef.close();
   }
 
@@ -493,7 +498,6 @@ export class SettingsDialogComponent implements OnInit {
       keyboardShortcuts: this.shortcuts(),
       mergeConflictBehavior: this.mergeConflictBehavior(),
     });
-    this.keyboardShortcutService.setEnabled(true);
     this.dialogRef.close();
   }
 
