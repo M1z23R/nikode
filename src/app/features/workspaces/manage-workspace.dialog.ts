@@ -23,8 +23,38 @@ interface ManageWorkspaceDialogData {
       <div class="manage-workspace-view">
         <h3 class="section-title">API Keys</h3>
         <p class="section-description">
-          API keys allow CI/CD pipelines and external tools to access your workspace.
+          API keys allow CI/CD pipelines and external tools to sync OpenAPI specs to your workspace.
         </p>
+
+        <details class="usage-guide">
+          <summary>How to use API keys</summary>
+          <div class="usage-content">
+            <p><strong>Automation Endpoint</strong></p>
+            <p>Use your API key to upsert collections from OpenAPI/Swagger specs:</p>
+            <pre><code>PUT /api/v1/automation/collections
+Authorization: Bearer nik_xxxxx...
+Content-Type: application/json
+
+&#123;
+  "name": "my-api",
+  "spec": &#123; "openapi": "3.0.0", ... &#125;
+&#125;</code></pre>
+            <p class="usage-note">
+              The <code>spec</code> field accepts JSON or YAML OpenAPI specs.
+              Add <code>"force": true</code> to bypass version conflicts.
+            </p>
+            <p><strong>CI/CD Example (GitHub Actions)</strong></p>
+            <pre><code>- name: Sync OpenAPI to Nikode
+  run: |
+    curl -X PUT "$NIKODE_URL/api/v1/automation/collections" \\
+      -H "Authorization: Bearer $NIKODE_API_KEY" \\
+      -H "Content-Type: application/json" \\
+      -d '&#123;"name":"my-api","spec":'$(cat openapi.json)'&#125;'
+  env:
+    NIKODE_URL: your-nikode-instance-url
+    NIKODE_API_KEY: your-api-key-here</code></pre>
+          </div>
+        </details>
 
         <div class="create-key-section">
           <ui-input
@@ -113,9 +143,65 @@ interface ManageWorkspaceDialogData {
     }
 
     .section-description {
-      margin: 0 0 1rem 0;
+      margin: 0 0 0.75rem 0;
       font-size: 0.8125rem;
       color: var(--ui-text-muted);
+    }
+
+    .usage-guide {
+      margin-bottom: 1rem;
+      border: 1px solid var(--ui-border);
+      border-radius: 6px;
+      font-size: 0.8125rem;
+
+      summary {
+        padding: 0.5rem 0.75rem;
+        cursor: pointer;
+        font-weight: 500;
+        color: var(--ui-text-muted);
+
+        &:hover {
+          color: var(--ui-text);
+        }
+      }
+
+      &[open] summary {
+        border-bottom: 1px solid var(--ui-border);
+      }
+    }
+
+    .usage-content {
+      padding: 0.75rem;
+
+      p {
+        margin: 0 0 0.5rem 0;
+      }
+
+      pre {
+        background: var(--ui-bg-secondary);
+        border-radius: 4px;
+        padding: 0.5rem;
+        margin: 0 0 0.75rem 0;
+        overflow-x: auto;
+
+        code {
+          font-size: 0.75rem;
+          font-family: monospace;
+          white-space: pre;
+        }
+      }
+
+      .usage-note {
+        font-size: 0.75rem;
+        color: var(--ui-text-muted);
+
+        code {
+          background: var(--ui-bg-secondary);
+          padding: 0.125rem 0.25rem;
+          border-radius: 3px;
+          font-size: 0.6875rem;
+        }
+      }
     }
 
     .create-key-section {
