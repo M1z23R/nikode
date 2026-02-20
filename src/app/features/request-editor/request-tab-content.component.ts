@@ -8,6 +8,7 @@ import { HeadersPanelComponent } from './panels/headers-panel.component';
 import { BodyPanelComponent } from './panels/body-panel.component';
 import { VariablesPanelComponent } from './panels/variables-panel.component';
 import { ScriptsPanelComponent } from './panels/scripts-panel.component';
+import { AuthPanelComponent } from './panels/auth-panel.component';
 import { DocsPanelComponent } from './panels/docs-panel.component';
 import { GeneralTabComponent } from '../response-viewer/tabs/general-tab.component';
 import { RequestTabComponent } from '../response-viewer/tabs/request-tab.component';
@@ -24,6 +25,7 @@ export interface RequestTabData {
     UrlBarComponent,
     ParamsPanelComponent,
     HeadersPanelComponent,
+    AuthPanelComponent,
     BodyPanelComponent,
     VariablesPanelComponent,
     ScriptsPanelComponent,
@@ -52,6 +54,9 @@ export interface RequestTabData {
                 </ui-tab>
                 <ui-tab id="headers" [label]="'Headers' + (req.headers.length > 0 ? ' (' + req.headers.length + ')' : '')">
                   <app-headers-panel [request]="req" />
+                </ui-tab>
+                <ui-tab id="auth" label="Auth">
+                  <app-auth-panel [request]="req" />
                 </ui-tab>
                 <ui-tab id="body" label="Body">
                   <app-body-panel [request]="req" />

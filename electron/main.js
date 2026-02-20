@@ -4,6 +4,7 @@ const { FileService } = require('./services/file-service');
 const { SecretsService } = require('./services/secrets-service');
 const { AuthService } = require('./services/auth-service');
 const { HttpClient } = require('./services/http-client');
+const { CookieJarService } = require('./services/cookie-jar-service');
 const { GraphQLClient } = require('./services/graphql-client');
 const { FileWatcherService } = require('./services/file-watcher');
 const { OpenApiConverter } = require('./services/openapi-converter');
@@ -15,6 +16,7 @@ const fileService = new FileService();
 const secretsService = new SecretsService();
 const authService = new AuthService();
 const httpClient = new HttpClient();
+const cookieJarService = new CookieJarService();
 const graphqlClient = new GraphQLClient();
 const fileWatcher = new FileWatcherService();
 const openApiConverter = new OpenApiConverter();
@@ -120,6 +122,7 @@ async function handleDeepLink(url) {
 async function createWindow() {
   await secretsService.init();
   await authService.init();
+  await cookieJarService.init();
 
   const isDev = process.env.NODE_ENV === 'development';
 
@@ -335,7 +338,38 @@ ipcMain.handle(
 ipcMain.handle(
   'execute-request',
   wrapHandler(async (event, request) => {
-    return await httpClient.execute(request);
+    // Inject cookies from jar if collectionPath is provided
+    if (request.collectionPath && request.url) {
+      try {
+        const jarCookies = await cookieJarService.getCookies(request.collectionPath);
+        const matching = cookieJarService.getMatchingCookies(jarCookies, request.url);
+        if (matching.length > 0) {
+          const cookieHeader = matching.map((c) => `${c.name}=${c.value}`).join('; ');
+          // Merge with existing Cookie header if present
+          if (request.headers && request.headers['Cookie']) {
+            request.headers['Cookie'] = request.headers['Cookie'] + '; ' + cookieHeader;
+          } else {
+            if (!request.headers) request.headers = {};
+            request.headers['Cookie'] = cookieHeader;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to inject cookies:', err.message);
+      }
+    }
+
+    const response = await httpClient.execute(request);
+
+    // Store response cookies in jar if collectionPath is provided
+    if (request.collectionPath && response.cookies && response.cookies.length > 0) {
+      try {
+        await cookieJarService.addCookies(request.collectionPath, response.cookies, request.url);
+      } catch (err) {
+        console.error('Failed to store cookies:', err.message);
+      }
+    }
+
+    return response;
   }),
 );
 
@@ -361,6 +395,33 @@ ipcMain.handle(
   wrapHandler(async (event, args) => {
     const { path: collectionPath, secrets } = args;
     await secretsService.saveSecrets(collectionPath, secrets);
+    return { status: 'ok' };
+  }),
+);
+
+// Get cookies
+ipcMain.handle(
+  'get-cookies',
+  wrapHandler(async (event, collectionPath) => {
+    return await cookieJarService.getCookies(collectionPath);
+  }),
+);
+
+// Save cookies
+ipcMain.handle(
+  'save-cookies',
+  wrapHandler(async (event, args) => {
+    const { path: collectionPath, cookies } = args;
+    await cookieJarService.saveCookies(collectionPath, cookies);
+    return { status: 'ok' };
+  }),
+);
+
+// Clear cookies
+ipcMain.handle(
+  'clear-cookies',
+  wrapHandler(async (event, collectionPath) => {
+    await cookieJarService.clearCookies(collectionPath);
     return { status: 'ok' };
   }),
 );

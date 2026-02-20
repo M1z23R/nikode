@@ -403,6 +403,7 @@ export class SidebarComponent {
             ? [...result.headers, { key: '', value: '', enabled: true }]
             : defaultHeaders,
           body: result.body ?? { type: 'none' as const },
+          auth: result.auth,
           scripts: { pre: '', post: '' }
         };
         this.unifiedCollectionService.addItem(target.collectionPath, target.itemId, item);

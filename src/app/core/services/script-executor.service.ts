@@ -1,6 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { EnvironmentService } from './environment.service';
 import { ConsoleService } from './console.service';
+import { CookieJarService } from './cookie-jar.service';
+import { ApiService } from './api.service';
+import { Cookie } from '../models/request.model';
 import { ResolvedVariables } from '../models/environment.model';
 import { AssertionResult } from '../models/runner.model';
 
@@ -41,6 +44,8 @@ export interface ScriptResult {
 export class ScriptExecutorService {
   private environmentService = inject(EnvironmentService);
   private consoleService = inject(ConsoleService);
+  private cookieJarService = inject(CookieJarService);
+  private apiService = inject(ApiService);
 
   executePreScript(script: string, context: PreScriptContext): ScriptResult {
     const requestVars = new Map<string, string>();
@@ -136,6 +141,44 @@ export class ScriptExecutorService {
         if (!condition) {
           throw new Error(message ?? 'Assertion failed');
         }
+      },
+
+      getCookie: (name: string): string | undefined => {
+        const cookies = this.cookieJarService.getCookies(collectionPath);
+        const cookie = cookies.find(c => c.name === name);
+        return cookie?.value;
+      },
+
+      getCookies: (): Array<{ name: string; value: string; domain: string; path: string }> => {
+        return this.cookieJarService.getCookies(collectionPath).map(c => ({
+          name: c.name,
+          value: c.value,
+          domain: c.domain,
+          path: c.path,
+        }));
+      },
+
+      setCookie: (name: string, value: string, domain?: string, cookiePath?: string): void => {
+        const cookies = [...this.cookieJarService.getCookies(collectionPath)];
+        const d = domain || '';
+        const p = cookiePath || '/';
+        const idx = cookies.findIndex(
+          c => c.name === name && c.domain.toLowerCase() === d.toLowerCase() && c.path === p
+        );
+        const newCookie: Cookie = { name, value, domain: d, path: p, expires: '', httpOnly: false, secure: false };
+        if (idx !== -1) {
+          cookies[idx] = newCookie;
+        } else {
+          cookies.push(newCookie);
+        }
+        // Fire-and-forget: save cookies and reload cache
+        void this.apiService.saveCookies(collectionPath, cookies).then(() => {
+          this.cookieJarService.loadCookies(collectionPath);
+        });
+      },
+
+      clearCookies: (): void => {
+        void this.cookieJarService.clearCookies(collectionPath);
       }
     };
 

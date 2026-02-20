@@ -1,5 +1,5 @@
 import { Collection, Environment } from '../src/app/core/models/collection.model';
-import { ProxyRequest, ProxyResponse } from '../src/app/core/models/request.model';
+import { ProxyRequest, ProxyResponse, Cookie } from '../src/app/core/models/request.model';
 import { Secrets } from '../src/app/core/models/environment.model';
 import {
   WebSocketConnectRequest,
@@ -40,6 +40,11 @@ export const IPC_CHANNELS = {
   // Secrets
   GET_SECRETS: 'get-secrets',
   SAVE_SECRETS: 'save-secrets',
+
+  // Cookie Jar
+  GET_COOKIES: 'get-cookies',
+  SAVE_COOKIES: 'save-cookies',
+  CLEAR_COOKIES: 'clear-cookies',
 
   // Native dialogs
   SHOW_OPEN_DIALOG: 'show-open-dialog',
@@ -148,6 +153,9 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.EXECUTE_GRAPHQL]: GraphQLRequest;
   [IPC_CHANNELS.GET_SECRETS]: string; // path
   [IPC_CHANNELS.SAVE_SECRETS]: { path: string; secrets: Secrets };
+  [IPC_CHANNELS.GET_COOKIES]: string; // collectionPath
+  [IPC_CHANNELS.SAVE_COOKIES]: { path: string; cookies: Cookie[] };
+  [IPC_CHANNELS.CLEAR_COOKIES]: string; // collectionPath
   [IPC_CHANNELS.SHOW_OPEN_DIALOG]: OpenDialogOptions | undefined;
   [IPC_CHANNELS.SHOW_SAVE_DIALOG]: SaveDialogOptions | undefined;
   [IPC_CHANNELS.READ_FILE]: string; // path
@@ -190,6 +198,9 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.EXECUTE_GRAPHQL]: GraphQLResponse;
   [IPC_CHANNELS.GET_SECRETS]: Secrets;
   [IPC_CHANNELS.SAVE_SECRETS]: { status: 'ok' };
+  [IPC_CHANNELS.GET_COOKIES]: Cookie[];
+  [IPC_CHANNELS.SAVE_COOKIES]: { status: 'ok' };
+  [IPC_CHANNELS.CLEAR_COOKIES]: { status: 'ok' };
   [IPC_CHANNELS.SHOW_OPEN_DIALOG]: { canceled: boolean; filePaths: string[] };
   [IPC_CHANNELS.SHOW_SAVE_DIALOG]: { canceled: boolean; filePath: string | undefined };
   [IPC_CHANNELS.READ_FILE]: string; // file content

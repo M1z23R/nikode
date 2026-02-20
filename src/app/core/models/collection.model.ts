@@ -30,6 +30,7 @@ export interface CollectionItem {
   headers?: KeyValue[];      // For requests, websockets, and graphql
   body?: RequestBody;        // For requests
   scripts?: Scripts;         // For requests
+  auth?: RequestAuth;         // For requests - authentication
   docs?: string;             // For requests - documentation/notes
   // WebSocket-specific
   wsProtocols?: string[];
@@ -67,6 +68,29 @@ export interface Scripts {
 }
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
+
+export type RequestAuthType = 'none' | 'basic' | 'bearer' | 'api-key' | 'oauth2';
+export type OAuth2GrantType = 'client_credentials' | 'password' | 'authorization_code';
+export type ApiKeyLocation = 'header' | 'query';
+
+export interface RequestAuth {
+  type: RequestAuthType;
+  basic?: { username: string; password: string };
+  bearer?: { token: string; prefix: string };
+  apiKey?: { key: string; value: string; addTo: ApiKeyLocation };
+  oauth2?: {
+    grantType: OAuth2GrantType;
+    accessToken: string;
+    tokenUrl: string;
+    authUrl: string;
+    clientId: string;
+    clientSecret: string;
+    username: string;
+    password: string;
+    callbackUrl: string;
+    scope: string;
+  };
+}
 
 export interface OpenCollection {
   path: string;

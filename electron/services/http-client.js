@@ -121,7 +121,11 @@ class HttpClient {
     return setCookieHeaders.map((header) => {
       const parts = header.split(';').map((p) => p.trim());
       const [nameValue, ...attributes] = parts;
-      const [name, value] = nameValue.split('=');
+
+      // Split on first '=' only to preserve base64 and other values containing '='
+      const eqIdx = nameValue.indexOf('=');
+      const name = eqIdx === -1 ? nameValue : nameValue.substring(0, eqIdx);
+      const value = eqIdx === -1 ? '' : nameValue.substring(eqIdx + 1);
 
       const cookie = {
         name,
@@ -134,8 +138,11 @@ class HttpClient {
       };
 
       for (const attr of attributes) {
-        const [attrName, attrValue] = attr.split('=');
-        const lowerName = attrName.toLowerCase();
+        // Split on first '=' only for attribute values too
+        const attrEqIdx = attr.indexOf('=');
+        const attrName = attrEqIdx === -1 ? attr : attr.substring(0, attrEqIdx);
+        const attrValue = attrEqIdx === -1 ? '' : attr.substring(attrEqIdx + 1);
+        const lowerName = attrName.trim().toLowerCase();
 
         if (lowerName === 'domain') {
           cookie.domain = attrValue || '';
@@ -143,6 +150,16 @@ class HttpClient {
           cookie.path = attrValue || '';
         } else if (lowerName === 'expires') {
           cookie.expires = attrValue || '';
+        } else if (lowerName === 'max-age') {
+          // Convert max-age to expires date
+          const maxAge = parseInt(attrValue, 10);
+          if (!isNaN(maxAge)) {
+            if (maxAge <= 0) {
+              cookie.expires = new Date(0).toUTCString();
+            } else {
+              cookie.expires = new Date(Date.now() + maxAge * 1000).toUTCString();
+            }
+          }
         } else if (lowerName === 'httponly') {
           cookie.httpOnly = true;
         } else if (lowerName === 'secure') {

@@ -449,6 +449,7 @@ export class RunnerService {
         url: resolvedUrl,
         headers,
         body,
+        collectionPath,
       };
 
       const result = await this.api.executeRequest(proxyRequest);

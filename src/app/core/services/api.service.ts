@@ -21,7 +21,7 @@ import {
 } from '../models/websocket.model';
 import { GraphQLRequest, GraphQLResponse } from '../models/graphql.model';
 import { Collection } from '../models/collection.model';
-import { ProxyRequest, ProxyResponse } from '../models/request.model';
+import { ProxyRequest, ProxyResponse, Cookie } from '../models/request.model';
 import { Secrets } from '../models/environment.model';
 import { ToastService } from '@m1z23r/ngx-ui';
 
@@ -125,6 +125,19 @@ export class ApiService {
 
   async saveSecrets(path: string, secrets: Secrets): Promise<IpcResult<{ status: 'ok' }>> {
     return window.electronAPI.invoke(IPC_CHANNELS.SAVE_SECRETS, { path, secrets });
+  }
+
+  // Cookie Jar
+  async getCookies(path: string): Promise<IpcResult<Cookie[]>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.GET_COOKIES, path);
+  }
+
+  async saveCookies(path: string, cookies: Cookie[]): Promise<IpcResult<{ status: 'ok' }>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.SAVE_COOKIES, { path, cookies });
+  }
+
+  async clearCookies(path: string): Promise<IpcResult<{ status: 'ok' }>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.CLEAR_COOKIES, path);
   }
 
   // Native dialogs

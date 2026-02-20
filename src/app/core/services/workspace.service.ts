@@ -8,11 +8,12 @@ import { EnvironmentService } from './environment.service';
 import { HttpLogService } from './http-log.service';
 import { ScriptExecutorService, ScriptRequest } from './script-executor.service';
 import { OpenRequest, createOpenRequest, ProxyRequest } from '../models/request.model';
-import { CollectionItem, KeyValue, RequestBody, Scripts } from '../models/collection.model';
+import { CollectionItem, KeyValue, RequestAuth, RequestBody, Scripts } from '../models/collection.model';
 import { ResolvedVariables } from '../models/environment.model';
 import { resolveVariables } from '../utils/variable-resolver';
 import { RequestTabContentComponent, RequestTabData } from '../../features/request-editor/request-tab-content.component';
 import { SettingsService } from './settings.service';
+import { CookieJarService } from './cookie-jar.service';
 
 @Injectable({ providedIn: 'root' })
 export class WorkspaceService {
@@ -24,6 +25,7 @@ export class WorkspaceService {
   private toastService = inject(ToastService);
   private scriptExecutor = inject(ScriptExecutorService);
   private settingsService = inject(SettingsService);
+  private cookieJarService = inject(CookieJarService);
   private tabsService = inject(TabsService);
 
   private openRequests = signal<OpenRequest[]>([]);
@@ -219,6 +221,10 @@ export class WorkspaceService {
     this.updateRequest(requestId, { params });
   }
 
+  updateRequestAuth(requestId: string, auth: RequestAuth): void {
+    this.updateRequest(requestId, { auth });
+  }
+
   updateRequestDocs(requestId: string, docs: string): void {
     this.updateRequest(requestId, { docs });
   }
@@ -237,6 +243,7 @@ export class WorkspaceService {
       params: request.params,
       headers: request.headers,
       body: request.body,
+      auth: request.auth,
       scripts: request.scripts,
       docs: request.docs
     };
@@ -309,6 +316,11 @@ export class WorkspaceService {
     }
 
     const response = result.data;
+
+    // Refresh cookie cache if response has cookies
+    if (response.cookies?.length > 0) {
+      this.cookieJarService.loadCookies(request.collectionPath);
+    }
 
     // Execute post-script if exists
     if (request.scripts.post?.trim()) {
@@ -408,11 +420,50 @@ export class WorkspaceService {
       }
     }
 
+    // Inject auth
+    if (request.auth && request.auth.type !== 'none') {
+      switch (request.auth.type) {
+        case 'basic': {
+          const username = resolveVariables(request.auth.basic?.username || '', variables);
+          const password = resolveVariables(request.auth.basic?.password || '', variables);
+          headers['Authorization'] = 'Basic ' + btoa(username + ':' + password);
+          break;
+        }
+        case 'bearer': {
+          const token = resolveVariables(request.auth.bearer?.token || '', variables);
+          const prefix = resolveVariables(request.auth.bearer?.prefix || 'Bearer', variables);
+          headers['Authorization'] = prefix + ' ' + token;
+          break;
+        }
+        case 'api-key': {
+          const key = resolveVariables(request.auth.apiKey?.key || '', variables);
+          const value = resolveVariables(request.auth.apiKey?.value || '', variables);
+          if (key) {
+            if (request.auth.apiKey?.addTo === 'query') {
+              const separator = resolvedUrl.includes('?') ? '&' : '?';
+              resolvedUrl = resolvedUrl + separator + encodeURIComponent(key) + '=' + encodeURIComponent(value);
+            } else {
+              headers[key] = value;
+            }
+          }
+          break;
+        }
+        case 'oauth2': {
+          const accessToken = resolveVariables(request.auth.oauth2?.accessToken || '', variables);
+          if (accessToken) {
+            headers['Authorization'] = 'Bearer ' + accessToken;
+          }
+          break;
+        }
+      }
+    }
+
     return {
       method: request.method,
       url: resolvedUrl,
       headers,
-      body
+      body,
+      collectionPath: request.collectionPath
     };
   }
 
@@ -481,6 +532,7 @@ export class WorkspaceService {
           params: item.params ?? [],
           headers: item.headers ?? [],
           body: item.body ?? { type: 'none' },
+          auth: item.auth ?? { type: 'none' },
           scripts: item.scripts ?? { pre: '', post: '' },
           docs: item.docs ?? ''
         };

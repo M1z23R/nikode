@@ -159,7 +159,8 @@ export class UrlBarComponent {
         params: result.params.length > 0
           ? [...result.params, { key: '', value: '', enabled: true }]
           : [],
-        body: result.body
+        body: result.body,
+        ...(result.auth ? { auth: result.auth } : {})
       });
     }
   }
