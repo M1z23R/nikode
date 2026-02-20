@@ -36,7 +36,13 @@ let pendingDeepLink = null; // Queue deep links that arrive before window is rea
 
 // Get API base URL based on environment
 function getApiBaseUrl() {
-  return 'https://nikode.dimitrije.dev/api/v1';
+  try {
+    const configPath = path.join(__dirname, 'build-config.json');
+    const config = JSON.parse(require('fs').readFileSync(configPath, 'utf-8'));
+    return config.apiBaseUrl;
+  } catch {
+    return 'https://nikode.dimitrije.dev/api/v1';
+  }
 }
 
 // Parse nikode:// auth callback URL and extract auth code

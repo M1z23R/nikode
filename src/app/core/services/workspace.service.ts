@@ -427,6 +427,35 @@ export class WorkspaceService {
     return merged;
   }
 
+  rerunPostScript(requestId: string): void {
+    const request = this.openRequests().find(r => r.id === requestId);
+    if (!request?.response || !request.scripts.post?.trim()) return;
+
+    const variables = this.environmentService.resolveVariables(request.collectionPath);
+    const proxyRequest = this.buildProxyRequest(request, variables);
+
+    const scriptRequest: ScriptRequest = {
+      method: proxyRequest.method,
+      url: proxyRequest.url,
+      headers: proxyRequest.headers,
+      body: proxyRequest.body
+    };
+
+    this.scriptExecutor.executePostScript(request.scripts.post, {
+      collectionPath: request.collectionPath,
+      request: scriptRequest,
+      variables,
+      response: {
+        statusCode: request.response.statusCode,
+        statusText: request.response.statusText,
+        headers: request.response.headers,
+        body: request.response.body,
+        time: request.response.time,
+        size: request.response.size
+      }
+    });
+  }
+
   /**
    * Refresh open requests that belong to a collection from the collection data.
    * Used after merge conflict resolution to sync UI with resolved data.

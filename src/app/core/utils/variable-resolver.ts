@@ -1,9 +1,13 @@
 import { ResolvedVariables } from '../models/environment.model';
+import { resolveDynamicVariable } from './dynamic-variables';
 
-const VARIABLE_PATTERN = /\{\{(\w+)\}\}/g;
+const VARIABLE_PATTERN = /\{\{(\$?\w+)\}\}/g;
 
 export function resolveVariables(template: string, variables: ResolvedVariables): string {
   return template.replace(VARIABLE_PATTERN, (match, key) => {
+    if (key.startsWith('$')) {
+      return resolveDynamicVariable(key) ?? match;
+    }
     return variables[key] ?? match;
   });
 }

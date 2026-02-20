@@ -249,9 +249,8 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy {
     } else if (lang === 'javascript') {
       extensions.push(
         javascript(),
-        autocompletion({
-          override: [scriptCompletions],
-        })
+        autocompletion(),
+        EditorState.languageData.of(() => [{ autocomplete: scriptCompletions }])
       );
     } else if (lang === 'xml' || lang === 'html') {
       extensions.push(xml());

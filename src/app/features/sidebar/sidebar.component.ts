@@ -1,7 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, afterNextRender, ElementRef, Injector } from '@angular/core';
 import {
   DialogService,
   ButtonComponent,
+  InputComponent,
   TreeNode,
   ToastService
 } from '@m1z23r/ngx-ui';
@@ -31,6 +32,7 @@ import { createOpenRequest } from '../../core/models/request.model';
   selector: 'app-sidebar',
   imports: [
     ButtonComponent,
+    InputComponent,
     CollectionsToTreePipe,
     CollectionTreeComponent
   ],
@@ -39,6 +41,13 @@ import { createOpenRequest } from '../../core/models/request.model';
       <div class="sidebar-header">
         <span class="sidebar-title">Collections</span>
         <div class="sidebar-actions">
+          <ui-button variant="ghost" size="sm" (clicked)="toggleSearch()" title="Search Collections"
+                     [class.search-active]="searchActive()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </ui-button>
           <ui-button variant="ghost" size="sm" (clicked)="openCollection()" title="Open Collection">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
@@ -53,6 +62,17 @@ import { createOpenRequest } from '../../core/models/request.model';
         </div>
       </div>
 
+      @if (searchActive()) {
+        <div class="search-row">
+          <ui-input #searchInput
+            placeholder="Search collections..."
+            [value]="searchQuery()"
+            (valueChange)="searchQuery.set($event.toString())"
+            (keydown.escape)="closeSearch()"
+          />
+        </div>
+      }
+
       <div class="sidebar-content">
         @if (unifiedCollectionService.collections().length === 0) {
           <div class="empty-collections">
@@ -60,7 +80,7 @@ import { createOpenRequest } from '../../core/models/request.model';
           </div>
         } @else {
           <app-collection-tree
-            [nodes]="unifiedCollectionService.collections() | collectionsToTree:expandedFolders()"
+            [nodes]="unifiedCollectionService.collections() | collectionsToTree:expandedFolders():searchQuery()"
             [indent]="16"
             (nodeClick)="onNodeClick($event)"
             (action)="onTreeAction($event)"
@@ -111,6 +131,15 @@ import { createOpenRequest } from '../../core/models/request.model';
       color: var(--ui-text-muted);
       font-size: 0.875rem;
     }
+
+    .search-row {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--ui-border);
+    }
+
+    .search-active {
+      color: var(--ui-primary);
+    }
   `]
 })
 export class SidebarComponent {
@@ -126,6 +155,28 @@ export class SidebarComponent {
   protected cloudWorkspaceService = inject(CloudWorkspaceService);
 
   expandedFolders = signal<Set<string>>(new Set());
+  searchActive = signal(false);
+  searchQuery = signal('');
+
+  private el = inject(ElementRef);
+  private injector = inject(Injector);
+
+  toggleSearch(): void {
+    if (this.searchActive()) {
+      this.closeSearch();
+    } else {
+      this.searchActive.set(true);
+      afterNextRender(() => {
+        const input = this.el.nativeElement.querySelector('.search-row input') as HTMLInputElement | null;
+        input?.focus();
+      }, { injector: this.injector });
+    }
+  }
+
+  closeSearch(): void {
+    this.searchActive.set(false);
+    this.searchQuery.set('');
+  }
 
   onNodeClick(node: TreeNode): void {
     const nodeData = node.data as TreeNodeData;
@@ -136,10 +187,13 @@ export class SidebarComponent {
       this.toggleFolder(nodeData.itemId!);
     } else if (nodeData.type === 'request') {
       this.workspace.openRequest(nodeData.collectionPath, nodeData.itemId!);
+      this.closeSearch();
     } else if (nodeData.type === 'websocket') {
       this.webSocketService.openWebSocket(nodeData.collectionPath, nodeData.itemId!);
+      this.closeSearch();
     } else if (nodeData.type === 'graphql') {
       this.graphqlService.openGraphQL(nodeData.collectionPath, nodeData.itemId!);
+      this.closeSearch();
     }
   }
 

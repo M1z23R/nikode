@@ -3,6 +3,8 @@ import {
   ModalComponent,
   ButtonComponent,
   InputComponent,
+  AccordionComponent,
+  AccordionItemComponent,
   DIALOG_DATA,
   DIALOG_REF,
   DialogRef,
@@ -17,44 +19,14 @@ interface ManageWorkspaceDialogData {
 
 @Component({
   selector: 'app-manage-workspace-dialog',
-  imports: [ModalComponent, ButtonComponent, InputComponent],
+  imports: [ModalComponent, ButtonComponent, InputComponent, AccordionComponent, AccordionItemComponent],
   template: `
-    <ui-modal [title]="'Manage ' + data.workspace.name" size="md">
+    <ui-modal [title]="'Manage ' + data.workspace.name" size="lg">
       <div class="manage-workspace-view">
         <h3 class="section-title">API Keys</h3>
         <p class="section-description">
           API keys allow CI/CD pipelines and external tools to sync OpenAPI specs to your workspace.
         </p>
-
-        <details class="usage-guide">
-          <summary>How to use API keys</summary>
-          <div class="usage-content">
-            <p><strong>Automation Endpoint</strong></p>
-            <p>Use your API key to upsert collections from OpenAPI/Swagger specs:</p>
-            <pre><code>PUT /api/v1/automation/collections
-Authorization: Bearer nik_xxxxx...
-Content-Type: application/json
-
-&#123;
-  "name": "my-api",
-  "spec": &#123; "openapi": "3.0.0", ... &#125;
-&#125;</code></pre>
-            <p class="usage-note">
-              The <code>spec</code> field accepts JSON or YAML OpenAPI specs.
-              Add <code>"force": true</code> to bypass version conflicts.
-            </p>
-            <p><strong>CI/CD Example (GitHub Actions)</strong></p>
-            <pre><code>- name: Sync OpenAPI to Nikode
-  run: |
-    curl -X PUT "$NIKODE_URL/api/v1/automation/collections" \\
-      -H "Authorization: Bearer $NIKODE_API_KEY" \\
-      -H "Content-Type: application/json" \\
-      -d '&#123;"name":"my-api","spec":'$(cat openapi.json)'&#125;'
-  env:
-    NIKODE_URL: your-nikode-instance-url
-    NIKODE_API_KEY: your-api-key-here</code></pre>
-          </div>
-        </details>
 
         <div class="create-key-section">
           <ui-input
@@ -124,6 +96,82 @@ Content-Type: application/json
         @if (error()) {
           <div class="error-message">{{ error() }}</div>
         }
+
+        <ui-accordion class="info-accordion">
+          <ui-accordion-item header="Collection IDs">
+            <div class="usage-content">
+              @if (collections().length === 0) {
+                <p class="usage-note">No collections in this workspace yet.</p>
+              } @else {
+                <p class="usage-note">Use these IDs with <code>collection_id</code> to target a specific collection.</p>
+                <div class="collection-id-list">
+                  @for (col of collections(); track col.id) {
+                    <div class="collection-id-item">
+                      <span class="collection-id-name">{{ col.name }}</span>
+                      <code class="collection-id-value" (click)="copyCollectionId(col.id)">{{ col.id }}</code>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </ui-accordion-item>
+          <ui-accordion-item header="How to use API keys">
+            <div class="usage-content">
+              <p><strong>Automation Endpoint</strong></p>
+              <p>Use your API key to upsert collections from OpenAPI/Swagger specs:</p>
+              <pre><code>PUT /api/v1/automation/collections
+Authorization: Bearer nik_xxxxx...
+Content-Type: application/json
+
+&#123;
+  "name": "my-api",
+  "spec": &#123; "openapi": "3.0.0", ... &#125;
+&#125;</code></pre>
+              <p><strong>Update Existing Collection by ID</strong></p>
+              <p class="usage-note">Use <code>collection_id</code> to target a specific collection (copy it from the "Collection IDs" section above):</p>
+              <pre><code>curl -X PUT "$URL/api/v1/automation/collections" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '&#123;
+    "collection_id": "your-collection-uuid",
+    "spec": &#123; "openapi": "3.0.0", ... &#125;
+  &#125;'</code></pre>
+              <p><strong>Conflict Resolution</strong></p>
+              <p class="usage-note">
+                Control what happens when a collection already exists using <code>resolution</code>:
+              </p>
+              <ul class="resolution-list">
+                <li><code>"force"</code> (default) &mdash; overwrite unconditionally</li>
+                <li><code>"clone"</code> &mdash; create a copy with " (copy)" suffix</li>
+                <li><code>"fail"</code> &mdash; return 409 if the collection exists</li>
+              </ul>
+              <pre><code>&#123;
+  "name": "my-api",
+  "resolution": "clone",
+  "spec": &#123; ... &#125;
+&#125;</code></pre>
+              <p><strong>YAML Support</strong></p>
+              <p class="usage-note">
+                You can send a raw YAML spec with <code>Content-Type: application/yaml</code>.
+                Metadata goes in query params:
+              </p>
+              <pre><code>curl -X PUT "$URL/api/v1/automation/collections?name=my-api&amp;resolution=force" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/yaml" \
+  --data-binary @openapi.yaml</code></pre>
+              <p><strong>CI/CD Example (GitHub Actions)</strong></p>
+              <pre><code>- name: Sync OpenAPI to Nikode
+  run: |
+    curl -X PUT "$NIKODE_URL/api/v1/automation/collections" \\
+      -H "Authorization: Bearer $NIKODE_API_KEY" \\
+      -H "Content-Type: application/json" \\
+      -d '&#123;"name":"my-api","spec":'$(cat openapi.json)'&#125;'
+  env:
+    NIKODE_URL: your-nikode-instance-url
+    NIKODE_API_KEY: your-api-key-here</code></pre>
+            </div>
+          </ui-accordion-item>
+        </ui-accordion>
       </div>
 
       <ng-container footer>
@@ -148,30 +196,15 @@ Content-Type: application/json
       color: var(--ui-text-muted);
     }
 
-    .usage-guide {
-      margin-bottom: 1rem;
-      border: 1px solid var(--ui-border);
-      border-radius: 6px;
+    .info-accordion {
+      margin-top: 1rem;
       font-size: 0.8125rem;
-
-      summary {
-        padding: 0.5rem 0.75rem;
-        cursor: pointer;
-        font-weight: 500;
-        color: var(--ui-text-muted);
-
-        &:hover {
-          color: var(--ui-text);
-        }
-      }
-
-      &[open] summary {
-        border-bottom: 1px solid var(--ui-border);
-      }
     }
 
     .usage-content {
       padding: 0.75rem;
+      max-height: 300px;
+      overflow-y: auto;
 
       p {
         margin: 0 0 0.5rem 0;
@@ -201,6 +234,58 @@ Content-Type: application/json
           border-radius: 3px;
           font-size: 0.6875rem;
         }
+      }
+
+      .resolution-list {
+        margin: 0.25rem 0 0.75rem 1.25rem;
+        font-size: 0.75rem;
+
+        li {
+          margin-bottom: 0.25rem;
+        }
+
+        code {
+          background: var(--ui-bg-secondary);
+          padding: 0.125rem 0.25rem;
+          border-radius: 3px;
+          font-size: 0.6875rem;
+        }
+      }
+    }
+
+    .collection-id-list {
+      border: 1px solid var(--ui-border);
+      border-radius: 4px;
+    }
+
+    .collection-id-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.375rem 0.5rem;
+      border-bottom: 1px solid var(--ui-border);
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+
+    .collection-id-name {
+      font-weight: 500;
+      font-size: 0.8125rem;
+    }
+
+    .collection-id-value {
+      font-size: 0.6875rem;
+      font-family: monospace;
+      background: var(--ui-bg-secondary);
+      padding: 0.125rem 0.375rem;
+      border-radius: 3px;
+      cursor: pointer;
+
+      &:hover {
+        background: var(--ui-bg-tertiary, var(--ui-bg-secondary));
+        color: var(--ui-primary);
       }
     }
 
@@ -314,6 +399,7 @@ export class ManageWorkspaceDialogComponent implements OnInit {
   private toastService = inject(ToastService);
 
   apiKeys = signal<WorkspaceApiKey[]>([]);
+  collections = this.workspaceService.collections;
   isLoading = signal(false);
   isCreating = signal(false);
   newKeyName = signal('');
@@ -401,6 +487,11 @@ export class ManageWorkspaceDialogComponent implements OnInit {
       navigator.clipboard.writeText(key);
       this.toastService.success('API key copied to clipboard');
     }
+  }
+
+  copyCollectionId(id: string): void {
+    navigator.clipboard.writeText(id);
+    this.toastService.success('Collection ID copied to clipboard');
   }
 
   formatDate(dateStr: string): string {

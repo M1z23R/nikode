@@ -11,6 +11,7 @@ import { CloudWorkspaceService } from '../../core/services/cloud-workspace.servi
 import { APP_VERSION } from '../../core/tokens/version.token';
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
 import { SettingsDialogComponent } from '../settings/settings.dialog';
+import { VaultService } from '../../core/services/vault.service';
 
 @Component({
   selector: 'app-footer',
@@ -68,6 +69,13 @@ import { SettingsDialogComponent } from '../settings/settings.dialog';
           (chatToggle)="chatToggle.emit()" />
         @if (realtime.lastAction(); as action) {
           <span class="last-action">{{ action.message }}</span>
+        }
+        @if (cloudWorkspace.activeWorkspace()) {
+          <ui-button variant="ghost" size="sm" (clicked)="openVault()" uiTooltip="Vault">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </ui-button>
         }
         @if (settingsService.autosave() && autosaveProgress() !== null) {
           <div class="autosave-indicator" uiTooltip="Auto-saving...">
@@ -282,6 +290,7 @@ export class FooterComponent implements OnDestroy {
   protected cloudWorkspace = inject(CloudWorkspaceService);
   private dialogService = inject(DialogService);
   private unifiedCollectionService = inject(UnifiedCollectionService);
+  private vaultService = inject(VaultService);
 
   private animationFrameId: number | null = null;
   protected autosaveProgress = signal<number | null>(null);
@@ -345,6 +354,12 @@ export class FooterComponent implements OnDestroy {
 
   protected openSettings(): void {
     this.dialogService.open<SettingsDialogComponent, void, void>(SettingsDialogComponent, {});
+  }
+
+  protected openVault(): void {
+    const activeWorkspace = this.cloudWorkspace.activeWorkspace();
+    if (!activeWorkspace) return;
+    this.vaultService.openVaultTab(activeWorkspace.id);
   }
 
   protected openRunner(): void {

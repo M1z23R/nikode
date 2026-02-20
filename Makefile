@@ -1,4 +1,4 @@
-.PHONY: dev build build-pacman install install-dev install-pacman uninstall clean help
+.PHONY: dev build build-pacman build-pacman-stage install install-dev install-pacman install-pacman-stage uninstall clean help
 
 APP_NAME := nikode
 DESKTOP_FILE := $(HOME)/.local/share/applications/$(APP_NAME).desktop
@@ -19,6 +19,13 @@ build:
 build-pacman:
 	npx ng build --configuration production --base-href ./ && npx electron-builder --linux pacman
 
+# Build pacman package for stage
+build-pacman-stage:
+	npx ng build --configuration stage --base-href ./ && \
+	echo '{"apiBaseUrl":"https://staging.nikode.dimitrije.dev/api/v1"}' > electron/build-config.json && \
+	npx electron-builder --linux pacman && \
+	rm -f electron/build-config.json
+
 # Install development protocol handler (for npm run electron:dev)
 install-dev:
 	@echo "Installing development protocol handler..."
@@ -34,6 +41,17 @@ install-dev:
 	@xdg-mime default $(APP_NAME)-dev.desktop x-scheme-handler/nikode
 	@echo "Development protocol handler installed."
 	@echo "Restart your browser for changes to take effect."
+
+# Install pacman package (stage)
+install-pacman-stage: build-pacman-stage
+	@echo "Installing Nikode (stage) via pacman..."
+	@PKGFILE=$$(ls -t dist-electron/*.pacman 2>/dev/null | head -1); \
+	if [ -n "$$PKGFILE" ]; then \
+		sudo pacman -U "$$PKGFILE"; \
+	else \
+		echo "No pacman package found. Run 'make build-pacman-stage' first."; \
+		exit 1; \
+	fi
 
 # Install pacman package
 install-pacman: build-pacman
@@ -113,6 +131,10 @@ help:
 	@echo "  make build-pacman   - Build pacman package"
 	@echo "  make install-pacman - Build and install via pacman"
 	@echo "  make uninstall-pacman - Remove pacman package"
+	@echo ""
+	@echo "Stage (Arch Linux):"
+	@echo "  make build-pacman-stage   - Build pacman package (stage)"
+	@echo "  make install-pacman-stage - Build and install via pacman (stage)"
 	@echo ""
 	@echo "Production (AppImage - requires FUSE):"
 	@echo "  make build          - Build all targets (AppImage, deb, pacman)"

@@ -160,8 +160,11 @@ export class App implements OnInit, OnDestroy {
 
   readonly bottomPanelVisible = () => this.consoleVisible() || this.historyVisible();
 
-  ngOnInit(): void {
+  constructor() {
     this.registerKeyboardShortcuts();
+  }
+
+  ngOnInit(): void {
     this.collectionService.openRecentCollections();
   }
 
