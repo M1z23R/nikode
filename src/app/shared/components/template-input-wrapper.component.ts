@@ -1,6 +1,8 @@
-import { Component, input, model, output, inject } from '@angular/core';
+import { Component, input, model, output, inject, contentChild, TemplateRef } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   TemplateInputComponent,
+  TemplateInputSuffixDirective,
   VariablePopoverDirective,
   InputComponent,
   ButtonComponent,
@@ -11,7 +13,7 @@ import { DYNAMIC_VARIABLE_LIST, isDynamicVariable } from '../../core/utils/dynam
 
 @Component({
   selector: 'app-template-input',
-  imports: [TemplateInputComponent, VariablePopoverDirective, InputComponent, ButtonComponent],
+  imports: [TemplateInputComponent, TemplateInputSuffixDirective, VariablePopoverDirective, InputComponent, ButtonComponent, NgTemplateOutlet],
   template: `
     <ui-template-input
       [(value)]="value"
@@ -60,6 +62,11 @@ import { DYNAMIC_VARIABLE_LIST, isDynamicVariable } from '../../core/utils/dynam
           }
         </div>
       </ng-template>
+      <div uiTemplateInputSuffix>
+        @if (suffixTemplate(); as tmpl) {
+          <ng-container [ngTemplateOutlet]="tmpl" />
+        }
+      </div>
     </ui-template-input>
   `,
   styles: [`
@@ -142,6 +149,8 @@ export class TemplateInputWrapperComponent {
   disabled = input(false);
   collectionPath = input('');
   enterPressed = output();
+
+  suffixTemplate = contentChild<TemplateRef<unknown>>('suffix');
 
   private environmentService = inject(EnvironmentService);
   private unifiedCollectionService = inject(UnifiedCollectionService);

@@ -23,14 +23,15 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
           </ui-option>
         }
       </ui-select>
-      <div class="input-wrapper">
-        <app-template-input
-          class="url-input"
-          [value]="request().url"
-          (valueChange)="onUrlChange($event)"          placeholder="Enter request URL..."
-          [collectionPath]="request().collectionPath"
-          (enterPressed)="onSend()" />
-        <div class="floating-buttons">
+      <app-template-input
+        class="url-input"
+        [value]="request().url"
+        (valueChange)="onUrlChange($event)"
+        placeholder="Enter request URL..."
+        [collectionPath]="request().collectionPath"
+        (enterPressed)="onSend()">
+        <ng-template #suffix>
+          <div class="suffix-buttons">
           <ui-button
             variant="ghost"
             size="sm"
@@ -82,45 +83,37 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
               </svg>
             }
           </ui-button>
-        </div>
-      </div>
+          </div>
+        </ng-template>
+      </app-template-input>
     </div>
   `,
   styles: [`
-    .url-bar {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-    }
-
-    .method-select {
-      width: 120px;
-    }
-
-    .input-wrapper {
-      flex: 1;
-      position: relative;
-      display: flex;
-      align-items: center;
-    }
-
-    .url-input {
+    :host {
+      display: block;
       width: 100%;
       min-width: 0;
     }
 
-    .url-input ::ng-deep input {
-      padding-right: 7rem;
-      text-overflow: ellipsis;
+    .url-bar {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      width: 100%;
+      min-width: 0;
     }
 
-    .url-input ::ng-deep .ui-template-input-mirror {
-      padding-right: 7rem;
+    .method-select {
+      width: 120px;
+      flex-shrink: 0;
     }
 
-    .floating-buttons {
-      position: absolute;
-      right: 0.25rem;
+    .url-input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .suffix-buttons {
       display: flex;
       gap: 0.25rem;
       align-items: center;

@@ -10,14 +10,14 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
   template: `
     <div class="url-bar">
       <div class="method-badge">GQL</div>
-      <div class="input-wrapper">
-        <app-template-input
-          class="url-input"
-          [value]="request().url"
-          (valueChange)="onUrlChange($event)"          placeholder="https://api.example.com/graphql"
-          [collectionPath]="request().collectionPath"
-        />
-        <div class="floating-buttons">
+      <app-template-input
+        class="url-input"
+        [value]="request().url"
+        (valueChange)="onUrlChange($event)"
+        placeholder="https://api.example.com/graphql"
+        [collectionPath]="request().collectionPath">
+        <ng-template #suffix>
+          <div class="suffix-buttons">
           <ui-button
             variant="ghost"
             size="sm"
@@ -66,15 +66,24 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
               </svg>
             }
           </ui-button>
-        </div>
-      </div>
+          </div>
+        </ng-template>
+      </app-template-input>
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      width: 100%;
+      min-width: 0;
+    }
+
     .url-bar {
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      width: 100%;
+      min-width: 0;
     }
 
     .method-badge {
@@ -89,30 +98,12 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
       flex-shrink: 0;
     }
 
-    .input-wrapper {
-      flex: 1;
-      position: relative;
-      display: flex;
-      align-items: center;
-    }
-
     .url-input {
-      width: 100%;
+      flex: 1;
       min-width: 0;
     }
 
-    .url-input ::ng-deep input {
-      padding-right: 7rem;
-      text-overflow: ellipsis;
-    }
-
-    .url-input ::ng-deep .ui-template-input-mirror {
-      padding-right: 7rem;
-    }
-
-    .floating-buttons {
-      position: absolute;
-      right: 0.25rem;
+    .suffix-buttons {
       display: flex;
       gap: 0.25rem;
       align-items: center;

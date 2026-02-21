@@ -475,6 +475,11 @@ ui-input .ui-input {
   line-height: 1.5;
 }
 
+// Fix template-input overflow - ensure it respects container bounds
+ui-template-input {
+  min-width: 0;
+}
+
 // Ghost buttons brighter in dark mode
 .dark .ui-button--ghost {
   --_btn-color: #d1d5db !important; // Gray-300 - more visible on dark background

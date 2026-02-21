@@ -9,15 +9,15 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
   imports: [ButtonComponent, TemplateInputWrapperComponent],
   template: `
     <div class="url-bar">
-      <div class="input-wrapper">
-        <app-template-input
-          class="url-input"
-          [value]="connection().url"
-          (valueChange)="onUrlChange($event)"          placeholder="wss://nikode.dimitrije.dev/api/v1/ws"
-          [disabled]="connection().status === 'connected'"
-          [collectionPath]="connection().collectionPath"
-        />
-        <div class="floating-buttons">
+      <app-template-input
+        class="url-input"
+        [value]="connection().url"
+        (valueChange)="onUrlChange($event)"
+        placeholder="wss://nikode.dimitrije.dev/api/v1/ws"
+        [disabled]="connection().status === 'connected'"
+        [collectionPath]="connection().collectionPath">
+        <ng-template #suffix>
+          <div class="suffix-buttons">
           <ui-button
             variant="ghost"
             size="sm"
@@ -58,40 +58,31 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
               </svg>
             </ui-button>
           }
-        </div>
-      </div>
+          </div>
+        </ng-template>
+      </app-template-input>
     </div>
   `,
   styles: [`
-    .url-bar {
-      display: flex;
-      align-items: center;
-    }
-
-    .input-wrapper {
-      flex: 1;
-      position: relative;
-      display: flex;
-      align-items: center;
-    }
-
-    .url-input {
+    :host {
+      display: block;
       width: 100%;
       min-width: 0;
     }
 
-    .url-input ::ng-deep input {
-      padding-right: 5rem;
-      text-overflow: ellipsis;
+    .url-bar {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      min-width: 0;
     }
 
-    .url-input ::ng-deep .ui-template-input-mirror {
-      padding-right: 5rem;
+    .url-input {
+      flex: 1;
+      min-width: 0;
     }
 
-    .floating-buttons {
-      position: absolute;
-      right: 0.25rem;
+    .suffix-buttons {
       display: flex;
       gap: 0.25rem;
       align-items: center;
