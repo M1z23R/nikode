@@ -3,7 +3,7 @@ import { AuthService } from './auth.service';
 import { CloudWorkspaceService } from './cloud-workspace.service';
 import { RealtimeService } from './realtime.service';
 import { CryptoService } from './crypto.service';
-import { ChatMessage, PublicKeyInfo, KeyExchangeRequest, WorkspaceKeyData } from '../models/chat.model';
+import { ChatMessage, KeyExchangeRequest, WorkspaceKeyData } from '../models/chat.model';
 
 const MAX_MESSAGE_LENGTH = 4000;
 const HISTORY_LIMIT = 50;
@@ -74,7 +74,7 @@ export class ChatService implements OnDestroy {
         this.requestHistory(message.workspace_id);
       }),
       this.realtimeService.registerHandler('workspace_keys', (message) => {
-        this.handleWorkspaceKeys(message.workspace_id, message.data.members);
+        this.handleWorkspaceKeys(message.workspace_id, message.data.should_generate);
       }),
       this.realtimeService.registerHandler('key_exchange_needed', (message) => {
         this.handleKeyExchangeNeeded(message.workspace_id, message.data);
@@ -164,23 +164,35 @@ export class ChatService implements OnDestroy {
     }
   }
 
-  private async handleWorkspaceKeys(workspaceId: string, members: PublicKeyInfo[]): Promise<void> {
+  private async handleWorkspaceKeys(workspaceId: string, shouldGenerate: boolean): Promise<void> {
     // Ensure crypto is initialized (keys loaded from IndexedDB)
     await this.cryptoService.ensureInitialized();
 
     const hasKey = this.cryptoService.hasWorkspaceKey(workspaceId);
 
-    if (members.length === 0) {
-      // We're the first user - generate a new workspace key
-      await this.cryptoService.generateWorkspaceKey(workspaceId);
+    if (hasKey) {
+      // We already have the key - notify server and we're done
+      this.sendKeyReady(workspaceId);
       this.updateWorkspaceKeyStatus(workspaceId);
-    } else if (!hasKey) {
-      // Wait for someone to share the key with us
-      this._pendingKeyRequests.update(s => new Set(s).add(workspaceId));
-    } else {
-      // We already have the key
-      this.updateWorkspaceKeyStatus(workspaceId);
+      return;
     }
+
+    if (shouldGenerate) {
+      // Server says we should generate the key (we're first or no online key holders)
+      await this.cryptoService.generateWorkspaceKey(workspaceId);
+      this.sendKeyReady(workspaceId);
+      this.updateWorkspaceKeyStatus(workspaceId);
+    } else {
+      // Server will ask an existing key holder to share with us
+      this._pendingKeyRequests.update(s => new Set(s).add(workspaceId));
+    }
+  }
+
+  private sendKeyReady(workspaceId: string): void {
+    this.realtimeService.sendMessage({
+      action: 'key_ready',
+      workspace_id: workspaceId,
+    });
   }
 
   private async handleKeyExchangeNeeded(workspaceId: string, data: KeyExchangeRequest): Promise<void> {
@@ -229,6 +241,9 @@ export class ChatService implements OnDestroy {
         n.delete(workspaceId);
         return n;
       });
+
+      // Notify server that we now have the key
+      this.sendKeyReady(workspaceId);
       this.updateWorkspaceKeyStatus(workspaceId);
 
       // Re-decrypt any existing messages
