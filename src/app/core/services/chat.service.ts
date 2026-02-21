@@ -168,22 +168,18 @@ export class ChatService implements OnDestroy {
     // Ensure crypto is initialized (keys loaded from IndexedDB)
     await this.cryptoService.ensureInitialized();
 
-    const hasKey = this.cryptoService.hasWorkspaceKey(workspaceId);
-
-    if (hasKey) {
-      // We already have the key - notify server and we're done
-      this.sendKeyReady(workspaceId);
-      this.updateWorkspaceKeyStatus(workspaceId);
-      return;
-    }
-
     if (shouldGenerate) {
-      // Server says we should generate the key (we're first or no online key holders)
-      await this.cryptoService.generateWorkspaceKey(workspaceId);
+      // Server says we should generate/use our key (no online key holders)
+      const hasKey = this.cryptoService.hasWorkspaceKey(workspaceId);
+      if (!hasKey) {
+        await this.cryptoService.generateWorkspaceKey(workspaceId);
+      }
       this.sendKeyReady(workspaceId);
       this.updateWorkspaceKeyStatus(workspaceId);
     } else {
-      // Server will ask an existing key holder to share with us
+      // Server says there's an online key holder - wait for their key
+      // IMPORTANT: Even if we have a local key, it might be outdated/different
+      // The online key holder's key is authoritative
       this._pendingKeyRequests.update(s => new Set(s).add(workspaceId));
     }
   }
@@ -224,17 +220,9 @@ export class ChatService implements OnDestroy {
     // Ensure crypto is initialized (keys loaded from IndexedDB)
     await this.cryptoService.ensureInitialized();
 
-    // Skip if we already have the workspace key (e.g., after reconnect)
-    if (this.cryptoService.hasWorkspaceKey(workspaceId)) {
-      this._pendingKeyRequests.update(s => {
-        const n = new Set(s);
-        n.delete(workspaceId);
-        return n;
-      });
-      return;
-    }
-
     try {
+      // Always import the received key - it's authoritative from an online key holder
+      // This replaces any stale local key we might have
       await this.cryptoService.importWorkspaceKey(workspaceId, data.encrypted_key);
       this._pendingKeyRequests.update(s => {
         const n = new Set(s);
@@ -246,7 +234,7 @@ export class ChatService implements OnDestroy {
       this.sendKeyReady(workspaceId);
       this.updateWorkspaceKeyStatus(workspaceId);
 
-      // Re-decrypt any existing messages
+      // Re-decrypt any existing messages with the new key
       await this.redecryptMessages(workspaceId);
     } catch (err) {
       console.error('[Chat] Failed to import workspace key:', err);
