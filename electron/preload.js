@@ -38,6 +38,7 @@ const ALLOWED_CHANNELS = [
   'ws-connect',
   'ws-disconnect',
   'ws-send',
+  'tunnel-forward-request',
 ];
 
 // Allowlist of valid channels for receiving events (main -> renderer)

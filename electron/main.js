@@ -10,6 +10,7 @@ const { FileWatcherService } = require('./services/file-watcher');
 const { OpenApiConverter } = require('./services/openapi-converter');
 const { PostmanConverter } = require('./services/postman-converter');
 const { WebSocketClient } = require('./services/websocket-client');
+const { TunnelClient } = require('./services/tunnel-client');
 const { wrapHandler } = require('./utils/ipc-helpers');
 
 const fileService = new FileService();
@@ -22,6 +23,7 @@ const fileWatcher = new FileWatcherService();
 const openApiConverter = new OpenApiConverter();
 const postmanConverter = new PostmanConverter();
 const webSocketClient = new WebSocketClient();
+const tunnelClient = new TunnelClient();
 
 // Request single instance lock for deep link handling on Windows/Linux
 const gotTheLock = app.requestSingleInstanceLock();
@@ -578,6 +580,14 @@ ipcMain.handle(
   wrapHandler(async (event, args) => {
     const { connectionId, type, data } = args;
     return webSocketClient.send(connectionId, type, data);
+  }),
+);
+
+// Tunnel - Forward request to local server
+ipcMain.handle(
+  'tunnel-forward-request',
+  wrapHandler(async (event, request) => {
+    return await tunnelClient.forwardRequest(request);
   }),
 );
 

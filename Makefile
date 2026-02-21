@@ -1,4 +1,4 @@
-.PHONY: dev build build-pacman build-pacman-stage install install-dev install-pacman install-pacman-stage uninstall clean help
+.PHONY: dev build build-pacman build-pacman-local build-pacman-stage install install-dev install-pacman install-pacman-local install-pacman-stage uninstall clean help
 
 APP_NAME := nikode
 DESKTOP_FILE := $(HOME)/.local/share/applications/$(APP_NAME).desktop
@@ -18,6 +18,10 @@ build:
 # Build only pacman package
 build-pacman:
 	npx ng build --configuration production --base-href ./ && npx electron-builder --linux pacman
+
+# Build pacman package for local (localhost)
+build-pacman-local:
+	npx ng build --configuration local --base-href ./ && npx electron-builder --linux pacman
 
 # Build pacman package for stage
 build-pacman-stage:
@@ -61,6 +65,17 @@ install-pacman: build-pacman
 		sudo pacman -U "$$PKGFILE"; \
 	else \
 		echo "No pacman package found. Run 'make build-pacman' first."; \
+		exit 1; \
+	fi
+
+# Install pacman package (local/localhost)
+install-pacman-local: build-pacman-local
+	@echo "Installing Nikode (local) via pacman..."
+	@PKGFILE=$$(ls -t dist-electron/*.pacman 2>/dev/null | head -1); \
+	if [ -n "$$PKGFILE" ]; then \
+		sudo pacman -U "$$PKGFILE"; \
+	else \
+		echo "No pacman package found. Run 'make build-pacman-local' first."; \
 		exit 1; \
 	fi
 
@@ -135,6 +150,10 @@ help:
 	@echo "Stage (Arch Linux):"
 	@echo "  make build-pacman-stage   - Build pacman package (stage)"
 	@echo "  make install-pacman-stage - Build and install via pacman (stage)"
+	@echo ""
+	@echo "Local (Arch Linux - localhost:8080):"
+	@echo "  make build-pacman-local   - Build pacman package (localhost)"
+	@echo "  make install-pacman-local - Build and install via pacman (localhost)"
 	@echo ""
 	@echo "Production (AppImage - requires FUSE):"
 	@echo "  make build          - Build all targets (AppImage, deb, pacman)"

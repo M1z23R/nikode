@@ -12,8 +12,10 @@ import { APP_VERSION } from '../../core/tokens/version.token';
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
 import { SettingsDialogComponent } from '../settings/settings.dialog';
 import { CookieJarDialogComponent, CookieJarDialogData } from '../cookie-jar/cookie-jar.dialog';
+import { TunnelDialogComponent } from '../tunnel/tunnel.dialog';
 import { CookieJarService } from '../../core/services/cookie-jar.service';
 import { VaultService } from '../../core/services/vault.service';
+import { TunnelService } from '../../core/services/tunnel.service';
 
 @Component({
   selector: 'app-footer',
@@ -61,6 +63,15 @@ import { VaultService } from '../../core/services/vault.service';
         <ui-button variant="ghost" size="sm" (clicked)="openRunner()" [disabled]="!canRun()" uiTooltip="Run collection">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+        </ui-button>
+        <ui-button
+          variant="ghost"
+          size="sm"
+          (clicked)="openTunnel()"
+          [uiTooltip]="tunnelTooltip()">
+          <svg [class.tunnel-active]="tunnelService.hasTunnels()" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
         </ui-button>
       </div>
@@ -309,6 +320,10 @@ import { VaultService } from '../../core/services/vault.service';
       from { opacity: 0; transform: translateY(2px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    .tunnel-active {
+      color: var(--ui-success, #22c55e);
+    }
   `]
 })
 export class FooterComponent implements OnDestroy {
@@ -319,6 +334,7 @@ export class FooterComponent implements OnDestroy {
   protected realtime = inject(RealtimeService);
   protected chatService = inject(ChatService);
   protected cloudWorkspace = inject(CloudWorkspaceService);
+  protected tunnelService = inject(TunnelService);
   private dialogService = inject(DialogService);
   private unifiedCollectionService = inject(UnifiedCollectionService);
   private vaultService = inject(VaultService);
@@ -390,6 +406,14 @@ export class FooterComponent implements OnDestroy {
     return total;
   });
 
+  protected tunnelTooltip = computed(() => {
+    const count = this.tunnelService.activeTunnels().length;
+    if (count > 0) {
+      return `${count} tunnel${count > 1 ? 's' : ''} active`;
+    }
+    return 'Webhook Tunnels';
+  });
+
   protected openSettings(): void {
     this.dialogService.open<SettingsDialogComponent, void, void>(SettingsDialogComponent, {});
   }
@@ -432,5 +456,9 @@ export class FooterComponent implements OnDestroy {
         },
       }
     );
+  }
+
+  protected openTunnel(): void {
+    this.dialogService.open<TunnelDialogComponent, void, void>(TunnelDialogComponent, {});
   }
 }
