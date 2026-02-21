@@ -1,6 +1,7 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, inject, computed } from '@angular/core';
 import { TreeNode, DropdownComponent, DropdownItemComponent, DropdownDividerComponent, DropdownTriggerDirective, ContextMenuDirective } from '@m1z23r/ngx-ui';
 import { TreeNodeData } from './collections-to-tree.pipe';
+import { FlagsService } from '../../core/services/flags.service';
 
 export interface NodeDropEvent {
   node: TreeNode;
@@ -95,6 +96,9 @@ const dragState = {
               } @else {
                 <ui-dropdown-item (clicked)="action.emit({ type: 'export', node })">Export</ui-dropdown-item>
                 <ui-dropdown-item (clicked)="action.emit({ type: 'pushToCloud', node })">Push to Cloud...</ui-dropdown-item>
+              }
+              @if (canPublishTemplate()) {
+                <ui-dropdown-item (clicked)="action.emit({ type: 'publishAsTemplate', node })">Publish as Template...</ui-dropdown-item>
               }
               <ui-dropdown-item (clicked)="action.emit({ type: 'close', node })">Close</ui-dropdown-item>
               <ui-dropdown-divider />
@@ -268,6 +272,8 @@ const dragState = {
   `]
 })
 export class CollectionTreeComponent {
+  private flagsService = inject(FlagsService);
+
   nodes = input.required<TreeNode[]>();
   level = input(0);
   indent = input(16);
@@ -275,6 +281,8 @@ export class CollectionTreeComponent {
   nodeClick = output<TreeNode>();
   action = output<{ type: string; node: TreeNode }>();
   nodeDrop = output<NodeDropEvent>();
+
+  canPublishTemplate = computed(() => this.flagsService.isEnabled('publish-template'));
 
   trackNode(node: TreeNode): string {
     const data = node.data as TreeNodeData;

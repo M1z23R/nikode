@@ -21,6 +21,7 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/dialogs/
 import { ExportCollectionDialogComponent, ExportFormat, ExportCollectionDialogData } from '../../shared/dialogs/export-collection.dialog';
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
 import { PushToCloudDialogComponent, PushToCloudDialogData } from '../workspaces/push-to-cloud.dialog';
+import { PublishTemplateDialogComponent, PublishTemplateDialogData, PublishTemplateDialogResult } from '../../shared/dialogs/publish-template.dialog';
 import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
 import { TemplateService } from '../../core/services/template.service';
 import { CollectionsToTreePipe, TreeNodeData } from './collections-to-tree.pipe';
@@ -238,6 +239,9 @@ export class SidebarComponent {
         break;
       case 'pushToCloud':
         this.pushToCloud(nodeData);
+        break;
+      case 'publishAsTemplate':
+        this.publishAsTemplate(nodeData);
         break;
       case 'close':
         this.unifiedCollectionService.close(nodeData.collectionPath);
@@ -534,6 +538,21 @@ export class SidebarComponent {
         data: {
           collectionPath: target.collectionPath,
           collectionName: col.name
+        }
+      }
+    );
+  }
+
+  private publishAsTemplate(target: TreeNodeData): void {
+    const col = this.unifiedCollectionService.getCollection(target.collectionPath);
+    if (!col) return;
+
+    this.dialogService.open<PublishTemplateDialogComponent, PublishTemplateDialogData, PublishTemplateDialogResult | undefined>(
+      PublishTemplateDialogComponent,
+      {
+        data: {
+          collectionName: col.name,
+          collection: col.collection
         }
       }
     );

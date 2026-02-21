@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
 
 export interface TemplateSearchResult {
   id: string;
@@ -16,8 +17,18 @@ export interface TemplateDetail {
   data: any;
 }
 
+export interface PublishTemplateRequest {
+  name: string;
+  description: string;
+  category: string;
+  data: {
+    items: any[];
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class TemplateService {
+  private authService = inject(AuthService);
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   async search(query: string, limit = 10): Promise<TemplateSearchResult[]> {
@@ -65,6 +76,32 @@ export class TemplateService {
 
     if (!response.ok) {
       throw new Error('Failed to fetch template');
+    }
+
+    return response.json();
+  }
+
+  async publish(template: PublishTemplateRequest): Promise<TemplateDetail> {
+    const token = this.authService.getAccessToken();
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(
+      `${environment.apiBaseUrl}/admin/templates`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(template),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to publish template' }));
+      throw new Error(error.message || 'Failed to publish template');
     }
 
     return response.json();
