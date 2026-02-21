@@ -165,6 +165,9 @@ export class ChatService implements OnDestroy {
   }
 
   private async handleWorkspaceKeys(workspaceId: string, members: PublicKeyInfo[]): Promise<void> {
+    // Ensure crypto is initialized (keys loaded from IndexedDB)
+    await this.cryptoService.ensureInitialized();
+
     const hasKey = this.cryptoService.hasWorkspaceKey(workspaceId);
 
     if (members.length === 0) {
@@ -181,6 +184,9 @@ export class ChatService implements OnDestroy {
   }
 
   private async handleKeyExchangeNeeded(workspaceId: string, data: KeyExchangeRequest): Promise<void> {
+    // Ensure crypto is initialized (keys loaded from IndexedDB)
+    await this.cryptoService.ensureInitialized();
+
     // A new user joined and needs the workspace key
     const hasKey = this.cryptoService.hasWorkspaceKey(workspaceId);
     if (!hasKey) return;
@@ -203,6 +209,19 @@ export class ChatService implements OnDestroy {
   }
 
   private async handleWorkspaceKey(workspaceId: string, data: WorkspaceKeyData): Promise<void> {
+    // Ensure crypto is initialized (keys loaded from IndexedDB)
+    await this.cryptoService.ensureInitialized();
+
+    // Skip if we already have the workspace key (e.g., after reconnect)
+    if (this.cryptoService.hasWorkspaceKey(workspaceId)) {
+      this._pendingKeyRequests.update(s => {
+        const n = new Set(s);
+        n.delete(workspaceId);
+        return n;
+      });
+      return;
+    }
+
     try {
       await this.cryptoService.importWorkspaceKey(workspaceId, data.encrypted_key);
       this._pendingKeyRequests.update(s => {
