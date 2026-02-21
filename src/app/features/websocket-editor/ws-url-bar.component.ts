@@ -77,6 +77,7 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
 
     .url-input {
       width: 100%;
+      min-width: 0;
     }
 
     .url-input ::ng-deep input {

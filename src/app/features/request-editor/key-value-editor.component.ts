@@ -50,6 +50,7 @@ import { TemplateInputWrapperComponent } from '../../shared/components/template-
 
     .kv-key, .kv-value {
       flex: 1;
+      min-width: 0;
     }
 
     .add-btn {

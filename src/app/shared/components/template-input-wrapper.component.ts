@@ -65,6 +65,11 @@ import { DYNAMIC_VARIABLE_LIST, isDynamicVariable } from '../../core/utils/dynam
   styles: [`
     :host {
       display: block;
+      min-width: 0;
+    }
+
+    ui-template-input {
+      width: 100%;
     }
 
     .var-popover {
