@@ -68,25 +68,40 @@ export class CollectionService implements OnDestroy {
     return true;
   }
 
-  async createCollection(path: string, name: string): Promise<boolean> {
+  async createCollection(path: string, name: string, templateData?: Collection | null): Promise<boolean> {
     const result = await this.api.createCollection(path, name);
     if (isIpcError(result)) {
       this.toastService.error(result.error.userMessage);
       return false;
     }
 
+    // If template data was provided, merge it into the new collection
+    let collection = result.data.collection;
+    if (templateData) {
+      collection = {
+        ...templateData,
+        name // Override with user-provided name
+      };
+      // Save the template data to disk
+      const saveResult = await this.api.saveCollection(result.data.path, collection);
+      if (isIpcError(saveResult)) {
+        // Collection was created but template failed to apply - still add to open list
+        this.toastService.error('Collection created but failed to apply template');
+      }
+    }
+
     this.openCollections.update(cols => [
       ...cols,
       {
         path: result.data.path,
-        collection: result.data.collection,
+        collection,
         expanded: true,
         dirty: false
       }
     ]);
 
     // Start file watcher for this collection
-    await this.api.watchCollection(path);
+    await this.api.watchCollection(result.data.path);
 
     return true;
   }

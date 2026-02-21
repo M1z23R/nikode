@@ -22,6 +22,7 @@ import { ExportCollectionDialogComponent, ExportFormat, ExportCollectionDialogDa
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
 import { PushToCloudDialogComponent, PushToCloudDialogData } from '../workspaces/push-to-cloud.dialog';
 import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
+import { TemplateService } from '../../core/services/template.service';
 import { CollectionsToTreePipe, TreeNodeData } from './collections-to-tree.pipe';
 import { CollectionTreeComponent, NodeDropEvent } from './collection-tree.component';
 import { generateCurl } from '../../core/utils/curl';
@@ -153,6 +154,7 @@ export class SidebarComponent {
   private authService = inject(AuthService);
   private toastService = inject(ToastService);
   protected cloudWorkspaceService = inject(CloudWorkspaceService);
+  private templateService = inject(TemplateService);
 
   expandedFolders = signal<Set<string>>(new Set());
   searchActive = signal(false);
@@ -285,10 +287,22 @@ export class SidebarComponent {
     );
     const result = await ref.afterClosed();
     if (result) {
+      // If a template was selected, fetch its data
+      let templateData: any = null;
+      if (result.templateId) {
+        try {
+          const template = await this.templateService.getById(result.templateId);
+          templateData = template.data;
+        } catch (error) {
+          console.error('Failed to fetch template:', error);
+          this.toastService.error('Failed to load template');
+        }
+      }
+
       if (result.type === 'cloud' && result.workspaceId) {
-        await this.unifiedCollectionService.createCloudCollection(result.workspaceId, result.name);
+        await this.unifiedCollectionService.createCloudCollection(result.workspaceId, result.name, templateData);
       } else if (result.path) {
-        await this.collectionService.createCollection(result.path, result.name);
+        await this.collectionService.createCollection(result.path, result.name, templateData);
       }
     }
   }

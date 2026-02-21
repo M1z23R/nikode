@@ -984,7 +984,7 @@ export class UnifiedCollectionService {
   }
 
   // Create new cloud collection
-  async createCloudCollection(workspaceId: string, name: string): Promise<boolean> {
+  async createCloudCollection(workspaceId: string, name: string, templateData?: Collection | null): Promise<boolean> {
     if (!this.networkStatusService.isOnline()) {
       this.toastService.error('Cannot create collection while offline');
       return false;
@@ -992,7 +992,7 @@ export class UnifiedCollectionService {
 
     this.cloudSyncStatus.syncing('Creating collection...');
     try {
-      const emptyCollection: Collection = {
+      const baseCollection: Collection = templateData ?? {
         name,
         version: '1.0',
         environments: [
@@ -1002,10 +1002,16 @@ export class UnifiedCollectionService {
         items: []
       };
 
+      // Override name with user-provided name
+      const collection: Collection = {
+        ...baseCollection,
+        name
+      };
+
       const cloudCollection = await this.cloudWorkspaceService.createCollection(
         workspaceId,
         name,
-        emptyCollection
+        collection
       );
 
       // Expand the new collection

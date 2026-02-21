@@ -5,6 +5,7 @@ import {
   InputComponent,
   SelectComponent,
   OptionComponent,
+  AsyncSearchFn,
   DIALOG_REF,
   DialogRef
 } from '@m1z23r/ngx-ui';
@@ -12,12 +13,14 @@ import { isIpcError } from '@shared/ipc-types';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { CloudWorkspaceService } from '../../../core/services/cloud-workspace.service';
+import { TemplateService } from '../../../core/services/template.service';
 
 export interface NewCollectionDialogResult {
   type: 'local' | 'cloud';
   name: string;
   path?: string;           // For local
   workspaceId?: string;    // For cloud
+  templateId?: string;     // For template-based creation
 }
 
 @Component({
@@ -57,6 +60,14 @@ export interface NewCollectionDialogResult {
           label="Collection Name"
           [(value)]="name"
           placeholder="My API Collection" />
+
+        <ui-select
+          label="Start from template (optional)"
+          placeholder="Search templates..."
+          [(value)]="selectedTemplateId"
+          [searchable]="true"
+          [asyncSearch]="templateSearch"
+        />
 
         @if (collectionType() === 'local') {
           <p class="hint-text">You'll choose a save location when you click Create</p>
@@ -137,13 +148,20 @@ export class NewCollectionDialogComponent {
   private api = inject(ApiService);
   private authService = inject(AuthService);
   private cloudWorkspaceService = inject(CloudWorkspaceService);
+  private templateService = inject(TemplateService);
   readonly dialogRef = inject(DIALOG_REF) as DialogRef<NewCollectionDialogResult | undefined>;
 
   collectionType = signal<'local' | 'cloud'>('local');
   name = signal('');
   selectedWorkspaceId = signal('');
+  selectedTemplateId = signal<string | null>(null);
 
   workspaces = this.cloudWorkspaceService.workspaces;
+
+  templateSearch: AsyncSearchFn<string> = async (query: string) => {
+    const results = await this.templateService.search(query);
+    return results.map(t => ({ value: t.id, label: t.name }));
+  };
 
   constructor() {
     // Initialize workspace selection
@@ -194,13 +212,15 @@ export class NewCollectionDialogComponent {
       this.dialogRef.close({
         type: 'local',
         name,
-        path: result.data.filePath
+        path: result.data.filePath,
+        templateId: this.selectedTemplateId() ?? undefined
       });
     } else {
       this.dialogRef.close({
         type: 'cloud',
         name: this.name().trim(),
-        workspaceId: this.selectedWorkspaceId()
+        workspaceId: this.selectedWorkspaceId(),
+        templateId: this.selectedTemplateId() ?? undefined
       });
     }
   }
