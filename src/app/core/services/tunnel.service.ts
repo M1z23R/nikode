@@ -17,7 +17,7 @@ interface TunnelRequest {
   body: string;
 }
 
-export type TunnelConnectionState = 'disconnected' | 'connecting' | 'connected';
+export type TunnelConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
 @Injectable({ providedIn: 'root' })
 export class TunnelService {
@@ -26,12 +26,24 @@ export class TunnelService {
 
   private socket: WebSocket | null = null;
   private pingInterval: ReturnType<typeof setInterval> | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Reconnection settings
+  private reconnectAttempts = 0;
+  private readonly maxReconnectAttempts = 10;
+  private readonly baseReconnectDelay = 1000;
+  private readonly maxReconnectDelay = 30000;
+  private intentionalClose = false;
+
+  // Store tunnel configs for re-registration after reconnect
+  private pendingTunnels: TunnelConfig[] = [];
 
   // Track multiple active tunnels
   readonly activeTunnels = signal<TunnelConfig[]>([]);
-  readonly hasTunnels = computed(() => this.activeTunnels().length > 0);
+  readonly hasTunnels = computed(() => this.activeTunnels().length > 0 || this.pendingTunnels.length > 0);
   readonly connectionState = signal<TunnelConnectionState>('disconnected');
   readonly isConnected = computed(() => this.connectionState() === 'connected');
+  readonly isReconnecting = computed(() => this.connectionState() === 'reconnecting');
 
   private checkCallbacks = new Map<string, (available: boolean) => void>();
 
@@ -50,7 +62,8 @@ export class TunnelService {
     const token = this.authService.getAccessToken();
     if (!token) return;
 
-    this.connectionState.set('connecting');
+    this.intentionalClose = false;
+    this.connectionState.set(this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting');
 
     // Derive tunnel WebSocket URL from the base URL pattern
     const tunnelWsUrl = environment.wsBaseUrl.replace('/sync', '/tunnel');
@@ -59,8 +72,10 @@ export class TunnelService {
 
     this.socket.onopen = () => {
       this.ngZone.run(() => {
+        this.reconnectAttempts = 0;
         this.connectionState.set('connected');
         this.startPing();
+        this.reregisterTunnels();
       });
     };
 
@@ -74,8 +89,20 @@ export class TunnelService {
       this.ngZone.run(() => {
         this.socket = null;
         this.stopPing();
-        this.connectionState.set('disconnected');
-        this.activeTunnels.set([]);
+
+        if (!this.intentionalClose) {
+          // Save current tunnels for re-registration
+          const currentTunnels = this.activeTunnels();
+          if (currentTunnels.length > 0) {
+            this.pendingTunnels = [...currentTunnels];
+          }
+          this.activeTunnels.set([]);
+          this.connectionState.set('reconnecting');
+          this.scheduleReconnect();
+        } else {
+          this.activeTunnels.set([]);
+          this.connectionState.set('disconnected');
+        }
       });
     };
 
@@ -85,7 +112,11 @@ export class TunnelService {
   }
 
   disconnect(): void {
+    this.intentionalClose = true;
+    this.clearReconnectTimer();
     this.stopPing();
+    this.reconnectAttempts = 0;
+    this.pendingTunnels = [];
     this.activeTunnels.set([]);
 
     if (this.socket) {
@@ -244,5 +275,46 @@ export class TunnelService {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
     }
+  }
+
+  // --- Reconnection ---
+  private scheduleReconnect(): void {
+    this.clearReconnectTimer();
+
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.connectionState.set('disconnected');
+      this.pendingTunnels = [];
+      return;
+    }
+
+    const delay = Math.min(
+      this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts),
+      this.maxReconnectDelay
+    );
+
+    this.reconnectAttempts++;
+
+    this.reconnectTimer = setTimeout(() => {
+      this.ngZone.run(() => {
+        this.connect();
+      });
+    }, delay);
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  /** Re-register tunnels after reconnect */
+  private reregisterTunnels(): void {
+    if (this.pendingTunnels.length === 0) return;
+
+    for (const tunnel of this.pendingTunnels) {
+      this.registerTunnel(tunnel.subdomain, tunnel.localPort);
+    }
+    this.pendingTunnels = [];
   }
 }

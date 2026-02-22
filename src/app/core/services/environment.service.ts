@@ -39,6 +39,12 @@ export class EnvironmentService {
     return this.unifiedCollectionService.getCollection(collectionPath);
   }
 
+  // Helper to safely get environments array (handles templates without environments)
+  private getEnvironments(collectionPath: string): Environment[] {
+    const col = this.getUnifiedCollection(collectionPath);
+    return col?.collection.environments ?? [];
+  }
+
   async loadSecrets(collectionPath: string): Promise<void> {
     const result = await this.api.getSecrets(collectionPath);
     if (isIpcError(result)) {
@@ -88,9 +94,19 @@ export class EnvironmentService {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return undefined;
 
-    return col.collection.environments.find(
+    const environments = col.collection.environments ?? [];
+
+    // Auto-create a default environment if none exist
+    if (environments.length === 0) {
+      this.addEnvironment(collectionPath, 'Default');
+      // Re-fetch after creating
+      const updatedCol = this.getUnifiedCollection(collectionPath);
+      return updatedCol?.collection.environments?.[0];
+    }
+
+    return environments.find(
       e => e.id === col.collection.activeEnvironmentId
-    );
+    ) ?? environments[0]; // Fallback to first environment if active not found
   }
 
   setActiveEnvironment(collectionPath: string, envId: string): void {
@@ -179,9 +195,10 @@ export class EnvironmentService {
       variables: []
     };
 
+    const environments = col.collection.environments ?? [];
     this.unifiedCollectionService.updateCollection(collectionPath, {
       ...col.collection,
-      environments: [...col.collection.environments, newEnv]
+      environments: [...environments, newEnv]
     });
   }
 
@@ -189,9 +206,10 @@ export class EnvironmentService {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
+    const environments = col.collection.environments ?? [];
     this.unifiedCollectionService.updateCollection(collectionPath, {
       ...col.collection,
-      environments: col.collection.environments.map(e =>
+      environments: environments.map(e =>
         e.id === envId ? { ...e, ...updates } : e
       )
     });
@@ -201,7 +219,8 @@ export class EnvironmentService {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
-    const remainingEnvs = col.collection.environments.filter(e => e.id !== envId);
+    const environments = col.collection.environments ?? [];
+    const remainingEnvs = environments.filter(e => e.id !== envId);
 
     this.unifiedCollectionService.updateCollection(collectionPath, {
       ...col.collection,
@@ -216,7 +235,8 @@ export class EnvironmentService {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return false;
 
-    const env = col.collection.environments.find(e => e.id === envId);
+    const environments = col.collection.environments ?? [];
+    const env = environments.find(e => e.id === envId);
     if (!env) return false;
 
     // Check for duplicate key (only if key is non-empty)
@@ -227,7 +247,7 @@ export class EnvironmentService {
 
     this.unifiedCollectionService.updateCollection(collectionPath, {
       ...col.collection,
-      environments: col.collection.environments.map(e =>
+      environments: environments.map(e =>
         e.id === envId
           ? { ...e, variables: [...e.variables, variable] }
           : e
@@ -240,7 +260,8 @@ export class EnvironmentService {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return false;
 
-    const env = col.collection.environments.find(e => e.id === envId);
+    const environments = col.collection.environments ?? [];
+    const env = environments.find(e => e.id === envId);
     if (!env) return false;
     if (index < 0 || index >= env.variables.length) return false;
 
@@ -255,7 +276,7 @@ export class EnvironmentService {
 
     this.unifiedCollectionService.updateCollection(collectionPath, {
       ...col.collection,
-      environments: col.collection.environments.map(e =>
+      environments: environments.map(e =>
         e.id === envId
           ? {
               ...e,
@@ -273,9 +294,10 @@ export class EnvironmentService {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;
 
+    const environments = col.collection.environments ?? [];
     this.unifiedCollectionService.updateCollection(collectionPath, {
       ...col.collection,
-      environments: col.collection.environments.map(e =>
+      environments: environments.map(e =>
         e.id === envId
           ? { ...e, variables: e.variables.filter((_, i) => i !== index) }
           : e
@@ -295,7 +317,8 @@ export class EnvironmentService {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return undefined;
 
-    const env = col.collection.environments.find(e => e.id === envId);
+    const environments = col.collection.environments ?? [];
+    const env = environments.find(e => e.id === envId);
     if (!env) return undefined;
 
     const exported: ExportedEnvironment = {
@@ -342,9 +365,10 @@ export class EnvironmentService {
       }))
     };
 
+    const environments = col.collection.environments ?? [];
     this.unifiedCollectionService.updateCollection(collectionPath, {
       ...col.collection,
-      environments: [...col.collection.environments, newEnv]
+      environments: [...environments, newEnv]
     });
 
     // Import secrets if provided

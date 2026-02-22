@@ -32,6 +32,14 @@ import { AuthService } from '../../core/services/auth.service';
             </svg>
             <span>Connecting to tunnel service...</span>
           </div>
+        } @else if (tunnelService.connectionState() === 'reconnecting') {
+          <div class="connecting-state">
+            <svg class="spinning" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+            <span>Reconnecting...</span>
+            <ui-button variant="ghost" size="sm" (clicked)="tunnelService.disconnect()">Cancel</ui-button>
+          </div>
         } @else if (tunnelService.connectionState() === 'disconnected') {
           <div class="disconnected-state">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -345,8 +353,8 @@ export class TunnelDialogComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    // Disconnect when dialog closes if no active tunnels
-    if (this.tunnelService.activeTunnels().length === 0) {
+    // Disconnect when dialog closes if no active/pending tunnels and not reconnecting
+    if (!this.tunnelService.hasTunnels() && !this.tunnelService.isReconnecting()) {
       this.tunnelService.disconnect();
     }
   }
