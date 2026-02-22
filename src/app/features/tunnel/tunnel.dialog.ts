@@ -50,7 +50,7 @@ import { AuthService } from '../../core/services/auth.service';
                   size="sm"
                   [disabled]="isCreating()"
                 />
-                <span class="domain-suffix">.webhook.nikode.dimitrije.dev</span>
+                <span class="domain-suffix">.webhooks.nikode.dimitrije.dev</span>
               </div>
               <ui-input
                 type="number"
@@ -62,7 +62,6 @@ import { AuthService } from '../../core/services/auth.service';
               />
               <ui-button
                 variant="default"
-                size="sm"
                 (clicked)="createTunnel()"
                 [disabled]="!canCreate() || isCreating()">
                 @if (isCreating()) {
@@ -188,7 +187,7 @@ import { AuthService } from '../../core/services/auth.service';
 
     .subdomain-input {
       display: flex;
-      align-items: center;
+      align-items: stretch;
       flex: 1;
       gap: 0;
     }
@@ -203,9 +202,9 @@ import { AuthService } from '../../core/services/auth.service';
     }
 
     .domain-suffix {
+      display: flex;
+      align-items: center;
       padding: 0 0.5rem;
-      height: 32px;
-      line-height: 32px;
       background-color: var(--ui-bg-secondary);
       border: 1px solid var(--ui-border);
       border-left: none;
