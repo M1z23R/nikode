@@ -166,7 +166,7 @@ export class TunnelService {
           break;
         }
 
-        case 'request':
+        case 'tunnel_request':
           this.handleTunnelRequest(message as TunnelRequest);
           break;
 

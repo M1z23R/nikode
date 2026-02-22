@@ -255,6 +255,7 @@ export class RealtimeService implements OnDestroy {
           break;
 
         case 'pong':
+        case 'key_ready_confirmed':
           break;
 
         case 'error':
