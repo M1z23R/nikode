@@ -702,7 +702,7 @@ export class RunnerDialogComponent {
 
   readonly environments = computed(() => {
     const col = this.unifiedCollectionService.getCollection(this.data.collectionPath);
-    return col?.collection.environments || [];
+    return col?.collection.environments ?? [];
   });
 
   readonly arrayVariables = computed(() => {
@@ -714,7 +714,7 @@ export class RunnerDialogComponent {
     let variables: Record<string, string>;
     if (envId) {
       // Use the specified environment
-      const env = col.collection.environments.find(e => e.id === envId);
+      const env = (col.collection.environments ?? []).find(e => e.id === envId);
       const secrets = this.environmentService.getSecrets(this.data.collectionPath);
       variables = {};
       if (env) {

@@ -356,7 +356,7 @@ export class EnvironmentEditorDialogComponent implements OnInit {
 
   environments = computed(() => {
     const collection = this.unifiedCollectionService.getCollection(this.data.collectionPath);
-    return collection?.collection.environments || [];
+    return collection?.collection.environments ?? [];
   });
 
   selectedEnv = computed(() => {

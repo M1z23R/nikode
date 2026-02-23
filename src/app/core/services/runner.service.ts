@@ -350,7 +350,7 @@ export class RunnerService {
     if (config.environmentId) {
       // Use the specified environment
       const col = this.unifiedCollectionService.getCollection(collectionPath);
-      const env = col?.collection.environments.find(e => e.id === config.environmentId);
+      const env = (col?.collection.environments ?? []).find(e => e.id === config.environmentId);
       const secrets = this.environmentService.getSecrets(collectionPath);
 
       variables = {};
@@ -635,7 +635,7 @@ export class RunnerService {
   ): ResolvedVariables {
     if (config.environmentId) {
       const col = this.unifiedCollectionService.getCollection(collectionPath);
-      const env = col?.collection.environments.find(e => e.id === config.environmentId);
+      const env = (col?.collection.environments ?? []).find(e => e.id === config.environmentId);
       const secrets = this.environmentService.getSecrets(collectionPath);
 
       const variables: ResolvedVariables = {};

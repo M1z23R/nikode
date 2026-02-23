@@ -2,7 +2,7 @@ import { Injectable, inject, signal, OnDestroy } from '@angular/core';
 import { DialogService, ToastService } from '@m1z23r/ngx-ui';
 import { isIpcError, CollectionChangedEvent } from '@shared/ipc-types';
 import { ApiService } from './api.service';
-import { Collection, CollectionItem, OpenCollection } from '../models/collection.model';
+import { Collection, CollectionItem, OpenCollection, normalizeCollection } from '../models/collection.model';
 import { OpenCollectionDialogComponent, OpenCollectionDialogResult } from '../../features/sidebar/dialogs/open-collection.dialog';
 
 @Injectable({ providedIn: 'root' })
@@ -56,7 +56,7 @@ export class CollectionService implements OnDestroy {
       ...cols,
       {
         path: result.data.path,
-        collection: result.data.collection,
+        collection: normalizeCollection(result.data.collection),
         expanded: true,
         dirty: false
       }
@@ -76,12 +76,12 @@ export class CollectionService implements OnDestroy {
     }
 
     // If template data was provided, merge it into the new collection
-    let collection = result.data.collection;
+    let collection = normalizeCollection(result.data.collection);
     if (templateData) {
-      collection = {
+      collection = normalizeCollection({
         ...templateData,
-        name // Override with user-provided name
-      };
+        name, // Override with user-provided name
+      });
       // Save the template data to disk
       const saveResult = await this.api.saveCollection(result.data.path, collection);
       if (isIpcError(saveResult)) {
@@ -541,7 +541,7 @@ export class CollectionService implements OnDestroy {
       ...cols,
       {
         path: result.data.path,
-        collection: result.data.collection,
+        collection: normalizeCollection(result.data.collection),
         expanded: true,
         dirty: false
       }
@@ -606,7 +606,7 @@ export class CollectionService implements OnDestroy {
       ...cols,
       {
         path: result.data.path,
-        collection: result.data.collection,
+        collection: normalizeCollection(result.data.collection),
         expanded: true,
         dirty: false
       }
@@ -630,7 +630,7 @@ export class CollectionService implements OnDestroy {
       ...cols,
       {
         path: result.data.path,
-        collection: result.data.collection,
+        collection: normalizeCollection(result.data.collection),
         expanded: true,
         dirty: false
       }
@@ -664,7 +664,7 @@ export class CollectionService implements OnDestroy {
     // Merge the environment into the target collection
     const updatedCollection = {
       ...target.collection,
-      environments: [...target.collection.environments, result.data.environment],
+      environments: [...(target.collection.environments ?? []), result.data.environment],
     };
 
     this.updateCollection(target.path, updatedCollection);
@@ -714,7 +714,7 @@ export class CollectionService implements OnDestroy {
 
       this.openCollections.update(cols =>
         cols.map(c => c.path === event.path
-          ? { ...c, collection: result.data, dirty: false }
+          ? { ...c, collection: normalizeCollection(result.data), dirty: false }
           : c
         )
       );

@@ -20,7 +20,7 @@ import { EnvironmentEditorDialogComponent, EnvironmentEditorDialogData } from '.
           size="sm"
           [value]="col.collection.activeEnvironmentId"
           (valueChange)="onEnvironmentChange($event?.toString() || '')">
-          @for (env of col.collection.environments; track env.id) {
+          @for (env of col.collection.environments ?? []; track env.id) {
             <ui-option [value]="env.id">{{ env.name }}</ui-option>
           }
         </ui-select>

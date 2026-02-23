@@ -103,6 +103,19 @@ export interface OpenCollection {
   dirty: boolean;
 }
 
+/**
+ * Ensures a collection always has a valid environments array.
+ * If environments is missing or empty, creates a default environment.
+ */
+export function normalizeCollection(collection: Collection): Collection {
+  if (collection.environments?.length > 0) return collection;
+  return {
+    ...collection,
+    environments: [{ id: 'default', name: 'Default', variables: [] }],
+    activeEnvironmentId: 'default',
+  };
+}
+
 export type CollectionSource = 'local' | 'cloud';
 
 export interface UnifiedCollection {

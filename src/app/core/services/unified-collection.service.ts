@@ -7,7 +7,7 @@ import { NetworkStatusService } from './network-status.service';
 import { CollectionMergeService } from './collection-merge.service';
 import { CloudSyncStatusService } from './cloud-sync-status.service';
 import { SettingsService } from './settings.service';
-import { UnifiedCollection, CollectionItem, Collection } from '../models/collection.model';
+import { UnifiedCollection, CollectionItem, Collection, normalizeCollection } from '../models/collection.model';
 import { CloudCollection } from '../models/cloud.model';
 import {
   MergeConflictDialogComponent,
@@ -992,21 +992,10 @@ export class UnifiedCollectionService {
 
     this.cloudSyncStatus.syncing('Creating collection...');
     try {
-      const baseCollection: Collection = templateData ?? {
+      const collection: Collection = normalizeCollection({
+        ...(templateData ?? { version: '1.0', environments: [], activeEnvironmentId: '', items: [] }),
         name,
-        version: '1.0',
-        environments: [
-          { id: 'default', name: 'Default', variables: [] }
-        ],
-        activeEnvironmentId: 'default',
-        items: []
-      };
-
-      // Override name with user-provided name
-      const collection: Collection = {
-        ...baseCollection,
-        name
-      };
+      });
 
       const cloudCollection = await this.cloudWorkspaceService.createCollection(
         workspaceId,

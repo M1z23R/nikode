@@ -92,7 +92,7 @@ export class CollectionMergeService {
 
     // Start with local as the base for merged result
     let mergedItems = structuredClone(local.items);
-    let mergedEnvs = structuredClone(local.environments);
+    let mergedEnvs = structuredClone(local.environments ?? []);
 
     // Merge items
     const baseItemIds = this.collectAllItemIds(base.items);
@@ -237,9 +237,9 @@ export class CollectionMergeService {
     }
 
     // Merge environments (same logic)
-    const baseEnvIds = this.collectAllEnvIds(base.environments);
-    const localEnvIds = this.collectAllEnvIds(local.environments);
-    const remoteEnvIds = this.collectAllEnvIds(remote.environments);
+    const baseEnvIds = this.collectAllEnvIds(base.environments ?? []);
+    const localEnvIds = this.collectAllEnvIds(local.environments ?? []);
+    const remoteEnvIds = this.collectAllEnvIds(remote.environments ?? []);
     const allEnvIds = new Set([...baseEnvIds, ...localEnvIds, ...remoteEnvIds]);
 
     for (const id of allEnvIds) {
@@ -247,9 +247,9 @@ export class CollectionMergeService {
       const inLocal = localEnvIds.has(id);
       const inRemote = remoteEnvIds.has(id);
 
-      const baseEnv = inBase ? this.findEnvById(base.environments, id) : undefined;
-      const localEnv = inLocal ? this.findEnvById(local.environments, id) : undefined;
-      const remoteEnv = inRemote ? this.findEnvById(remote.environments, id) : undefined;
+      const baseEnv = inBase ? this.findEnvById(base.environments ?? [], id) : undefined;
+      const localEnv = inLocal ? this.findEnvById(local.environments ?? [], id) : undefined;
+      const remoteEnv = inRemote ? this.findEnvById(remote.environments ?? [], id) : undefined;
 
       // NEW in remote only
       if (!inBase && !inLocal && inRemote) {
@@ -376,7 +376,7 @@ export class CollectionMergeService {
       if (conflict.itemType === 'item') {
         merged.items = this.applyItemResolution(merged.items, conflict, resolution);
       } else {
-        merged.environments = this.applyEnvResolution(merged.environments, conflict, resolution);
+        merged.environments = this.applyEnvResolution(merged.environments ?? [], conflict, resolution);
       }
     }
 

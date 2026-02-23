@@ -3,7 +3,7 @@ import { ApiClientService } from './api-client.service';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 import { Workspace, CloudCollection, WorkspaceMember, WorkspaceInvite, WorkspaceApiKey, WorkspaceApiKeyCreated } from '../models/cloud.model';
-import { Collection } from '../models/collection.model';
+import { Collection, normalizeCollection } from '../models/collection.model';
 import { isIpcError } from '@shared/ipc-types';
 
 const LAST_WORKSPACE_KEY = 'nikode-last-workspace';
@@ -154,12 +154,17 @@ export class CloudWorkspaceService {
     await this.apiClient.delete(`/workspaces/${workspaceId}/api-keys/${keyId}`);
   }
 
+  private normalizeCloudCollection(col: CloudCollection): CloudCollection {
+    return { ...col, data: normalizeCollection(col.data) };
+  }
+
   // Collection management
   async getCollectionById(workspaceId: string, collectionId: string): Promise<CloudCollection | null> {
     try {
-      return await this.apiClient.get<CloudCollection>(
+      const col = await this.apiClient.get<CloudCollection>(
         `/workspaces/${workspaceId}/collections/${collectionId}`
       );
+      return this.normalizeCloudCollection(col);
     } catch {
       return null;
     }
@@ -171,7 +176,7 @@ export class CloudWorkspaceService {
       const collections = await this.apiClient.get<CloudCollection[]>(
         `/workspaces/${workspaceId}/collections`
       );
-      this.collections.set(collections);
+      this.collections.set(collections.map(c => this.normalizeCloudCollection(c)));
     } catch (err) {
       console.error('Failed to load collections:', err);
       this.collections.set([]);
@@ -185,9 +190,11 @@ export class CloudWorkspaceService {
     name: string,
     data: Collection
   ): Promise<CloudCollection> {
-    const collection = await this.apiClient.post<CloudCollection>(
-      `/workspaces/${workspaceId}/collections`,
-      { name, data }
+    const collection = this.normalizeCloudCollection(
+      await this.apiClient.post<CloudCollection>(
+        `/workspaces/${workspaceId}/collections`,
+        { name, data }
+      )
     );
     if (this.activeWorkspace()?.id === workspaceId) {
       this.collections.update(cols => [...cols, collection]);
@@ -201,9 +208,11 @@ export class CloudWorkspaceService {
     data: Collection,
     version: number
   ): Promise<CloudCollection> {
-    const collection = await this.apiClient.patch<CloudCollection>(
-      `/workspaces/${workspaceId}/collections/${collectionId}`,
-      { data, version }
+    const collection = this.normalizeCloudCollection(
+      await this.apiClient.patch<CloudCollection>(
+        `/workspaces/${workspaceId}/collections/${collectionId}`,
+        { data, version }
+      )
     );
     if (this.activeWorkspace()?.id === workspaceId) {
       this.collections.update(cols =>
