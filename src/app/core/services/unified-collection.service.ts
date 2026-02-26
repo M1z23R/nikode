@@ -16,6 +16,11 @@ import {
 } from '../../shared/dialogs/merge-conflict.dialog';
 import { ConflictResolution, ResolutionChoice } from '../models/merge.model';
 
+export interface DirtyTabUpdate {
+  itemId: string;
+  updates: Partial<CollectionItem>;
+}
+
 interface OpenCloudCollectionState {
   id: string;
   expanded: boolean;
@@ -42,20 +47,39 @@ export class UnifiedCollectionService {
   private previousWorkspaceId: string | null = null;
 
   // Callbacks for when a collection is refreshed after merge resolution
-  private collectionRefreshedCallbacks: ((collectionId: string) => void)[] = [];
+  private collectionRefreshedCallbacks: ((collectionId: string, force: boolean) => void)[] = [];
+
+  // Callbacks to collect dirty tab updates from tab services (WorkspaceService, WebSocketService, GraphQLService)
+  private dirtyTabCallbacks: ((collectionPath: string) => DirtyTabUpdate[])[] = [];
 
   /**
    * Register a callback to be called when a collection is refreshed after merge resolution.
-   * Used by WorkspaceService to refresh open requests.
+   * Used by WorkspaceService, WebSocketService, GraphQLService to refresh open tabs.
    */
-  onCollectionRefreshed(callback: (collectionId: string) => void): void {
+  onCollectionRefreshed(callback: (collectionId: string, force: boolean) => void): void {
     this.collectionRefreshedCallbacks.push(callback);
   }
 
-  private notifyCollectionRefreshed(collectionId: string): void {
+  /**
+   * Register a callback to collect dirty tab updates for a collection.
+   * Used by tab services to report unsaved changes during remote update merge.
+   */
+  onGetDirtyTabUpdates(callback: (collectionPath: string) => DirtyTabUpdate[]): void {
+    this.dirtyTabCallbacks.push(callback);
+  }
+
+  private notifyCollectionRefreshed(collectionId: string, force = false): void {
     for (const callback of this.collectionRefreshedCallbacks) {
-      callback(collectionId);
+      callback(collectionId, force);
     }
+  }
+
+  private collectDirtyTabUpdates(collectionPath: string): DirtyTabUpdate[] {
+    const updates: DirtyTabUpdate[] = [];
+    for (const cb of this.dirtyTabCallbacks) {
+      updates.push(...cb(collectionPath));
+    }
+    return updates;
   }
 
   constructor() {
@@ -834,10 +858,14 @@ export class UnifiedCollectionService {
 
     const unifiedId = this.buildCloudId(workspaceId, collectionId);
     const localState = this.openCloudCollections().find(s => s.id === unifiedId);
-    const isDirty = localState?.dirty ?? false;
+    const isCollectionDirty = localState?.dirty ?? false;
 
-    if (!isDirty) {
-      // No local edits - accept remote directly
+    // Collect dirty tab updates (unsaved tab edits not yet written to collection)
+    const dirtyTabUpdates = this.collectDirtyTabUpdates(unifiedId);
+    const hasDirtyTabs = dirtyTabUpdates.length > 0;
+
+    if (!isCollectionDirty && !hasDirtyTabs) {
+      // No local edits anywhere - accept remote directly
       this.applyRemoteUpdate(unifiedId, collectionId, remoteCollection);
       return;
     }
@@ -859,7 +887,18 @@ export class UnifiedCollectionService {
       return;
     }
 
-    const local = localCollection.data;
+    // Build "virtual local" by applying dirty tab updates to current collection data
+    let local = localCollection.data;
+    if (hasDirtyTabs) {
+      local = structuredClone(local);
+      for (const tabUpdate of dirtyTabUpdates) {
+        local = {
+          ...local,
+          items: this.updateItemInTree(local.items, tabUpdate.itemId, tabUpdate.updates)
+        };
+      }
+    }
+
     const remote = remoteCollection.data;
 
     // Perform 3-way merge
@@ -867,7 +906,11 @@ export class UnifiedCollectionService {
 
     if (mergeResult.conflicts.length === 0) {
       // No conflicts - apply merged result
-      this.applyMergedResult(unifiedId, collectionId, mergeResult.merged, remoteCollection.version);
+      // If dirty tabs existed, keep collection dirty so merged result gets saved on next save/autosave
+      this.applyMergedResult(unifiedId, collectionId, mergeResult.merged, remoteCollection.version, {
+        keepDirty: hasDirtyTabs,
+        baseOverride: remote,
+      });
       if (mergeResult.autoMergedCount > 0) {
         this.toastService.info(`Auto-merged ${mergeResult.autoMergedCount} remote changes`);
       }
@@ -914,7 +957,10 @@ export class UnifiedCollectionService {
 
     // Apply resolutions
     const finalCollection = this.mergeService.applyResolutions(mergeResult, resolutions);
-    this.applyMergedResult(unifiedId, collectionId, finalCollection, remoteCollection.version);
+    this.applyMergedResult(unifiedId, collectionId, finalCollection, remoteCollection.version, {
+      keepDirty: hasDirtyTabs,
+      baseOverride: remote,
+    });
   }
 
   /**
@@ -956,13 +1002,19 @@ export class UnifiedCollectionService {
 
   /**
    * Apply a merged result after conflict resolution.
+   * When keepDirty is true, the collection stays dirty (tab changes are in the merge
+   * but not yet saved to server), baseSnapshot is set to baseOverride (the remote version)
+   * so future merges use the correct base, and tabs are force-refreshed.
    */
   private applyMergedResult(
     unifiedId: string,
     collectionId: string,
     collection: Collection,
-    version: number
+    version: number,
+    options?: { keepDirty?: boolean; baseOverride?: Collection }
   ): void {
+    const keepDirty = options?.keepDirty ?? false;
+
     // Update cloud collections signal with merged data
     this.cloudWorkspaceService.collections.update(cols =>
       cols.map(c => c.id === collectionId
@@ -971,16 +1023,22 @@ export class UnifiedCollectionService {
       )
     );
 
-    // Clear dirty flag and update base snapshot
+    // Update dirty flag and base snapshot
     this.openCloudCollections.update(cols =>
       cols.map(c => c.id === unifiedId
-        ? { ...c, dirty: false, baseSnapshot: structuredClone(collection) }
+        ? {
+            ...c,
+            dirty: keepDirty,
+            baseSnapshot: keepDirty && options?.baseOverride
+              ? structuredClone(options.baseOverride)
+              : structuredClone(collection)
+          }
         : c
       )
     );
 
-    // Notify tabs to refresh
-    this.notifyCollectionRefreshed(unifiedId);
+    // Notify tabs to refresh (force when keepDirty so dirty tabs also refresh)
+    this.notifyCollectionRefreshed(unifiedId, keepDirty);
   }
 
   // Create new cloud collection

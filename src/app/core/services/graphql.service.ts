@@ -34,6 +34,25 @@ export class GraphQLService {
 
   constructor() {
     this.loadSchemasFromStorage();
+
+    // Provide dirty tab data for remote update merges
+    this.unifiedCollectionService.onGetDirtyTabUpdates((collectionPath) =>
+      this.openRequests()
+        .filter(r => r.collectionPath === collectionPath && r.dirty)
+        .map(r => ({
+          itemId: r.itemId,
+          updates: {
+            name: r.name, url: r.url, headers: r.headers,
+            gqlQuery: r.query, gqlVariables: r.variables,
+            gqlOperationName: r.operationName,
+          }
+        }))
+    );
+
+    // Refresh open requests when a collection is updated after merge resolution
+    this.unifiedCollectionService.onCollectionRefreshed((collectionId, force) => {
+      this.refreshOpenRequestsForCollection(collectionId, force);
+    });
   }
 
   private loadSchemasFromStorage(): void {
@@ -185,6 +204,42 @@ export class GraphQLService {
     );
 
     this.tabsService.updateLabel(requestId, request.name);
+  }
+
+  /**
+   * Refresh open requests that belong to a collection from the collection data.
+   * When force=true, also refreshes dirty tabs and clears their dirty flag.
+   */
+  private refreshOpenRequestsForCollection(collectionPath: string, force = false): void {
+    this.openRequests.update(reqs =>
+      reqs.map(req => {
+        if (req.collectionPath !== collectionPath) return req;
+
+        const item = this.unifiedCollectionService.findItem(collectionPath, req.itemId);
+        if (!item || item.type !== 'graphql') return req;
+
+        // Skip dirty requests unless force is set
+        if (req.dirty && !force) return req;
+
+        return {
+          ...req,
+          name: item.name,
+          url: item.url || '',
+          headers: item.headers || [],
+          query: item.gqlQuery || '',
+          variables: item.gqlVariables || '',
+          operationName: item.gqlOperationName || '',
+          dirty: force ? false : req.dirty,
+        };
+      })
+    );
+
+    // Update tab labels for refreshed requests
+    for (const req of this.openRequests()) {
+      if (req.collectionPath === collectionPath && !req.dirty) {
+        this.tabsService.updateLabel(req.id, req.name);
+      }
+    }
   }
 
   async fetchSchema(requestId: string): Promise<void> {

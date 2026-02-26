@@ -42,6 +42,25 @@ export class WebSocketService implements OnDestroy {
     this.api.onWsMessage(this.onMessageCallback);
     this.api.onWsClose(this.onCloseCallback);
     this.api.onWsError(this.onErrorCallback);
+
+    // Provide dirty tab data for remote update merges
+    this.unifiedCollectionService.onGetDirtyTabUpdates((collectionPath) =>
+      this.openConnections()
+        .filter(c => c.collectionPath === collectionPath && c.dirty)
+        .map(c => ({
+          itemId: c.itemId,
+          updates: {
+            name: c.name, url: c.url, headers: c.headers,
+            wsProtocols: c.protocols, wsAutoReconnect: c.autoReconnect,
+            wsReconnectInterval: c.reconnectInterval, wsSavedMessages: c.savedMessages,
+          }
+        }))
+    );
+
+    // Refresh open connections when a collection is updated after merge resolution
+    this.unifiedCollectionService.onCollectionRefreshed((collectionId, force) => {
+      this.refreshOpenConnectionsForCollection(collectionId, force);
+    });
   }
 
   ngOnDestroy(): void {
@@ -287,6 +306,43 @@ export class WebSocketService implements OnDestroy {
     );
 
     this.tabsService.updateLabel(connectionId, conn.name);
+  }
+
+  /**
+   * Refresh open connections that belong to a collection from the collection data.
+   * When force=true, also refreshes dirty tabs and clears their dirty flag.
+   */
+  private refreshOpenConnectionsForCollection(collectionPath: string, force = false): void {
+    this.openConnections.update(conns =>
+      conns.map(conn => {
+        if (conn.collectionPath !== collectionPath) return conn;
+
+        const item = this.unifiedCollectionService.findItem(collectionPath, conn.itemId);
+        if (!item || item.type !== 'websocket') return conn;
+
+        // Skip dirty connections unless force is set
+        if (conn.dirty && !force) return conn;
+
+        return {
+          ...conn,
+          name: item.name,
+          url: item.url || '',
+          headers: item.headers || [],
+          protocols: item.wsProtocols || [],
+          autoReconnect: item.wsAutoReconnect ?? false,
+          reconnectInterval: item.wsReconnectInterval ?? 5000,
+          savedMessages: item.wsSavedMessages || [],
+          dirty: force ? false : conn.dirty,
+        };
+      })
+    );
+
+    // Update tab labels for refreshed connections
+    for (const conn of this.openConnections()) {
+      if (conn.collectionPath === collectionPath && !conn.dirty) {
+        this.tabsService.updateLabel(conn.id, conn.name);
+      }
+    }
   }
 
   private handleConnected(event: WebSocketConnectedEvent): void {

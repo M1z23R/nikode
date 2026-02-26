@@ -56,9 +56,25 @@ export class WorkspaceService {
       document.documentElement.classList.add('dark');
     }
 
+    // Provide dirty tab data for remote update merges
+    this.unifiedCollectionService.onGetDirtyTabUpdates((collectionPath) =>
+      this.openRequests()
+        .filter(r => r.collectionPath === collectionPath && r.dirty)
+        .map(r => ({
+          itemId: r.itemId,
+          updates: {
+            name: r.name, method: r.method, url: r.url,
+            params: r.params, headers: r.headers, body: r.body,
+            auth: r.auth, scripts: r.scripts, docs: r.docs,
+            pollingEnabled: r.pollingEnabled, pollingInterval: r.pollingInterval,
+            pollingMaxIterations: r.pollingMaxIterations,
+          }
+        }))
+    );
+
     // Refresh open requests when a collection is updated after merge resolution
-    this.unifiedCollectionService.onCollectionRefreshed((collectionId) => {
-      this.refreshOpenRequestsForCollection(collectionId);
+    this.unifiedCollectionService.onCollectionRefreshed((collectionId, force) => {
+      this.refreshOpenRequestsForCollection(collectionId, force);
     });
 
     // Update countdown signal when active tab changes
@@ -525,8 +541,10 @@ export class WorkspaceService {
   /**
    * Refresh open requests that belong to a collection from the collection data.
    * Used after merge conflict resolution to sync UI with resolved data.
+   * When force=true, also refreshes dirty tabs and clears their dirty flag
+   * (used after merge that incorporated dirty tab data).
    */
-  refreshOpenRequestsForCollection(collectionPath: string): void {
+  refreshOpenRequestsForCollection(collectionPath: string, force = false): void {
     this.openRequests.update(reqs =>
       reqs.map(req => {
         if (req.collectionPath !== collectionPath) return req;
@@ -535,8 +553,8 @@ export class WorkspaceService {
         const item = this.unifiedCollectionService.findItem(collectionPath, req.itemId);
         if (!item || item.type !== 'request') return req;
 
-        // Only refresh non-dirty requests (don't overwrite unsaved user changes)
-        if (req.dirty) return req;
+        // Skip dirty requests unless force is set (merge already included their data)
+        if (req.dirty && !force) return req;
 
         // Update with collection data
         return {
@@ -553,6 +571,7 @@ export class WorkspaceService {
           pollingEnabled: item.pollingEnabled ?? false,
           pollingInterval: item.pollingInterval ?? 5,
           pollingMaxIterations: item.pollingMaxIterations ?? 0,
+          dirty: force ? false : req.dirty,
         };
       })
     );
