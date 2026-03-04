@@ -160,8 +160,8 @@ export class WorkspaceService {
       this.tabsService.updateLabel(requestId, `${request.name} *`);
     }
 
-    // If autosave is enabled, schedule a debounced save
-    if (this.settingsService.autosave()) {
+    // If autosave is enabled and no conflict dialog is open, schedule a debounced save
+    if (this.settingsService.autosave() && !this.unifiedCollectionService.conflictResolutionInProgress()) {
       this.scheduleSave(requestId);
     }
   }
@@ -192,10 +192,13 @@ export class WorkspaceService {
         this.autosaveCountdown.set(null);
       }
 
-      // Only save if the request is still dirty
+      // Only save if the request is still dirty and no conflict dialog is open
       const req = this.openRequests().find(r => r.id === requestId);
-      if (req?.dirty) {
+      if (req?.dirty && !this.unifiedCollectionService.conflictResolutionInProgress()) {
         this.saveRequest(requestId);
+      } else if (req?.dirty) {
+        // Conflict dialog is open - reschedule save for after it closes
+        this.scheduleSave(requestId);
       }
     }, delayMs);
 

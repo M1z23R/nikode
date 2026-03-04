@@ -46,6 +46,9 @@ export class UnifiedCollectionService {
   // Track previous workspace to detect changes
   private previousWorkspaceId: string | null = null;
 
+  // True when a merge conflict dialog is open - used to pause auto-save
+  readonly conflictResolutionInProgress = signal(false);
+
   // Callbacks for when a collection is refreshed after merge resolution
   private collectionRefreshedCallbacks: ((collectionId: string, force: boolean) => void)[] = [];
 
@@ -623,7 +626,8 @@ export class UnifiedCollectionService {
         choice: mergeBehavior as ResolutionChoice
       }));
     } else {
-      // Show conflict resolution dialog
+      // Show conflict resolution dialog - pause auto-save while open
+      this.conflictResolutionInProgress.set(true);
       this.cloudSyncStatus.idle();
       const dialogRef = this.dialogService.open<
         MergeConflictDialogComponent,
@@ -634,6 +638,7 @@ export class UnifiedCollectionService {
       });
 
       const result = await dialogRef.afterClosed();
+      this.conflictResolutionInProgress.set(false);
 
       if (!result || result.cancelled) {
         this.cloudSyncStatus.idle();
@@ -929,7 +934,8 @@ export class UnifiedCollectionService {
         choice: mergeBehavior as ResolutionChoice
       }));
     } else {
-      // Show conflict resolution dialog
+      // Show conflict resolution dialog - pause auto-save while open
+      this.conflictResolutionInProgress.set(true);
       const dialogRef = this.dialogService.open<
         MergeConflictDialogComponent,
         MergeConflictDialogData,
@@ -939,6 +945,7 @@ export class UnifiedCollectionService {
       });
 
       const result = await dialogRef.afterClosed();
+      this.conflictResolutionInProgress.set(false);
 
       if (!result || result.cancelled) {
         // User cancelled - keep local dirty state

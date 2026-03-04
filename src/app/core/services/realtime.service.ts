@@ -321,15 +321,13 @@ export class RealtimeService implements OnDestroy {
     const activeWs = this.cloudWorkspace.activeWorkspace();
     if (!activeWs || activeWs.id !== message.workspace_id) return;
 
-    const collectionId = message.data?.id;
+    const collectionId = message.data?.collection_id;
 
-    // For deleted collections or missing ID, do full reload
     if (message.type === 'collection_deleted' || !collectionId) {
       await this.cloudWorkspace.loadCollections(activeWs.id);
       return;
     }
 
-    // For created/updated with known ID, use smart handler with merge support
     await this.unifiedCollection.handleRemoteCollectionUpdate(
       activeWs.id,
       collectionId
