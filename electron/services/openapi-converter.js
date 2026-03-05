@@ -35,13 +35,38 @@ class OpenApiConverter {
     // Convert operations to items grouped by tags
     const items = this.convertPathsToItems(api);
 
-    return {
+    // Extract component schemas (OpenAPI 3.x: components.schemas, Swagger 2.0: definitions)
+    const schemas = this.extractSchemas(api);
+
+    const collection = {
       name,
       version: api.info?.version || '1.0.0',
       environments,
       activeEnvironmentId: 'env-default',
       items
     };
+
+    return { collection, schemas };
+  }
+
+  /**
+   * Extract schemas from OpenAPI components.schemas or Swagger 2.0 definitions
+   * @returns {Array<{id: string, name: string, type: string, content: string}>}
+   */
+  extractSchemas(api) {
+    const source = api.components?.schemas || api.definitions || {};
+    const schemas = [];
+
+    for (const [name, schema] of Object.entries(source)) {
+      schemas.push({
+        id: `schema-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name,
+        type: 'json',
+        content: JSON.stringify(schema, null, 2)
+      });
+    }
+
+    return schemas;
   }
 
   /**

@@ -73,6 +73,20 @@ const nkCompletions: Completion[] = [
     detail: '{ status, headers, body, time }',
   },
   {
+    label: 'getSchema',
+    type: 'function',
+    info: 'Get a stored schema by name (returns parsed object)',
+    detail: '(name: string) => object | undefined',
+    apply: 'getSchema("")',
+  },
+  {
+    label: 'validateSchema',
+    type: 'function',
+    info: 'Validate data against a JSON schema (inline object or stored schema name)',
+    detail: '(data: any, schema: object | string, type?: SchemaType) => { valid, errors }',
+    apply: 'validateSchema(, )',
+  },
+  {
     label: 'iteration',
     type: 'property',
     info: 'Current polling iteration index (0-based)',
@@ -112,6 +126,12 @@ const consoleCompletions: Completion[] = [
   },
 ];
 
+// SchemaType.* completions
+const schemaTypeCompletions: Completion[] = [
+  { label: 'JSON', type: 'property', info: 'JSON Schema validation', detail: '"json"' },
+  { label: 'XML', type: 'property', info: 'XML Schema validation', detail: '"xml"' },
+];
+
 // Top-level completions
 const topLevelCompletions: Completion[] = [
   {
@@ -124,6 +144,12 @@ const topLevelCompletions: Completion[] = [
     label: 'console',
     type: 'namespace',
     info: 'Console logging',
+    detail: 'namespace',
+  },
+  {
+    label: 'SchemaType',
+    type: 'namespace',
+    info: 'Schema type constants (JSON, XML)',
     detail: 'namespace',
   },
 ];
@@ -158,6 +184,16 @@ export function scriptCompletions(context: CompletionContext): CompletionResult 
     return {
       from: context.pos - nkMatch[1].length,
       options: nkCompletions,
+      validFor: /^\w*$/,
+    };
+  }
+
+  // Check for "SchemaType." prefix
+  const schemaTypeMatch = textBefore.match(/\bSchemaType\.(\w*)$/);
+  if (schemaTypeMatch) {
+    return {
+      from: context.pos - schemaTypeMatch[1].length,
+      options: schemaTypeCompletions,
       validFor: /^\w*$/,
     };
   }

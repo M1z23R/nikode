@@ -2,10 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { EnvironmentService } from './environment.service';
 import { ConsoleService } from './console.service';
 import { CookieJarService } from './cookie-jar.service';
+import { SchemaService } from './schema.service';
 import { ApiService } from './api.service';
 import { Cookie } from '../models/request.model';
 import { ResolvedVariables } from '../models/environment.model';
 import { AssertionResult } from '../models/runner.model';
+import { SchemaType } from '../models/collection.model';
+import Ajv from 'ajv';
 
 export interface ScriptRequest {
   method: string;
@@ -47,7 +50,9 @@ export class ScriptExecutorService {
   private environmentService = inject(EnvironmentService);
   private consoleService = inject(ConsoleService);
   private cookieJarService = inject(CookieJarService);
+  private schemaService = inject(SchemaService);
   private apiService = inject(ApiService);
+  private ajv = new Ajv({ allErrors: true });
 
   executePreScript(script: string, context: PreScriptContext, pollingControl?: { stopped: boolean }): ScriptResult {
     const requestVars = new Map<string, string>();
@@ -184,6 +189,48 @@ export class ScriptExecutorService {
         void this.cookieJarService.clearCookies(collectionPath);
       },
 
+      getSchema: (name: string): object | undefined => {
+        const schema = this.schemaService.getSchemaByName(collectionPath, name);
+        if (!schema) return undefined;
+        try {
+          return JSON.parse(schema.content);
+        } catch {
+          return undefined;
+        }
+      },
+
+      validateSchema: (data: unknown, schema: unknown, type: SchemaType = 'json'): { valid: boolean; errors: string[] } => {
+        if (type === 'xml') {
+          return { valid: false, errors: ['XML schema validation is not yet supported'] };
+        }
+
+        let schemaObj: object;
+        if (typeof schema === 'string') {
+          const stored = this.schemaService.getSchemaByName(collectionPath, schema);
+          if (!stored) {
+            return { valid: false, errors: [`Schema "${schema}" not found`] };
+          }
+          try {
+            schemaObj = JSON.parse(stored.content);
+          } catch {
+            return { valid: false, errors: [`Schema "${schema}" contains invalid JSON`] };
+          }
+        } else if (typeof schema === 'object' && schema !== null) {
+          schemaObj = schema as object;
+        } else {
+          return { valid: false, errors: ['Schema must be an object or a schema name string'] };
+        }
+
+        const validate = this.ajv.compile(schemaObj);
+        const valid = validate(data) as boolean;
+        const errors = valid ? [] : (validate.errors ?? []).map(e => {
+          const path = e.instancePath || '/';
+          return `${path}: ${e.message}`;
+        });
+
+        return { valid, errors };
+      },
+
       iteration: context.iteration ?? 0,
 
       stopPolling: (): void => {
@@ -216,7 +263,9 @@ export class ScriptExecutorService {
       }
     };
 
-    return { nk, console: consoleProxy };
+    const SchemaType = Object.freeze({ JSON: 'json' as SchemaType, XML: 'xml' as SchemaType });
+
+    return { nk, console: consoleProxy, SchemaType };
   }
 
   private executeScript(

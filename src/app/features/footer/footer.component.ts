@@ -9,6 +9,7 @@ import { RealtimeService } from '../../core/services/realtime.service';
 import { ChatService } from '../../core/services/chat.service';
 import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
 import { APP_VERSION } from '../../core/tokens/version.token';
+import { UpdateCheckResult } from '@shared/ipc-types';
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
 import { SettingsDialogComponent } from '../settings/settings.dialog';
 import { CookieJarDialogComponent, CookieJarDialogData } from '../cookie-jar/cookie-jar.dialog';
@@ -166,7 +167,16 @@ import { TunnelService } from '../../core/services/tunnel.service';
             }
           }
         </div>
-        <span class="version">v{{ version }}</span>
+        @if (updateInfo()) {
+          <a
+            class="version update-available"
+            [uiTooltip]="'Update available: v' + updateInfo()!.latestVersion"
+            [href]="updateInfo()!.releaseUrl"
+            target="_blank"
+            rel="noopener">v{{ version }}</a>
+        } @else {
+          <span class="version">v{{ version }}</span>
+        }
       </div>
     </footer>
   `,
@@ -236,6 +246,22 @@ import { TunnelService } from '../../core/services/tunnel.service';
     .github-link:hover {
       color: var(--ui-text);
       background-color: var(--ui-bg-hover);
+    }
+
+    .update-available {
+      color: var(--ui-success, #22c55e);
+      text-decoration: none;
+      cursor: pointer;
+      animation: pulse-update 2s ease-in-out infinite;
+    }
+
+    .update-available:hover {
+      text-decoration: underline;
+    }
+
+    @keyframes pulse-update {
+      0%, 100% { color: var(--ui-success, #22c55e); }
+      50% { color: var(--ui-text-muted); }
     }
 
     .version {
@@ -342,12 +368,14 @@ export class FooterComponent implements OnDestroy {
 
   private animationFrameId: number | null = null;
   protected autosaveProgress = signal<number | null>(null);
+  protected updateInfo = signal<UpdateCheckResult | null>(null);
 
   consoleToggle = output();
   historyToggle = output();
   chatToggle = output();
 
   constructor() {
+    this.checkForUpdates();
     // Watch for countdown changes and animate
     effect(() => {
       const countdown = this.workspace.autosaveCountdown();
@@ -460,5 +488,16 @@ export class FooterComponent implements OnDestroy {
 
   protected openTunnel(): void {
     this.dialogService.open<TunnelDialogComponent, void, void>(TunnelDialogComponent, {});
+  }
+
+  private async checkForUpdates(): Promise<void> {
+    try {
+      const result = await window.electronAPI.invoke('check-for-updates');
+      if (result.success && result.data.updateAvailable) {
+        this.updateInfo.set(result.data);
+      }
+    } catch {
+      // Silently ignore update check failures
+    }
   }
 }

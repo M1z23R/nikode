@@ -476,18 +476,18 @@ ipcMain.handle(
   wrapHandler(async (event, args) => {
     const { sourcePath, targetPath } = args;
 
-    // Convert OpenAPI to Nikode collection
-    const collection = await openApiConverter.importFromOpenApi(sourcePath);
+    // Convert OpenAPI to Nikode collection (returns { collection, schemas })
+    const { collection, schemas } = await openApiConverter.importFromOpenApi(sourcePath);
 
     // Ensure target directory exists
     const fs = require('fs/promises');
     await fs.mkdir(path.dirname(targetPath), { recursive: true });
 
-    // Write the collection
+    // Write the collection (without schemas - user decides via dialog)
     await fileService.writeCollection(targetPath, collection);
     await secretsService.addRecentPath(targetPath);
 
-    return { path: targetPath, collection };
+    return { path: targetPath, collection, schemas };
   }),
 );
 
@@ -588,6 +588,34 @@ ipcMain.handle(
   'tunnel-forward-request',
   wrapHandler(async (event, request) => {
     return await tunnelClient.forwardRequest(request);
+  }),
+);
+
+// Check for updates
+ipcMain.handle(
+  'check-for-updates',
+  wrapHandler(async () => {
+    const packageJson = require('../package.json');
+    const currentVersion = packageJson.version;
+
+    const response = await fetch(
+      'https://api.github.com/repos/m1z23r/nikode/releases/latest',
+      { headers: { 'User-Agent': `Nikode/${currentVersion}` } },
+    );
+
+    if (!response.ok) {
+      throw new Error(`GitHub API responded with ${response.status}`);
+    }
+
+    const release = await response.json();
+    const latestVersion = release.tag_name.replace(/^v/, '');
+
+    return {
+      updateAvailable: latestVersion !== currentVersion,
+      latestVersion,
+      currentVersion,
+      releaseUrl: release.html_url,
+    };
   }),
 );
 

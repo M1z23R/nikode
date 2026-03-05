@@ -2,8 +2,9 @@ import { Injectable, inject, signal, OnDestroy } from '@angular/core';
 import { DialogService, ToastService } from '@m1z23r/ngx-ui';
 import { isIpcError, CollectionChangedEvent } from '@shared/ipc-types';
 import { ApiService } from './api.service';
-import { Collection, CollectionItem, OpenCollection, normalizeCollection } from '../models/collection.model';
+import { Collection, CollectionItem, CollectionSchema, OpenCollection, normalizeCollection } from '../models/collection.model';
 import { OpenCollectionDialogComponent, OpenCollectionDialogResult } from '../../features/sidebar/dialogs/open-collection.dialog';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/dialogs/confirm.dialog';
 
 @Injectable({ providedIn: 'root' })
 export class CollectionService implements OnDestroy {
@@ -48,7 +49,12 @@ export class CollectionService implements OnDestroy {
 
     const result = await this.api.openCollection(path);
     if (isIpcError(result)) {
-      this.toastService.error(result.error.userMessage);
+      if (result.error.code === 'FILE_NOT_FOUND') {
+        await this.api.removeRecent(path);
+        this.toastService.warning(`Collection file not found: ${path}. It has been removed from recents.`);
+      } else {
+        this.toastService.error(result.error.userMessage);
+      }
       return false;
     }
 
@@ -465,7 +471,11 @@ export class CollectionService implements OnDestroy {
 
     // Route to appropriate import method
     if (format === 'openapi') {
-      return this.importOpenApi(sourcePath, targetPath);
+      const result = await this.importOpenApi(sourcePath, targetPath);
+      if (result.success) {
+        await this.offerSchemaImport(result.schemas, result.collectionPath);
+      }
+      return result.success;
     } else if (format === 'postman') {
       return this.importPostman(sourcePath, targetPath);
     } else {
@@ -559,7 +569,9 @@ export class CollectionService implements OnDestroy {
    * Shows file picker for source, then directory picker for destination.
    * Returns true if import was successful.
    */
-  async importOpenApiWithDialog(): Promise<boolean> {
+  async importOpenApiWithDialog(): Promise<{ success: boolean; schemas: CollectionSchema[]; collectionPath: string }> {
+    const empty = { success: false, schemas: [] as CollectionSchema[], collectionPath: '' };
+
     // Step 1: Select source file
     const sourceResult = await this.api.showOpenDialog({
       title: 'Select OpenAPI/Swagger File',
@@ -571,7 +583,7 @@ export class CollectionService implements OnDestroy {
     });
 
     if (isIpcError(sourceResult) || sourceResult.data.canceled || sourceResult.data.filePaths.length === 0) {
-      return false;
+      return empty;
     }
 
     const sourcePath = sourceResult.data.filePaths[0];
@@ -586,20 +598,24 @@ export class CollectionService implements OnDestroy {
     });
 
     if (isIpcError(targetResult) || targetResult.data.canceled || !targetResult.data.filePath) {
-      return false;
+      return empty;
     }
 
     const targetPath = targetResult.data.filePath;
 
     // Step 3: Import the OpenAPI spec
-    return this.importOpenApi(sourcePath, targetPath);
+    const result = await this.importOpenApi(sourcePath, targetPath);
+    if (result.success) {
+      await this.offerSchemaImport(result.schemas, result.collectionPath);
+    }
+    return result;
   }
 
-  async importOpenApi(sourcePath: string, targetPath: string): Promise<boolean> {
+  async importOpenApi(sourcePath: string, targetPath: string): Promise<{ success: boolean; schemas: CollectionSchema[]; collectionPath: string }> {
     const result = await this.api.importOpenApi(sourcePath, targetPath);
     if (isIpcError(result)) {
       this.toastService.error(result.error.userMessage);
-      return false;
+      return { success: false, schemas: [], collectionPath: '' };
     }
 
     this.openCollections.update(cols => [
@@ -616,7 +632,39 @@ export class CollectionService implements OnDestroy {
     await this.api.watchCollection(targetPath);
 
     this.toastService.success('OpenAPI spec imported successfully');
-    return true;
+    return { success: true, schemas: result.data.schemas ?? [], collectionPath: result.data.path };
+  }
+
+  private async offerSchemaImport(schemas: CollectionSchema[], collectionPath: string): Promise<void> {
+    if (!schemas.length) return;
+
+    const ref = this.dialogService.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
+      ConfirmDialogComponent,
+      {
+        data: {
+          title: 'Import Schemas',
+          message: `${schemas.length} schema${schemas.length > 1 ? 's' : ''} detected in the OpenAPI spec (${schemas.map(s => s.name).join(', ')}). Would you like to import them?`,
+          confirmLabel: 'Import Schemas',
+        }
+      }
+    );
+
+    const confirmed = await ref.afterClosed();
+    if (confirmed) {
+      this.openCollections.update(cols => cols.map(col => {
+        if (col.path !== collectionPath) return col;
+        const existing = col.collection.schemas ?? [];
+        return {
+          ...col,
+          dirty: true,
+          collection: {
+            ...col.collection,
+            schemas: [...existing, ...schemas]
+          }
+        };
+      }));
+      this.toastService.success(`${schemas.length} schema${schemas.length > 1 ? 's' : ''} imported`);
+    }
   }
 
   async importPostman(sourcePath: string, targetPath: string): Promise<boolean> {

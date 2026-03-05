@@ -90,6 +90,8 @@ const dragState = {
               <ui-dropdown-divider />
             }
             @if (getNodeType(node) === 'collection') {
+              <ui-dropdown-item (clicked)="action.emit({ type: 'manageSchemas', node })">Manage Schemas</ui-dropdown-item>
+              <ui-dropdown-divider />
               <ui-dropdown-item (clicked)="action.emit({ type: 'save', node })">Save</ui-dropdown-item>
               @if (isCloud(node)) {
                 <ui-dropdown-item (clicked)="action.emit({ type: 'sync', node })">Sync</ui-dropdown-item>

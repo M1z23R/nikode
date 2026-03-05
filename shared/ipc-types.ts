@@ -1,4 +1,4 @@
-import { Collection, Environment } from '../src/app/core/models/collection.model';
+import { Collection, CollectionSchema, Environment } from '../src/app/core/models/collection.model';
 import { ProxyRequest, ProxyResponse, Cookie } from '../src/app/core/models/request.model';
 import { Secrets } from '../src/app/core/models/environment.model';
 import {
@@ -80,6 +80,9 @@ export const IPC_CHANNELS = {
   WS_MESSAGE: 'ws-message',
   WS_CLOSE: 'ws-close',
   WS_ERROR: 'ws-error',
+
+  // Updates
+  CHECK_FOR_UPDATES: 'check-for-updates',
 } as const;
 
 // Union type of all valid channel names
@@ -177,6 +180,7 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.WS_MESSAGE]: void; // Not invokable
   [IPC_CHANNELS.WS_CLOSE]: void; // Not invokable
   [IPC_CHANNELS.WS_ERROR]: void; // Not invokable
+  [IPC_CHANNELS.CHECK_FOR_UPDATES]: void;
 }
 
 // Response type mapping for each channel
@@ -205,7 +209,7 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.SHOW_SAVE_DIALOG]: { canceled: boolean; filePath: string | undefined };
   [IPC_CHANNELS.READ_FILE]: string; // file content
   [IPC_CHANNELS.WRITE_FILE]: { status: 'ok' };
-  [IPC_CHANNELS.IMPORT_OPENAPI]: { path: string; collection: Collection };
+  [IPC_CHANNELS.IMPORT_OPENAPI]: { path: string; collection: Collection; schemas: CollectionSchema[] };
   [IPC_CHANNELS.EXPORT_OPENAPI]: { filePath: string | null };
   [IPC_CHANNELS.IMPORT_POSTMAN]: { path: string; collection: Collection };
   [IPC_CHANNELS.IMPORT_POSTMAN_ENV]: { environment: Environment };
@@ -222,6 +226,15 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.WS_MESSAGE]: WebSocketMessageEvent;
   [IPC_CHANNELS.WS_CLOSE]: WebSocketCloseEvent;
   [IPC_CHANNELS.WS_ERROR]: WebSocketErrorEvent;
+  [IPC_CHANNELS.CHECK_FOR_UPDATES]: UpdateCheckResult;
+}
+
+// Update check result
+export interface UpdateCheckResult {
+  updateAvailable: boolean;
+  latestVersion: string;
+  currentVersion: string;
+  releaseUrl: string;
 }
 
 // File format detection result

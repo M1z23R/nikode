@@ -4,6 +4,7 @@ export interface Collection {
   environments: Environment[];
   activeEnvironmentId: string;
   items: CollectionItem[];
+  schemas?: CollectionSchema[];
 }
 
 export interface Environment {
@@ -69,6 +70,15 @@ export interface Scripts {
   pre: string;
   post: string;
 }
+
+export interface CollectionSchema {
+  id: string;
+  name: string;
+  type: SchemaType;
+  content: string;
+}
+
+export type SchemaType = 'json' | 'xml';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
 

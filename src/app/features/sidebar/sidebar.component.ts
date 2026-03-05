@@ -20,6 +20,7 @@ import { InputDialogComponent, InputDialogData } from '../../shared/dialogs/inpu
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/dialogs/confirm.dialog';
 import { ExportCollectionDialogComponent, ExportFormat, ExportCollectionDialogData } from '../../shared/dialogs/export-collection.dialog';
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
+import { SchemaEditorDialogComponent, SchemaEditorDialogData } from '../schemas/schema-editor.dialog';
 import { PushToCloudDialogComponent, PushToCloudDialogData } from '../workspaces/push-to-cloud.dialog';
 import { PublishTemplateDialogComponent, PublishTemplateDialogData, PublishTemplateDialogResult } from '../../shared/dialogs/publish-template.dialog';
 import { CloudWorkspaceService } from '../../core/services/cloud-workspace.service';
@@ -255,6 +256,9 @@ export class SidebarComponent {
       case 'duplicate':
         this.duplicateItem(nodeData);
         break;
+      case 'manageSchemas':
+        this.manageSchemas(nodeData);
+        break;
       case 'deleteCollection':
         this.deleteCollection(nodeData);
         break;
@@ -336,6 +340,13 @@ export class SidebarComponent {
     } else {
       await this.collectionService.exportCollection(nodeData.collectionPath, format);
     }
+  }
+
+  private manageSchemas(target: TreeNodeData): void {
+    this.dialogService.open<SchemaEditorDialogComponent, SchemaEditorDialogData, void>(
+      SchemaEditorDialogComponent,
+      { data: { collectionPath: target.collectionPath } }
+    );
   }
 
   private openRunner(target: TreeNodeData, label: string): void {

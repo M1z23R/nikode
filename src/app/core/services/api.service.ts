@@ -71,7 +71,7 @@ export class ApiService {
     return window.electronAPI.invoke(IPC_CHANNELS.IMPORT_COLLECTION, { sourcePath, targetPath });
   }
 
-  async importOpenApi(sourcePath: string, targetPath: string): Promise<IpcResult<{ path: string; collection: Collection }>> {
+  async importOpenApi(sourcePath: string, targetPath: string): Promise<IpcResult<IpcResponseMap[typeof IPC_CHANNELS.IMPORT_OPENAPI]>> {
     return window.electronAPI.invoke(IPC_CHANNELS.IMPORT_OPENAPI, { sourcePath, targetPath });
   }
 
