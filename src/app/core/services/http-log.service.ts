@@ -84,4 +84,46 @@ export class HttpLogService {
   clear(): void {
     this.logs.set([]);
   }
+
+  exportAsJson(): void {
+    const data = this.logs().map(entry => ({
+      timestamp: entry.timestamp.toISOString(),
+      request: entry.request,
+      response: entry.response ? {
+        statusCode: entry.response.statusCode,
+        statusText: entry.response.statusText,
+        headers: entry.response.headers,
+        body: entry.response.body,
+        size: entry.response.size,
+        time: entry.response.time,
+        cookies: entry.response.cookies
+      } : undefined,
+      error: entry.error
+    }));
+    this.downloadFile(JSON.stringify(data, null, 2), 'http-history.json', 'application/json');
+  }
+
+  exportAsText(): void {
+    const lines = this.logs().map(entry => {
+      const timestamp = entry.timestamp.toISOString().replace('T', ' ').slice(0, 23);
+      const status = entry.response?.statusCode ?? 'ERR';
+      const time = entry.response?.time ? `${entry.response.time}ms` : '';
+      let text = `[${timestamp}] ${entry.request.method} ${entry.request.url} → ${status} ${time}`;
+      if (entry.error) {
+        text += `\n  Error: ${entry.error}`;
+      }
+      return text;
+    });
+    this.downloadFile(lines.join('\n\n'), 'http-history.txt', 'text/plain');
+  }
+
+  private downloadFile(content: string, filename: string, mimeType: string): void {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 }

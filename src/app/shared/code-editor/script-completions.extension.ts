@@ -10,10 +10,12 @@ const requestCompletions: Completion[] = [
 
 // nk.response.* completions
 const responseCompletions: Completion[] = [
-  { label: 'status', type: 'property', info: 'HTTP status code', detail: 'number' },
+  { label: 'statusCode', type: 'property', info: 'HTTP status code', detail: 'number' },
+  { label: 'statusText', type: 'property', info: 'HTTP status text', detail: 'string' },
   { label: 'headers', type: 'property', info: 'Response headers', detail: 'Record<string, string>' },
   { label: 'body', type: 'property', info: 'Response body', detail: 'string' },
   { label: 'time', type: 'property', info: 'Response time in milliseconds', detail: 'number' },
+  { label: 'size', type: 'property', info: 'Response size in bytes', detail: 'number' },
 ];
 
 // nk.* completions
@@ -61,6 +63,34 @@ const nkCompletions: Completion[] = [
     apply: 'assert()',
   },
   {
+    label: 'getCookie',
+    type: 'function',
+    info: 'Get a cookie value by name',
+    detail: '(name: string) => string | undefined',
+    apply: 'getCookie("")',
+  },
+  {
+    label: 'getCookies',
+    type: 'function',
+    info: 'Get all cookies',
+    detail: '() => Array<{ name, value, domain, path }>',
+    apply: 'getCookies()',
+  },
+  {
+    label: 'setCookie',
+    type: 'function',
+    info: 'Set a cookie value',
+    detail: '(name: string, value: string, domain?: string, path?: string) => void',
+    apply: 'setCookie("", "")',
+  },
+  {
+    label: 'clearCookies',
+    type: 'function',
+    info: 'Clear all cookies',
+    detail: '() => void',
+    apply: 'clearCookies()',
+  },
+  {
     label: 'request',
     type: 'variable',
     info: 'The current request object',
@@ -70,7 +100,7 @@ const nkCompletions: Completion[] = [
     label: 'response',
     type: 'variable',
     info: 'The response object (post-response only)',
-    detail: '{ status, headers, body, time }',
+    detail: '{ statusCode, statusText, headers, body, time, size }',
   },
   {
     label: 'getSchema',

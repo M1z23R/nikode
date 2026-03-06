@@ -1,22 +1,49 @@
 import { Component, inject, ElementRef, viewChild, effect } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { ButtonComponent } from '@m1z23r/ngx-ui';
+import { ButtonComponent, DropdownComponent, DropdownItemComponent, DropdownTriggerDirective } from '@m1z23r/ngx-ui';
 import { ConsoleService, LogEntry } from '../../core/services/console.service';
 
 @Component({
   selector: 'app-console-panel',
-  imports: [DatePipe, ButtonComponent],
+  imports: [DatePipe, ButtonComponent, DropdownComponent, DropdownItemComponent, DropdownTriggerDirective],
   template: `
     <div class="console-panel">
       <header class="console-header">
         <span class="console-title">Console</span>
-        <ui-button variant="ghost" size="sm" (clicked)="console.clear()" title="Clear console">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 6h18"/>
-            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-          </svg>
-        </ui-button>
+        <div class="header-actions">
+          <ui-dropdown [closeOnSelect]="true">
+            <ui-button uiDropdownTrigger variant="ghost" size="sm" title="Export logs">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </ui-button>
+            <ui-dropdown-item (clicked)="console.exportAsJson()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              Export as JSON
+            </ui-dropdown-item>
+            <ui-dropdown-item (clicked)="console.exportAsText()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+              Export as Text
+            </ui-dropdown-item>
+          </ui-dropdown>
+          <ui-button variant="ghost" size="sm" (clicked)="console.clear()" title="Clear console">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18"/>
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            </svg>
+          </ui-button>
+        </div>
       </header>
       <div class="console-content" #scrollContainer>
         @for (entry of console.entries(); track entry.id) {
@@ -56,6 +83,12 @@ import { ConsoleService, LogEntry } from '../../core/services/console.service';
       color: var(--ui-text);
       text-transform: uppercase;
       letter-spacing: 0.05em;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
     }
 
     .console-content {

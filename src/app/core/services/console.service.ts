@@ -45,4 +45,31 @@ export class ConsoleService {
   clear(): void {
     this.logs.set([]);
   }
+
+  exportAsJson(): void {
+    const data = this.logs().map(entry => ({
+      level: entry.level,
+      message: entry.message,
+      timestamp: entry.timestamp.toISOString()
+    }));
+    this.downloadFile(JSON.stringify(data, null, 2), 'console-logs.json', 'application/json');
+  }
+
+  exportAsText(): void {
+    const lines = this.logs().map(entry => {
+      const timestamp = entry.timestamp.toISOString().replace('T', ' ').slice(0, 23);
+      return `[${timestamp}] [${entry.level.toUpperCase()}] ${entry.message}`;
+    });
+    this.downloadFile(lines.join('\n'), 'console-logs.txt', 'text/plain');
+  }
+
+  private downloadFile(content: string, filename: string, mimeType: string): void {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 }

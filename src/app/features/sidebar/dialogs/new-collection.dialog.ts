@@ -64,6 +64,8 @@ export interface NewCollectionDialogResult {
         <ui-select
           label="Start from template (optional)"
           placeholder="Search templates..."
+          [cacheAsyncResults]="true"
+          [initialLoad]="true"
           [(value)]="selectedTemplateId"
           [searchable]="true"
           [asyncSearch]="templateSearch"
