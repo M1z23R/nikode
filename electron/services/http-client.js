@@ -1,3 +1,7 @@
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
 class HttpClient {
   constructor() {
     this.timeout = 30000; // 30 seconds
@@ -10,20 +14,30 @@ class HttpClient {
     const startTime = performance.now();
 
     try {
+      let body = request.body;
+      let headers = { ...request.headers };
+
+      // Handle form-data entries (multipart/form-data with file support)
+      if (request.formDataEntries && request.formDataEntries.length > 0) {
+        const { body: multipartBody, contentType } = this.buildMultipartBody(request.formDataEntries);
+        body = multipartBody;
+        headers['Content-Type'] = contentType;
+      }
+
       const response = await fetch(request.url, {
         method: request.method,
-        headers: request.headers || {},
-        body: request.body || undefined,
+        headers: headers,
+        body: body || undefined,
         signal: controller.signal,
         redirect: 'manual', // Don't follow redirects
       });
 
       const elapsed = Math.round(performance.now() - startTime);
 
-      // Extract headers
-      const headers = {};
+      // Extract response headers
+      const responseHeaders = {};
       response.headers.forEach((value, key) => {
-        headers[key] = value;
+        responseHeaders[key] = value;
       });
 
       // Parse content type and determine encoding
@@ -33,13 +47,13 @@ class HttpClient {
       // Read response as arrayBuffer to handle both text and binary
       const buffer = await response.arrayBuffer();
 
-      let body, bodyEncoding, size;
+      let responseBody, bodyEncoding, size;
       if (this.isTextContent(contentType)) {
-        body = new TextDecoder(contentType.charset || 'utf-8').decode(buffer);
+        responseBody = new TextDecoder(contentType.charset || 'utf-8').decode(buffer);
         bodyEncoding = 'text';
-        size = body.length;
+        size = responseBody.length;
       } else {
-        body = Buffer.from(buffer).toString('base64');
+        responseBody = Buffer.from(buffer).toString('base64');
         bodyEncoding = 'base64';
         size = buffer.byteLength;
       }
@@ -47,14 +61,14 @@ class HttpClient {
       // Extract cookies from Set-Cookie header
       const cookies = this.parseCookies(response.headers.getSetCookie?.() || []);
 
-      // Build sent request info
-      const sentHeaders = { ...request.headers };
+      // Build sent request info (use headers we actually sent)
+      const sentBody = typeof body === 'string' ? body : (body ? '[binary data]' : '');
 
       return {
         statusCode: response.status,
         statusText: response.statusText,
-        headers,
-        body,
+        headers: responseHeaders,
+        body: responseBody,
         bodyEncoding,
         size,
         time: elapsed,
@@ -62,8 +76,8 @@ class HttpClient {
         sentRequest: {
           method: request.method,
           url: request.url,
-          headers: sentHeaders,
-          body: request.body || '',
+          headers,
+          body: sentBody,
         },
       };
     } finally {
@@ -169,6 +183,92 @@ class HttpClient {
 
       return cookie;
     });
+  }
+
+  /**
+   * Build multipart/form-data body from structured entries
+   * @param {Array<{key: string, type: 'text'|'file', value: string, filePath?: string}>} entries
+   * @returns {{body: Buffer, contentType: string}}
+   */
+  buildMultipartBody(entries) {
+    const boundary = '----NikodeBoundary' + crypto.randomUUID().replace(/-/g, '');
+    const parts = [];
+
+    for (const entry of entries) {
+      if (entry.type === 'file' && entry.filePath) {
+        // Read file from disk
+        const fileBuffer = fs.readFileSync(entry.filePath);
+        const fileName = path.basename(entry.filePath);
+        const mimeType = this.getMimeType(entry.filePath);
+
+        parts.push(Buffer.from(
+          `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="${entry.key}"; filename="${fileName}"\r\n` +
+          `Content-Type: ${mimeType}\r\n\r\n`
+        ));
+        parts.push(fileBuffer);
+        parts.push(Buffer.from('\r\n'));
+      } else {
+        // Text field
+        parts.push(Buffer.from(
+          `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="${entry.key}"\r\n\r\n` +
+          `${entry.value}\r\n`
+        ));
+      }
+    }
+    parts.push(Buffer.from(`--${boundary}--\r\n`));
+
+    return {
+      body: Buffer.concat(parts),
+      contentType: `multipart/form-data; boundary=${boundary}`,
+    };
+  }
+
+  /**
+   * Get MIME type from file extension
+   * @param {string} filePath
+   * @returns {string}
+   */
+  getMimeType(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeTypes = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
+      '.ico': 'image/x-icon',
+      '.bmp': 'image/bmp',
+      '.pdf': 'application/pdf',
+      '.json': 'application/json',
+      '.xml': 'application/xml',
+      '.txt': 'text/plain',
+      '.csv': 'text/csv',
+      '.html': 'text/html',
+      '.css': 'text/css',
+      '.js': 'application/javascript',
+      '.zip': 'application/zip',
+      '.tar': 'application/x-tar',
+      '.gz': 'application/gzip',
+      '.rar': 'application/vnd.rar',
+      '.7z': 'application/x-7z-compressed',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xls': 'application/vnd.ms-excel',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.ppt': 'application/vnd.ms-powerpoint',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.ogg': 'audio/ogg',
+      '.mp4': 'video/mp4',
+      '.webm': 'video/webm',
+      '.avi': 'video/x-msvideo',
+      '.mov': 'video/quicktime',
+    };
+    return mimeTypes[ext] || 'application/octet-stream';
   }
 }
 

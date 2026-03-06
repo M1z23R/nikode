@@ -60,10 +60,19 @@ export interface KeyValue {
   enabled: boolean;
 }
 
+export interface FormDataEntry {
+  key: string;
+  type: 'text' | 'file';
+  value: string;       // For text: the value. For file: display name
+  enabled: boolean;
+  filePath?: string;   // For file entries: absolute path to file
+}
+
 export interface RequestBody {
   type: 'none' | 'json' | 'form-data' | 'x-www-form-urlencoded' | 'raw' | 'binary';
   content?: string;
-  entries?: KeyValue[];  // For form-data and x-www-form-urlencoded
+  entries?: KeyValue[];              // For x-www-form-urlencoded (unchanged)
+  formDataEntries?: FormDataEntry[]; // For form-data (supports text and file entries)
 }
 
 export interface Scripts {

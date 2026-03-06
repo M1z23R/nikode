@@ -1,11 +1,12 @@
 import { Component, input, inject } from '@angular/core';
 import { RadioGroupComponent, RadioComponent, ButtonComponent } from '@m1z23r/ngx-ui';
 import { OpenRequest } from '../../../core/models/request.model';
-import { RequestBody, KeyValue } from '../../../core/models/collection.model';
+import { RequestBody, KeyValue, FormDataEntry } from '../../../core/models/collection.model';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { EnvironmentService } from '../../../core/services/environment.service';
 import { CodeEditorComponent } from '../../../shared/code-editor/code-editor.component';
 import { KeyValueEditorComponent } from '../key-value-editor.component';
+import { FormDataEditorComponent } from '../form-data-editor.component';
 import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor/variable-tooltip.extension';
 
 @Component({
@@ -15,7 +16,8 @@ import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor
     RadioComponent,
     ButtonComponent,
     CodeEditorComponent,
-    KeyValueEditorComponent
+    KeyValueEditorComponent,
+    FormDataEditorComponent
   ],
   template: `
     <div class="body-panel">
@@ -77,8 +79,9 @@ import { VariableTooltipConfig, VariableInfo } from '../../../shared/code-editor
           }
           @case ('form-data') {
             <div class="form-data-wrapper">
-              <app-key-value-editor
-                [items]="request().body.entries || []"                (itemsChange)="onEntriesChange($event)"
+              <app-form-data-editor
+                [items]="request().body.formDataEntries || []"
+                (itemsChange)="onFormDataEntriesChange($event)"
                 keyPlaceholder="Field name"
                 valuePlaceholder="Value"
                 [collectionPath]="request().collectionPath" />
@@ -193,11 +196,14 @@ export class BodyPanelComponent {
     const body: RequestBody = {
       type: bodyType,
       content: req.body.content || '',
-      entries: req.body.entries || []
+      entries: req.body.entries || [],
+      formDataEntries: req.body.formDataEntries || []
     };
 
     // Initialize entries for form types if empty
-    if ((bodyType === 'form-data' || bodyType === 'x-www-form-urlencoded') && (!body.entries || body.entries.length === 0)) {
+    if (bodyType === 'form-data' && (!body.formDataEntries || body.formDataEntries.length === 0)) {
+      body.formDataEntries = [{ key: '', type: 'text', value: '', enabled: true }];
+    } else if (bodyType === 'x-www-form-urlencoded' && (!body.entries || body.entries.length === 0)) {
       body.entries = [{ key: '', value: '', enabled: true }];
     }
 
@@ -218,6 +224,15 @@ export class BodyPanelComponent {
     const body: RequestBody = {
       ...req.body,
       entries
+    };
+    this.workspace.updateRequestBody(req.id, body);
+  }
+
+  onFormDataEntriesChange(formDataEntries: FormDataEntry[]): void {
+    const req = this.request();
+    const body: RequestBody = {
+      ...req.body,
+      formDataEntries
     };
     this.workspace.updateRequestBody(req.id, body);
   }

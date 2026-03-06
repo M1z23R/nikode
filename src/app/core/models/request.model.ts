@@ -1,10 +1,16 @@
-import { CollectionItem, HttpMethod, KeyValue, RequestAuth, RequestBody, Scripts } from './collection.model';
+import { CollectionItem, FormDataEntry, HttpMethod, KeyValue, RequestAuth, RequestBody, Scripts } from './collection.model';
 
 export interface ProxyRequest {
   method: HttpMethod;
   url: string;
   headers: Record<string, string>;
   body?: string;
+  formDataEntries?: Array<{
+    key: string;
+    type: 'text' | 'file';
+    value: string;
+    filePath?: string;
+  }>;
   collectionPath?: string;
 }
 
@@ -62,7 +68,31 @@ export interface OpenRequest {
   pollingIteration: number;
 }
 
+function migrateFormDataBody(body: RequestBody): RequestBody {
+  // Migrate legacy form-data entries to formDataEntries
+  if (body.type === 'form-data' && body.entries && !body.formDataEntries) {
+    return {
+      ...body,
+      formDataEntries: body.entries.map(e => ({
+        key: e.key,
+        type: 'text' as const,
+        value: e.value,
+        enabled: e.enabled,
+      })),
+      entries: undefined,
+    };
+  }
+  return body;
+}
+
 export function createOpenRequest(collectionPath: string, item: CollectionItem): OpenRequest {
+  let body: RequestBody = item.body
+    ? { ...item.body, entries: item.body.entries ? [...item.body.entries] : undefined, formDataEntries: item.body.formDataEntries ? [...item.body.formDataEntries] : undefined }
+    : { type: 'none' };
+
+  // Migrate legacy form-data entries to formDataEntries
+  body = migrateFormDataBody(body);
+
   return {
     id: `${collectionPath}:${item.id}`,
     collectionPath,
@@ -72,7 +102,7 @@ export function createOpenRequest(collectionPath: string, item: CollectionItem):
     url: item.url || '',
     params: item.params ? [...item.params] : [],
     headers: item.headers ? [...item.headers] : [],
-    body: item.body ? { ...item.body, entries: item.body.entries ? [...item.body.entries] : undefined } : { type: 'none' },
+    body,
     auth: item.auth ? { ...item.auth } : { type: 'none' },
     scripts: item.scripts ? { ...item.scripts } : { pre: '', post: '' },
     docs: item.docs || '',

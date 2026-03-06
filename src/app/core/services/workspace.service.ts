@@ -414,6 +414,8 @@ export class WorkspaceService {
 
     // Build body
     let body: string | undefined;
+    let formDataEntries: ProxyRequest['formDataEntries'];
+
     if (request.body.type === 'json') {
       if (request.body.content) {
         body = resolveVariables(request.body.content, variables);
@@ -426,30 +428,32 @@ export class WorkspaceService {
       if (request.body.content) {
         body = resolveVariables(request.body.content, variables);
       }
-    } else if (request.body.type === 'form-data' || request.body.type === 'x-www-form-urlencoded') {
+    } else if (request.body.type === 'form-data') {
+      // Handle form-data with formDataEntries (supports text and file entries)
+      const entries = request.body.formDataEntries || [];
+      const enabledEntries = entries.filter(e => e.enabled && e.key);
+
+      if (enabledEntries.length > 0) {
+        // Send structured entries - HTTP client will construct multipart body
+        formDataEntries = enabledEntries.map(entry => ({
+          key: entry.key,
+          type: entry.type,
+          value: entry.type === 'text' ? resolveVariables(entry.value, variables) : entry.value,
+          filePath: entry.filePath,
+        }));
+        // Don't set Content-Type - HTTP client will set it with boundary
+      }
+    } else if (request.body.type === 'x-www-form-urlencoded') {
       if (request.body.entries && request.body.entries.length > 0) {
         const enabledEntries = request.body.entries.filter(e => e.enabled && e.key);
-        if (request.body.type === 'x-www-form-urlencoded') {
-          const params = new URLSearchParams();
-          for (const entry of enabledEntries) {
-            params.append(entry.key, resolveVariables(entry.value, variables));
-          }
-          body = params.toString();
-          // Set content-type header if not already set
-          if (!headers['Content-Type'] && !headers['content-type']) {
-            headers['Content-Type'] = 'application/x-www-form-urlencoded';
-          }
-        } else {
-          // For form-data, we'll send as JSON for now and let the proxy handle it
-          // or convert to multipart in the future
-          const formData: Record<string, string> = {};
-          for (const entry of enabledEntries) {
-            formData[entry.key] = resolveVariables(entry.value, variables);
-          }
-          body = JSON.stringify(formData);
-          if (!headers['Content-Type'] && !headers['content-type']) {
-            headers['Content-Type'] = 'multipart/form-data';
-          }
+        const params = new URLSearchParams();
+        for (const entry of enabledEntries) {
+          params.append(entry.key, resolveVariables(entry.value, variables));
+        }
+        body = params.toString();
+        // Set content-type header if not already set
+        if (!headers['Content-Type'] && !headers['content-type']) {
+          headers['Content-Type'] = 'application/x-www-form-urlencoded';
         }
       }
     }
@@ -497,6 +501,7 @@ export class WorkspaceService {
       url: resolvedUrl,
       headers,
       body,
+      formDataEntries,
       collectionPath: request.collectionPath
     };
   }
