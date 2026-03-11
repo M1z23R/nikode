@@ -1,0 +1,2233 @@
+{
+  "name": "Nikode Test Backend",
+  "version": "1.0.0",
+  "environments": [
+    {
+      "id": "env-local",
+      "name": "Local",
+      "variables": [
+        {
+          "key": "baseUrl",
+          "value": "http://localhost:3456",
+          "enabled": true
+        },
+        {
+          "key": "apiKey",
+          "value": "test-api-key-123",
+          "enabled": true
+        },
+        {
+          "key": "username",
+          "value": "admin",
+          "enabled": true
+        },
+        {
+          "key": "password",
+          "value": "password123",
+          "enabled": true,
+          "secret": true
+        },
+        {
+          "key": "userId",
+          "value": "1",
+          "enabled": true
+        },
+        {
+          "key": "postId",
+          "value": "1",
+          "enabled": true
+        },
+        {
+          "key": "accessToken",
+          "value": "",
+          "enabled": true,
+          "secret": true
+        },
+        {
+          "key": "oauthClientId",
+          "value": "test-client-id",
+          "enabled": true
+        },
+        {
+          "key": "oauthClientSecret",
+          "value": "test-client-secret",
+          "enabled": true,
+          "secret": true
+        }
+      ]
+    },
+    {
+      "id": "env-docker",
+      "name": "Docker",
+      "variables": [
+        {
+          "key": "baseUrl",
+          "value": "http://host.docker.internal:3456",
+          "enabled": true
+        },
+        {
+          "key": "apiKey",
+          "value": "test-api-key-123",
+          "enabled": true
+        },
+        {
+          "key": "username",
+          "value": "admin",
+          "enabled": true
+        },
+        {
+          "key": "password",
+          "value": "password123",
+          "enabled": true,
+          "secret": true
+        },
+        {
+          "key": "userId",
+          "value": "1",
+          "enabled": true
+        },
+        {
+          "key": "postId",
+          "value": "1",
+          "enabled": true
+        },
+        {
+          "key": "accessToken",
+          "value": "",
+          "enabled": true,
+          "secret": true
+        },
+        {
+          "key": "oauthClientId",
+          "value": "test-client-id",
+          "enabled": true
+        },
+        {
+          "key": "oauthClientSecret",
+          "value": "test-client-secret",
+          "enabled": true,
+          "secret": true
+        }
+      ]
+    }
+  ],
+  "activeEnvironmentId": "env-local",
+  "items": [
+    {
+      "id": "folder-http-methods-001",
+      "type": "folder",
+      "name": "HTTP Methods",
+      "items": [
+        {
+          "id": "req-get-method-001",
+          "type": "request",
+          "name": "GET Request",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/methods/get",
+          "params": [
+            {
+              "key": "foo",
+              "value": "bar",
+              "enabled": true
+            },
+            {
+              "key": "count",
+              "value": "10",
+              "enabled": true
+            },
+            {
+              "key": "disabled",
+              "value": "test",
+              "enabled": false
+            }
+          ],
+          "headers": [],
+          "body": {
+            "type": "json",
+            "content": "",
+            "entries": [],
+            "formDataEntries": []
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Basic GET request with query parameters",
+          "auth": {
+            "type": "none"
+          },
+          "pollingEnabled": false,
+          "pollingInterval": 5,
+          "pollingMaxIterations": 0
+        },
+        {
+          "id": "req-post-method-001",
+          "type": "request",
+          "name": "POST Request",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/methods/post",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "enabled": true
+            }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"message\": \"Hello from POST\",\n  \"data\": {\n    \"key\": \"value\"\n  }\n}"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "POST request with JSON body"
+        },
+        {
+          "id": "req-put-method-001",
+          "type": "request",
+          "name": "PUT Request",
+          "method": "PUT",
+          "url": "{{baseUrl}}/api/methods/put",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "enabled": true
+            }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"id\": 1,\n  \"name\": \"Updated Name\",\n  \"complete\": true\n}"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "PUT request for full resource update"
+        },
+        {
+          "id": "req-patch-method-001",
+          "type": "request",
+          "name": "PATCH Request",
+          "method": "PATCH",
+          "url": "{{baseUrl}}/api/methods/patch",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "enabled": true
+            }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"name\": \"Partial Update\"\n}"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "PATCH request for partial resource update"
+        },
+        {
+          "id": "req-delete-method-001",
+          "type": "request",
+          "name": "DELETE Request",
+          "method": "DELETE",
+          "url": "{{baseUrl}}/api/methods/delete",
+          "params": [
+            {
+              "key": "id",
+              "value": "123",
+              "enabled": true
+            }
+          ],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "DELETE request to remove a resource"
+        },
+        {
+          "id": "req-head-method-001",
+          "type": "request",
+          "name": "HEAD Request",
+          "method": "HEAD",
+          "url": "{{baseUrl}}/api/methods/head",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "HEAD request - returns headers only, no body"
+        },
+        {
+          "id": "req-options-method-001",
+          "type": "request",
+          "name": "OPTIONS Request",
+          "method": "OPTIONS",
+          "url": "{{baseUrl}}/api/methods/options",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "OPTIONS request - returns allowed methods"
+        },
+        {
+          "id": "req-echo-001",
+          "type": "request",
+          "name": "Echo (Request Inspector)",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/echo",
+          "params": [
+            {
+              "key": "query1",
+              "value": "value1",
+              "enabled": true
+            }
+          ],
+          "headers": [
+            {
+              "key": "X-Custom-Header",
+              "value": "custom-value",
+              "enabled": true
+            },
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "enabled": true
+            }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"test\": \"data\"\n}"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Echo endpoint - returns all request details (method, headers, body, query, cookies)"
+        }
+      ]
+    },
+    {
+      "id": "folder-status-codes-001",
+      "type": "folder",
+      "name": "Status Codes",
+      "items": [
+        {
+          "id": "req-status-200-001",
+          "type": "request",
+          "name": "200 OK",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/status/200",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns 200 OK status"
+        },
+        {
+          "id": "req-status-201-001",
+          "type": "request",
+          "name": "201 Created",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/status/201",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns 201 Created status"
+        },
+        {
+          "id": "req-status-204-001",
+          "type": "request",
+          "name": "204 No Content",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/status/204",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns 204 No Content - empty response body"
+        },
+        {
+          "id": "req-status-400-001",
+          "type": "request",
+          "name": "400 Bad Request",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/status/400",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns 400 Bad Request error"
+        },
+        {
+          "id": "req-status-401-001",
+          "type": "request",
+          "name": "401 Unauthorized",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/status/401",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns 401 Unauthorized error"
+        },
+        {
+          "id": "req-status-403-001",
+          "type": "request",
+          "name": "403 Forbidden",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/status/403",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns 403 Forbidden error"
+        },
+        {
+          "id": "req-status-404-001",
+          "type": "request",
+          "name": "404 Not Found",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/status/404",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns 404 Not Found error"
+        },
+        {
+          "id": "req-status-422-001",
+          "type": "request",
+          "name": "422 Unprocessable Entity",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/status/422",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns 422 Unprocessable Entity error"
+        },
+        {
+          "id": "req-status-429-001",
+          "type": "request",
+          "name": "429 Too Many Requests",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/status/429",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns 429 Too Many Requests (rate limit)"
+        },
+        {
+          "id": "req-status-500-001",
+          "type": "request",
+          "name": "500 Internal Server Error",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/status/500",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns 500 Internal Server Error"
+        },
+        {
+          "id": "req-status-503-001",
+          "type": "request",
+          "name": "503 Service Unavailable",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/status/503",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns 503 Service Unavailable"
+        }
+      ]
+    },
+    {
+      "id": "folder-auth-001",
+      "type": "folder",
+      "name": "Authentication",
+      "items": [
+        {
+          "id": "folder-auth-basic-001",
+          "type": "folder",
+          "name": "Basic Auth",
+          "items": [
+            {
+              "id": "req-basic-auth-001",
+              "type": "request",
+              "name": "Basic Auth (Valid)",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/auth/basic",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Authorization",
+                  "value": "Basic YWRtaW46cGFzc3dvcmQxMjM=",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Basic auth with valid credentials (admin:password123)"
+            },
+            {
+              "id": "req-basic-auth-invalid-001",
+              "type": "request",
+              "name": "Basic Auth (Invalid)",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/auth/basic",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Authorization",
+                  "value": "Basic d3Jvbmc6Y3JlZHM=",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Basic auth with invalid credentials - should return 401"
+            },
+            {
+              "id": "req-basic-auth-none-001",
+              "type": "request",
+              "name": "Basic Auth (No Auth)",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/auth/basic",
+              "params": [],
+              "headers": [],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Basic auth without credentials - should return 401 with WWW-Authenticate header"
+            }
+          ]
+        },
+        {
+          "id": "folder-auth-bearer-001",
+          "type": "folder",
+          "name": "Bearer Token",
+          "items": [
+            {
+              "id": "req-login-001",
+              "type": "request",
+              "name": "Login (Get Token)",
+              "method": "POST",
+              "url": "{{baseUrl}}/api/auth/login",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "json",
+                "content": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+              },
+              "scripts": {
+                "pre": "",
+                "post": "if (nk.response.statusCode === 200) {\n  const data = JSON.parse(nk.response.body);\n  nk.setEnv('accessToken', data.access_token);\n  console.log('Token saved to accessToken variable');\n}"
+              },
+              "docs": "Login to get a bearer token. The post-response script saves the token to accessToken variable.",
+              "auth": {
+                "type": "none"
+              },
+              "pollingEnabled": false,
+              "pollingInterval": 5,
+              "pollingMaxIterations": 0
+            },
+            {
+              "id": "req-bearer-auth-001",
+              "type": "request",
+              "name": "Bearer Auth (Protected)",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/auth/bearer",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{accessToken}}",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Access protected endpoint with bearer token. Run Login first to get a token."
+            }
+          ]
+        },
+        {
+          "id": "folder-auth-apikey-001",
+          "type": "folder",
+          "name": "API Key",
+          "items": [
+            {
+              "id": "req-apikey-header-001",
+              "type": "request",
+              "name": "API Key (Header)",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/auth/apikey",
+              "params": [],
+              "headers": [
+                {
+                  "key": "X-API-Key",
+                  "value": "{{apiKey}}",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "API key authentication via X-API-Key header"
+            },
+            {
+              "id": "req-apikey-query-001",
+              "type": "request",
+              "name": "API Key (Query Param)",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/auth/apikey",
+              "params": [
+                {
+                  "key": "api_key",
+                  "value": "{{apiKey}}",
+                  "enabled": true
+                }
+              ],
+              "headers": [],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "API key authentication via query parameter"
+            },
+            {
+              "id": "req-apikey-readonly-001",
+              "type": "request",
+              "name": "API Key (Read Only)",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/auth/apikey",
+              "params": [],
+              "headers": [
+                {
+                  "key": "X-API-Key",
+                  "value": "readonly-key-456",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "API key with read-only permissions"
+            },
+            {
+              "id": "req-apikey-invalid-001",
+              "type": "request",
+              "name": "API Key (Invalid)",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/auth/apikey",
+              "params": [],
+              "headers": [
+                {
+                  "key": "X-API-Key",
+                  "value": "invalid-key",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "API key authentication with invalid key - should return 401"
+            }
+          ]
+        },
+        {
+          "id": "folder-auth-oauth-001",
+          "type": "folder",
+          "name": "OAuth 2.0",
+          "items": [
+            {
+              "id": "req-oauth-authorize-001",
+              "type": "request",
+              "name": "Authorization Code Flow",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/oauth/authorize",
+              "params": [
+                {
+                  "key": "client_id",
+                  "value": "{{oauthClientId}}",
+                  "enabled": true
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "http://localhost:8080/callback",
+                  "enabled": true
+                },
+                {
+                  "key": "response_type",
+                  "value": "code",
+                  "enabled": true
+                },
+                {
+                  "key": "scope",
+                  "value": "read write",
+                  "enabled": true
+                },
+                {
+                  "key": "state",
+                  "value": "random-state-123",
+                  "enabled": true
+                }
+              ],
+              "headers": [],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "OAuth 2.0 authorization code flow - will redirect with code"
+            },
+            {
+              "id": "req-oauth-token-client-creds-001",
+              "type": "request",
+              "name": "Client Credentials Grant",
+              "method": "POST",
+              "url": "{{baseUrl}}/api/oauth/token",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/x-www-form-urlencoded",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "x-www-form-urlencoded",
+                "entries": [
+                  {
+                    "key": "grant_type",
+                    "value": "client_credentials",
+                    "enabled": true
+                  },
+                  {
+                    "key": "client_id",
+                    "value": "{{oauthClientId}}",
+                    "enabled": true
+                  },
+                  {
+                    "key": "client_secret",
+                    "value": "{{oauthClientSecret}}",
+                    "enabled": true
+                  }
+                ]
+              },
+              "scripts": {
+                "pre": "",
+                "post": "if (response.status === 200) {\n  const data = response.json();\n  env.set('accessToken', data.access_token);\n  console.log('OAuth token saved');\n}"
+              },
+              "docs": "OAuth 2.0 client credentials grant - for machine-to-machine auth"
+            },
+            {
+              "id": "req-oauth-userinfo-001",
+              "type": "request",
+              "name": "Get User Info",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/oauth/userinfo",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Authorization",
+                  "value": "Bearer {{accessToken}}",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Get user info using OAuth token"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "folder-content-types-001",
+      "type": "folder",
+      "name": "Content Types",
+      "items": [
+        {
+          "id": "req-content-json-001",
+          "type": "request",
+          "name": "JSON Response",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/content/json",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns application/json content"
+        },
+        {
+          "id": "req-content-xml-001",
+          "type": "request",
+          "name": "XML Response",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/content/xml",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns application/xml content"
+        },
+        {
+          "id": "req-content-html-001",
+          "type": "request",
+          "name": "HTML Response",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/content/html",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns text/html content"
+        },
+        {
+          "id": "req-content-text-001",
+          "type": "request",
+          "name": "Plain Text Response",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/content/text",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns text/plain content"
+        },
+        {
+          "id": "req-content-csv-001",
+          "type": "request",
+          "name": "CSV Response",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/content/csv",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns text/csv content"
+        },
+        {
+          "id": "req-content-png-001",
+          "type": "request",
+          "name": "PNG Image",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/content/image/png",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns image/png (1x1 red pixel)"
+        },
+        {
+          "id": "req-content-svg-001",
+          "type": "request",
+          "name": "SVG Image",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/content/image/svg",
+          "params": [
+            {
+              "key": "color",
+              "value": "blue",
+              "enabled": true
+            },
+            {
+              "key": "size",
+              "value": "100",
+              "enabled": true
+            }
+          ],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns image/svg+xml with customizable color and size"
+        },
+        {
+          "id": "req-content-binary-001",
+          "type": "request",
+          "name": "Binary Data",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/content/binary",
+          "params": [
+            {
+              "key": "size",
+              "value": "256",
+              "enabled": true
+            }
+          ],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns application/octet-stream binary data"
+        },
+        {
+          "id": "req-content-base64-001",
+          "type": "request",
+          "name": "Base64 Encoded",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/content/base64",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns JSON with base64 encoded data field"
+        }
+      ]
+    },
+    {
+      "id": "folder-crud-001",
+      "type": "folder",
+      "name": "CRUD Operations",
+      "items": [
+        {
+          "id": "folder-users-001",
+          "type": "folder",
+          "name": "Users",
+          "items": [
+            {
+              "id": "req-list-users-001",
+              "type": "request",
+              "name": "List Users",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/users",
+              "params": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "enabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "enabled": true
+                },
+                {
+                  "key": "role",
+                  "value": "user",
+                  "enabled": false
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "enabled": false
+                }
+              ],
+              "headers": [],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Get all users with pagination, filtering by role, and search"
+            },
+            {
+              "id": "req-get-user-001",
+              "type": "request",
+              "name": "Get User by ID",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/users/{{userId}}",
+              "params": [],
+              "headers": [],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Get a single user by ID"
+            },
+            {
+              "id": "req-create-user-001",
+              "type": "request",
+              "name": "Create User",
+              "method": "POST",
+              "url": "{{baseUrl}}/api/users",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "json",
+                "content": "{\n  \"name\": \"New User\",\n  \"email\": \"newuser@example.com\",\n  \"role\": \"user\"\n}"
+              },
+              "scripts": {
+                "pre": "",
+                "post": "if (response.status === 201) {\n  const user = response.json();\n  env.set('userId', user.id);\n  console.log('Created user ID:', user.id);\n}"
+              },
+              "docs": "Create a new user"
+            },
+            {
+              "id": "req-update-user-001",
+              "type": "request",
+              "name": "Update User (PUT)",
+              "method": "PUT",
+              "url": "{{baseUrl}}/api/users/{{userId}}",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "json",
+                "content": "{\n  \"name\": \"Updated Name\",\n  \"email\": \"updated@example.com\",\n  \"role\": \"admin\"\n}"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Full update of a user"
+            },
+            {
+              "id": "req-patch-user-001",
+              "type": "request",
+              "name": "Update User (PATCH)",
+              "method": "PATCH",
+              "url": "{{baseUrl}}/api/users/{{userId}}",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "json",
+                "content": "{\n  \"name\": \"Patched Name\"\n}"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Partial update of a user"
+            },
+            {
+              "id": "req-delete-user-001",
+              "type": "request",
+              "name": "Delete User",
+              "method": "DELETE",
+              "url": "{{baseUrl}}/api/users/{{userId}}",
+              "params": [],
+              "headers": [],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Delete a user by ID"
+            }
+          ]
+        },
+        {
+          "id": "folder-posts-001",
+          "type": "folder",
+          "name": "Posts",
+          "items": [
+            {
+              "id": "req-list-posts-001",
+              "type": "request",
+              "name": "List Posts",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/posts",
+              "params": [
+                {
+                  "key": "userId",
+                  "value": "1",
+                  "enabled": false
+                },
+                {
+                  "key": "tag",
+                  "value": "api",
+                  "enabled": false
+                },
+                {
+                  "key": "include",
+                  "value": "user",
+                  "enabled": false
+                }
+              ],
+              "headers": [],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Get all posts with optional filters"
+            },
+            {
+              "id": "req-get-post-001",
+              "type": "request",
+              "name": "Get Post by ID",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/posts/{{postId}}",
+              "params": [],
+              "headers": [],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Get a single post by ID"
+            },
+            {
+              "id": "req-create-post-001",
+              "type": "request",
+              "name": "Create Post",
+              "method": "POST",
+              "url": "{{baseUrl}}/api/posts",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "json",
+                "content": "{\n  \"userId\": 1,\n  \"title\": \"My New Post\",\n  \"content\": \"This is the content of my new post.\",\n  \"tags\": [\"news\", \"update\"]\n}"
+              },
+              "scripts": {
+                "pre": "",
+                "post": "if (response.status === 201) {\n  const post = response.json();\n  env.set('postId', post.id);\n}"
+              },
+              "docs": "Create a new post"
+            },
+            {
+              "id": "req-update-post-001",
+              "type": "request",
+              "name": "Update Post",
+              "method": "PUT",
+              "url": "{{baseUrl}}/api/posts/{{postId}}",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "json",
+                "content": "{\n  \"title\": \"Updated Title\",\n  \"content\": \"Updated content\",\n  \"tags\": [\"updated\"]\n}"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Update a post"
+            },
+            {
+              "id": "req-delete-post-001",
+              "type": "request",
+              "name": "Delete Post",
+              "method": "DELETE",
+              "url": "{{baseUrl}}/api/posts/{{postId}}",
+              "params": [],
+              "headers": [],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Delete a post"
+            },
+            {
+              "id": "req-list-comments-001",
+              "type": "request",
+              "name": "List Post Comments",
+              "method": "GET",
+              "url": "{{baseUrl}}/api/posts/{{postId}}/comments",
+              "params": [],
+              "headers": [],
+              "body": {
+                "type": "none"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Get all comments for a post"
+            },
+            {
+              "id": "req-create-comment-001",
+              "type": "request",
+              "name": "Create Comment",
+              "method": "POST",
+              "url": "{{baseUrl}}/api/posts/{{postId}}/comments",
+              "params": [],
+              "headers": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "enabled": true
+                }
+              ],
+              "body": {
+                "type": "json",
+                "content": "{\n  \"userId\": 1,\n  \"text\": \"This is a new comment!\"\n}"
+              },
+              "scripts": {
+                "pre": "",
+                "post": ""
+              },
+              "docs": "Add a comment to a post"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "folder-headers-cookies-001",
+      "type": "folder",
+      "name": "Headers & Cookies",
+      "items": [
+        {
+          "id": "req-view-headers-001",
+          "type": "request",
+          "name": "View Request Headers",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/headers",
+          "params": [],
+          "headers": [
+            {
+              "key": "X-Custom-Header",
+              "value": "my-custom-value",
+              "enabled": true
+            },
+            {
+              "key": "Accept-Language",
+              "value": "en-US",
+              "enabled": true
+            },
+            {
+              "key": "X-Request-ID",
+              "value": "req-12345",
+              "enabled": true
+            }
+          ],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "View all headers received by the server"
+        },
+        {
+          "id": "req-custom-headers-001",
+          "type": "request",
+          "name": "Get Custom Response Headers",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/headers/custom",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Response includes custom headers like X-Custom-Header, X-Server-Time"
+        },
+        {
+          "id": "req-set-cookie-001",
+          "type": "request",
+          "name": "Set Cookie",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/cookies/set",
+          "params": [
+            {
+              "key": "name",
+              "value": "session_id",
+              "enabled": true
+            },
+            {
+              "key": "value",
+              "value": "abc123xyz",
+              "enabled": true
+            },
+            {
+              "key": "maxAge",
+              "value": "3600000",
+              "enabled": true
+            },
+            {
+              "key": "httpOnly",
+              "value": "true",
+              "enabled": true
+            }
+          ],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Set a cookie with customizable options"
+        },
+        {
+          "id": "req-get-cookies-001",
+          "type": "request",
+          "name": "Get Cookies",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/cookies/get",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "View all cookies sent with the request"
+        },
+        {
+          "id": "req-set-multiple-cookies-001",
+          "type": "request",
+          "name": "Set Multiple Cookies",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/cookies/multiple",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Sets multiple cookies in one response"
+        },
+        {
+          "id": "req-delete-cookie-001",
+          "type": "request",
+          "name": "Delete Cookie",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/cookies/delete/session_id",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Delete a specific cookie"
+        }
+      ]
+    },
+    {
+      "id": "folder-body-types-001",
+      "type": "folder",
+      "name": "Request Body Types",
+      "items": [
+        {
+          "id": "req-body-json-001",
+          "type": "request",
+          "name": "JSON Body",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/echo",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "enabled": true
+            }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"string\": \"hello\",\n  \"number\": 42,\n  \"boolean\": true,\n  \"null\": null,\n  \"array\": [1, 2, 3],\n  \"nested\": {\n    \"key\": \"value\"\n  }\n}"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "POST request with JSON body"
+        },
+        {
+          "id": "req-body-form-data-001",
+          "type": "request",
+          "name": "Form Data (Multipart)",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/upload/form",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "form-data",
+            "formDataEntries": [
+              {
+                "key": "username",
+                "type": "text",
+                "value": "john_doe",
+                "enabled": true
+              },
+              {
+                "key": "email",
+                "type": "text",
+                "value": "john@example.com",
+                "enabled": true
+              },
+              {
+                "key": "age",
+                "type": "text",
+                "value": "30",
+                "enabled": true
+              },
+              {
+                "key": "disabled_field",
+                "type": "file",
+                "value": "ScreenShot Tool -20260223233703.png",
+                "enabled": false,
+                "filePath": "/home/dimitrije/Downloads/ScreenShot Tool -20260223233703.png"
+              }
+            ]
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "POST request with multipart form data",
+          "auth": {
+            "type": "none"
+          },
+          "pollingEnabled": false,
+          "pollingInterval": 5,
+          "pollingMaxIterations": 0
+        },
+        {
+          "id": "req-body-urlencoded-001",
+          "type": "request",
+          "name": "URL Encoded",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/echo",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/x-www-form-urlencoded",
+              "enabled": true
+            }
+          ],
+          "body": {
+            "type": "x-www-form-urlencoded",
+            "entries": [
+              {
+                "key": "grant_type",
+                "value": "password",
+                "enabled": true
+              },
+              {
+                "key": "username",
+                "value": "{{username}}",
+                "enabled": true
+              },
+              {
+                "key": "password",
+                "value": "{{password}}",
+                "enabled": true
+              },
+              {
+                "key": "scope",
+                "value": "read write",
+                "enabled": true
+              }
+            ]
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "POST request with URL encoded form data"
+        },
+        {
+          "id": "req-body-raw-001",
+          "type": "request",
+          "name": "Raw Text Body",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/echo",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "text/plain",
+              "enabled": true
+            }
+          ],
+          "body": {
+            "type": "raw",
+            "content": "This is raw text content.\nLine 2 of the content.\nLine 3 with special chars: <>&\""
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "POST request with raw text body"
+        }
+      ]
+    },
+    {
+      "id": "folder-file-uploads-001",
+      "type": "folder",
+      "name": "File Uploads",
+      "items": [
+        {
+          "id": "req-upload-single-001",
+          "type": "request",
+          "name": "Upload Single File",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/upload/single",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "form-data",
+            "formDataEntries": [
+              {
+                "key": "file",
+                "type": "file",
+                "value": "ScreenShot Tool -20260223233856.png",
+                "enabled": true,
+                "filePath": "/home/dimitrije/Downloads/ScreenShot Tool -20260223233856.png"
+              },
+              {
+                "key": "description",
+                "type": "text",
+                "value": "description123",
+                "enabled": true
+              }
+            ]
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Upload a single file (select file in the form-data body)",
+          "auth": {
+            "type": "none"
+          },
+          "pollingEnabled": false,
+          "pollingInterval": 5,
+          "pollingMaxIterations": 0
+        },
+        {
+          "id": "req-upload-multiple-001",
+          "type": "request",
+          "name": "Upload Multiple Files",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/upload/multiple",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "form-data",
+            "entries": [
+              {
+                "key": "files",
+                "value": "",
+                "enabled": true
+              }
+            ]
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Upload multiple files at once"
+        }
+      ]
+    },
+    {
+      "id": "folder-delays-streaming-001",
+      "type": "folder",
+      "name": "Delays & Streaming",
+      "items": [
+        {
+          "id": "req-delay-1s-001",
+          "type": "request",
+          "name": "Delay 1 Second",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/delay/1000",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Response delayed by 1 second"
+        },
+        {
+          "id": "req-delay-5s-001",
+          "type": "request",
+          "name": "Delay 5 Seconds",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/delay/5000",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Response delayed by 5 seconds (good for testing polling)"
+        },
+        {
+          "id": "req-slow-stream-001",
+          "type": "request",
+          "name": "Slow Streaming Response",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/slow-stream",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Streams 5 chunks over 5 seconds"
+        },
+        {
+          "id": "req-sse-001",
+          "type": "request",
+          "name": "Server-Sent Events",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/stream/sse",
+          "params": [
+            {
+              "key": "count",
+              "value": "5",
+              "enabled": true
+            }
+          ],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Server-sent events stream"
+        },
+        {
+          "id": "req-ndjson-001",
+          "type": "request",
+          "name": "NDJSON Stream",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/stream/ndjson",
+          "params": [
+            {
+              "key": "count",
+              "value": "5",
+              "enabled": true
+            }
+          ],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Newline-delimited JSON stream"
+        }
+      ]
+    },
+    {
+      "id": "folder-polling-jobs-001",
+      "type": "folder",
+      "name": "Polling & Jobs",
+      "items": [
+        {
+          "id": "req-create-job-001",
+          "type": "request",
+          "name": "Create Background Job",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/jobs",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "enabled": true
+            }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"type\": \"process\",\n  \"data\": \"sample data\"\n}"
+          },
+          "scripts": {
+            "pre": "",
+            "post": "if (nk.response.statusCode === 202) {\n  const job = response.json();\n  env.set('jobId', job.jobId);\n  console.log('Job created:', job.jobId);\n}"
+          },
+          "docs": "Creates a job that completes after ~10 seconds. Use polling to check status.",
+          "auth": {
+            "type": "none"
+          },
+          "pollingEnabled": false,
+          "pollingInterval": 5,
+          "pollingMaxIterations": 0
+        },
+        {
+          "id": "req-check-job-001",
+          "type": "request",
+          "name": "Check Job Status",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/jobs/{{jobId}}",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Poll this endpoint to check job progress (0-100%)"
+        }
+      ]
+    },
+    {
+      "id": "folder-validation-001",
+      "type": "folder",
+      "name": "Validation",
+      "items": [
+        {
+          "id": "req-validate-valid-001",
+          "type": "request",
+          "name": "Valid User Data",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/validate/user",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "enabled": true
+            }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"age\": 25,\n  \"role\": \"user\"\n}"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Valid data - should return 200"
+        },
+        {
+          "id": "req-validate-invalid-001",
+          "type": "request",
+          "name": "Invalid User Data",
+          "method": "POST",
+          "url": "{{baseUrl}}/api/validate/user",
+          "params": [],
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json",
+              "enabled": true
+            }
+          ],
+          "body": {
+            "type": "json",
+            "content": "{\n  \"name\": \"J\",\n  \"email\": \"invalid-email\",\n  \"age\": 200,\n  \"role\": \"superadmin\"\n}"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Invalid data - should return 422 with validation errors"
+        }
+      ]
+    },
+    {
+      "id": "folder-redirects-001",
+      "type": "folder",
+      "name": "Redirects",
+      "items": [
+        {
+          "id": "req-redirect-single-001",
+          "type": "request",
+          "name": "Single Redirect",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/redirect/single",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "302 redirect to /api/methods/get"
+        },
+        {
+          "id": "req-redirect-chain-001",
+          "type": "request",
+          "name": "Redirect Chain",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/redirect/chain",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Multiple redirects: /chain -> /step2 -> /step3 -> final response"
+        }
+      ]
+    },
+    {
+      "id": "folder-errors-001",
+      "type": "folder",
+      "name": "Error Simulation",
+      "items": [
+        {
+          "id": "req-random-error-001",
+          "type": "request",
+          "name": "Random Error",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/error/random",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "Returns a random error status (400, 401, 403, 404, 500, 503)"
+        },
+        {
+          "id": "req-flaky-endpoint-001",
+          "type": "request",
+          "name": "Flaky Endpoint",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/error/flaky",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": ""
+          },
+          "docs": "50% chance of success or failure - good for testing retry logic"
+        }
+      ]
+    },
+    {
+      "id": "folder-scripts-001",
+      "type": "folder",
+      "name": "Scripts Examples",
+      "items": [
+        {
+          "id": "req-script-pre-001",
+          "type": "request",
+          "name": "Pre-Request Script",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/echo",
+          "params": [
+            {
+              "key": "timestamp",
+              "value": "{{$timestamp}}",
+              "enabled": true
+            },
+            {
+              "key": "random",
+              "value": "{{$randomInt}}",
+              "enabled": true
+            }
+          ],
+          "headers": [
+            {
+              "key": "X-Request-Time",
+              "value": "{{requestTime}}",
+              "enabled": true
+            }
+          ],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "// Pre-request script: Set dynamic values\nconst now = new Date();\nenv.set('timestamp', now.toISOString());\nenv.set('randomValue', Math.random().toString(36).substring(7));\nenv.set('requestTime', now.getTime().toString());\n\nconsole.log('Pre-request script executed at:', now.toISOString());",
+            "post": ""
+          },
+          "docs": "Demonstrates pre-request script setting dynamic variables",
+          "auth": {
+            "type": "none"
+          },
+          "pollingEnabled": false,
+          "pollingInterval": 5,
+          "pollingMaxIterations": 0
+        },
+        {
+          "id": "req-script-post-001",
+          "type": "request",
+          "name": "Post-Response Script",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/content/json",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "",
+            "post": "// Post-response script: Process response\nconst data = response.json();\n\nconsole.log('Response status:', response.status);\nconsole.log('Response type:', data.type);\nconsole.log('Has nested data:', !!data.nested);\n\n// Store values for later use\nif (data.nested && data.nested.array) {\n  env.set('arrayLength', data.nested.array.length.toString());\n  console.log('Array length saved:', data.nested.array.length);\n}"
+          },
+          "docs": "Demonstrates post-response script processing response data"
+        },
+        {
+          "id": "req-script-chained-001",
+          "type": "request",
+          "name": "Chained Request Example",
+          "method": "GET",
+          "url": "{{baseUrl}}/api/users",
+          "params": [],
+          "headers": [],
+          "body": {
+            "type": "none"
+          },
+          "scripts": {
+            "pre": "console.log('Fetching users list...');",
+            "post": "const users = response.json();\nif (users.data && users.data.length > 0) {\n  // Save first user's ID for use in subsequent requests\n  env.set('firstUserId', users.data[0].id.toString());\n  console.log('First user ID saved:', users.data[0].id);\n  console.log('Total users:', users.pagination.total);\n}"
+          },
+          "docs": "Extracts data from response for use in subsequent requests"
+        }
+      ]
+    },
+    {
+      "id": "gql-queries-001",
+      "type": "folder",
+      "name": "GraphQL",
+      "items": [
+        {
+          "id": "gql-list-users-001",
+          "type": "graphql",
+          "name": "List All Users",
+          "url": "{{baseUrl}}/graphql",
+          "headers": [],
+          "gqlQuery": "query GetUsers {\n  users {\n    id\n    name\n    email\n    role\n  }\n}",
+          "gqlVariables": "{}",
+          "gqlOperationName": "GetUsers"
+        },
+        {
+          "id": "gql-get-user-001",
+          "type": "graphql",
+          "name": "Get User with Posts",
+          "url": "{{baseUrl}}/graphql",
+          "headers": [],
+          "gqlQuery": "query GetUser($id: ID!) {\n  user(id: $id) {\n    id\n    name\n    email\n    role\n    posts {\n      id\n      title\n      content\n      tags\n    }\n  }\n}",
+          "gqlVariables": "{\n  \"id\": \"1\"\n}",
+          "gqlOperationName": "GetUser"
+        },
+        {
+          "id": "gql-list-posts-001",
+          "type": "graphql",
+          "name": "List Posts with Authors",
+          "url": "{{baseUrl}}/graphql",
+          "headers": [],
+          "gqlQuery": "query GetPosts {\n  posts {\n    id\n    title\n    content\n    tags\n    user {\n      id\n      name\n    }\n    comments {\n      id\n      text\n      user {\n        name\n      }\n    }\n  }\n}",
+          "gqlVariables": "{}",
+          "gqlOperationName": "GetPosts"
+        },
+        {
+          "id": "gql-search-001",
+          "type": "graphql",
+          "name": "Search Users and Posts",
+          "url": "{{baseUrl}}/graphql",
+          "headers": [],
+          "gqlQuery": "query Search($term: String!) {\n  search(term: $term) {\n    users {\n      id\n      name\n      email\n    }\n    posts {\n      id\n      title\n      content\n    }\n  }\n}",
+          "gqlVariables": "{\n  \"term\": \"alice\"\n}",
+          "gqlOperationName": "Search"
+        },
+        {
+          "id": "gql-create-user-001",
+          "type": "graphql",
+          "name": "Create User (Mutation)",
+          "url": "{{baseUrl}}/graphql",
+          "headers": [],
+          "gqlQuery": "mutation CreateUser($name: String!, $email: String!, $role: String) {\n  createUser(name: $name, email: $email, role: $role) {\n    id\n    name\n    email\n    role\n  }\n}",
+          "gqlVariables": "{\n  \"name\": \"GraphQL User\",\n  \"email\": \"gql@example.com\",\n  \"role\": \"user\"\n}",
+          "gqlOperationName": "CreateUser"
+        },
+        {
+          "id": "gql-create-post-001",
+          "type": "graphql",
+          "name": "Create Post (Mutation)",
+          "url": "{{baseUrl}}/graphql",
+          "headers": [],
+          "gqlQuery": "mutation CreatePost($userId: ID!, $title: String!, $content: String!, $tags: [String!]) {\n  createPost(userId: $userId, title: $title, content: $content, tags: $tags) {\n    id\n    title\n    content\n    tags\n    user {\n      name\n    }\n  }\n}",
+          "gqlVariables": "{\n  \"userId\": \"1\",\n  \"title\": \"GraphQL Post\",\n  \"content\": \"Created via GraphQL mutation\",\n  \"tags\": [\"graphql\", \"test\"]\n}",
+          "gqlOperationName": "CreatePost"
+        },
+        {
+          "id": "gql-delete-user-001",
+          "type": "graphql",
+          "name": "Delete User (Mutation)",
+          "url": "{{baseUrl}}/graphql",
+          "headers": [],
+          "gqlQuery": "mutation DeleteUser($id: ID!) {\n  deleteUser(id: $id)\n}",
+          "gqlVariables": "{\n  \"id\": \"4\"\n}",
+          "gqlOperationName": "DeleteUser"
+        }
+      ]
+    },
+    {
+      "id": "ws-connection-001",
+      "type": "websocket",
+      "name": "WebSocket Connection",
+      "url": "{{baseUrl}}/ws",
+      "headers": [],
+      "wsProtocols": [],
+      "wsAutoReconnect": true,
+      "wsReconnectInterval": 5000,
+      "wsSavedMessages": [
+        {
+          "id": "ws-msg-ping-001",
+          "name": "Ping",
+          "type": "text",
+          "content": "{\"type\":\"ping\"}"
+        },
+        {
+          "id": "ws-msg-broadcast-001",
+          "name": "Broadcast Message",
+          "type": "text",
+          "content": "{\"type\":\"broadcast\",\"content\":\"Hello everyone!\"}"
+        },
+        {
+          "id": "ws-msg-custom-001",
+          "name": "Custom Message",
+          "type": "text",
+          "content": "{\"action\":\"subscribe\",\"channel\":\"updates\"}"
+        }
+      ]
+    }
+  ],
+  "schemas": [
+    {
+      "id": "schema-1772761424103",
+      "name": "UserRequestDTO",
+      "type": "json",
+      "content": "{\n  \"type\": \"object\",\n  \"properties\": {},\n  \"required\": []\n}"
+    },
+    {
+      "id": "schema-1772761435265",
+      "name": "UserResponseDTO",
+      "type": "json",
+      "content": "{\n  \"type\": \"object\",\n  \"properties\": {},\n  \"required\": []\n}"
+    }
+  ]
+}
