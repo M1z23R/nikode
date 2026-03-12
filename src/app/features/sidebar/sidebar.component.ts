@@ -7,6 +7,9 @@ import {
   ToastService
 } from '@m1z23r/ngx-ui';
 import { CollectionService } from '../../core/services/collection.service';
+import { ApiService } from '../../core/services/api.service';
+import { isIpcError } from '@shared/ipc-types';
+import { Collection } from '../../core/models/collection.model';
 import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { WebSocketService } from '../../core/services/websocket.service';
@@ -157,6 +160,7 @@ export class SidebarComponent {
   private toastService = inject(ToastService);
   protected cloudWorkspaceService = inject(CloudWorkspaceService);
   private templateService = inject(TemplateService);
+  private api = inject(ApiService);
 
   expandedFolders = signal<Set<string>>(new Set());
   searchActive = signal(false);
@@ -316,15 +320,16 @@ export class SidebarComponent {
   }
 
   async exportCollection(nodeData: TreeNodeData): Promise<void> {
-    // Only local collections can be exported
-    if (nodeData.source === 'cloud') {
-      this.toastService.error('Cloud collections cannot be exported directly');
-      return;
-    }
-
     const col = this.unifiedCollectionService.getCollection(nodeData.collectionPath);
     if (!col) return;
 
+    // Cloud collections: export as JSON directly (no format dialog)
+    if (nodeData.source === 'cloud') {
+      await this.exportCloudCollection(col.name, col.collection);
+      return;
+    }
+
+    // Local collections: show format selection dialog
     const ref = this.dialogService.open<ExportCollectionDialogComponent, ExportCollectionDialogData, ExportFormat | undefined>(
       ExportCollectionDialogComponent,
       { data: { collectionName: col.name } }
@@ -340,6 +345,27 @@ export class SidebarComponent {
     } else {
       await this.collectionService.exportCollection(nodeData.collectionPath, format);
     }
+  }
+
+  private async exportCloudCollection(name: string, collection: Collection): Promise<void> {
+    const result = await this.api.showSaveDialog({
+      defaultPath: `${name}.nikode.json`,
+      filters: [{ name: 'Nikode Collection', extensions: ['nikode.json'] }]
+    });
+
+    if (isIpcError(result) || result.data.canceled || !result.data.filePath) {
+      return; // User cancelled or error
+    }
+
+    const content = JSON.stringify(collection, null, 2);
+    const writeResult = await this.api.writeFile(result.data.filePath, content);
+
+    if (isIpcError(writeResult)) {
+      this.toastService.error('Failed to export collection');
+      return;
+    }
+
+    this.toastService.success('Collection exported successfully');
   }
 
   private manageSchemas(target: TreeNodeData): void {

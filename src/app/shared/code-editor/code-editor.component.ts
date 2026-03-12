@@ -20,6 +20,7 @@ import { markdown as markdownExtension } from '@codemirror/lang-markdown';
 import { graphql as graphqlExtension, updateSchema as updateGraphQLSchemaExt } from 'cm6-graphql';
 import { GraphQLSchema } from 'graphql';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 import { syntaxHighlighting, HighlightStyle, foldGutter, foldKeymap } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
@@ -128,6 +129,117 @@ const darkHighlighting = HighlightStyle.define([
     :host ::ng-deep .cm-focused {
       outline: none;
     }
+
+    :host ::ng-deep .cm-panels {
+      background: var(--ui-bg-secondary);
+      border-bottom: 1px solid var(--ui-border);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 0.875rem;
+    }
+
+    :host ::ng-deep .cm-search {
+      padding: 0.625rem 0.75rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    :host ::ng-deep .cm-search input.cm-textfield {
+      padding: 0.375rem 0.625rem;
+      border: 1px solid var(--ui-border);
+      border-radius: 6px;
+      background: var(--ui-bg);
+      color: var(--ui-text);
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      min-width: 160px;
+    }
+
+    :host ::ng-deep .cm-search input.cm-textfield::placeholder {
+      color: var(--ui-text-muted);
+    }
+
+    :host ::ng-deep .cm-search input.cm-textfield:focus {
+      border-color: var(--ui-primary);
+      box-shadow: 0 0 0 2px rgba(107, 114, 128, 0.15);
+    }
+
+    :host ::ng-deep .cm-search button.cm-button {
+      padding: 0.375rem 0.75rem;
+      border: 1px solid var(--ui-border);
+      border-radius: 6px;
+      background: var(--ui-bg);
+      color: var(--ui-text);
+      cursor: pointer;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+
+    :host ::ng-deep .cm-search button.cm-button:hover {
+      background: var(--ui-bg-secondary);
+      border-color: var(--ui-border-strong);
+    }
+
+    :host ::ng-deep .cm-search button.cm-button:active {
+      background: var(--ui-bg-tertiary);
+    }
+
+    :host ::ng-deep .cm-search button[name="close"] {
+      padding: 0.25rem 0.5rem;
+      border: none;
+      background: transparent;
+      color: var(--ui-text-muted);
+      font-size: 1.125rem;
+      font-weight: 400;
+      line-height: 1;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+      margin-left: auto;
+    }
+
+    :host ::ng-deep .cm-search button[name="close"]:hover {
+      background: var(--ui-bg-tertiary);
+      color: var(--ui-text);
+    }
+
+    :host ::ng-deep .cm-search label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      color: var(--ui-text-secondary);
+      font-size: 0.8125rem;
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      transition: background 0.15s ease;
+    }
+
+    :host ::ng-deep .cm-search label:hover {
+      background: var(--ui-bg-tertiary);
+    }
+
+    :host ::ng-deep .cm-search label input[type="checkbox"] {
+      width: 0.875rem;
+      height: 0.875rem;
+      accent-color: var(--ui-primary);
+      cursor: pointer;
+    }
+
+    :host ::ng-deep .cm-selectionMatch {
+      background-color: rgba(107, 114, 128, 0.2);
+    }
+
+    :host ::ng-deep .cm-searchMatch {
+      background-color: rgba(245, 158, 11, 0.3);
+    }
+
+    :host ::ng-deep .cm-searchMatch-selected {
+      background-color: rgba(245, 158, 11, 0.5);
+    }
   `]
 })
 export class CodeEditorComponent implements AfterViewInit, OnDestroy {
@@ -225,7 +337,9 @@ export class CodeEditorComponent implements AfterViewInit, OnDestroy {
       highlightActiveLine(),
       history(),
       closeBrackets(),
-      keymap.of([...closeBracketsKeymap, ...completionKeymap, ...defaultKeymap, ...historyKeymap, ...foldKeymap]),
+      keymap.of([...closeBracketsKeymap, ...completionKeymap, ...defaultKeymap, ...historyKeymap, ...foldKeymap, ...searchKeymap]),
+      search(),
+      highlightSelectionMatches(),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {

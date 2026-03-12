@@ -93,10 +93,10 @@ const dragState = {
               <ui-dropdown-item (clicked)="action.emit({ type: 'manageSchemas', node })">Manage Schemas</ui-dropdown-item>
               <ui-dropdown-divider />
               <ui-dropdown-item (clicked)="action.emit({ type: 'save', node })">Save</ui-dropdown-item>
+              <ui-dropdown-item (clicked)="action.emit({ type: 'export', node })">Export</ui-dropdown-item>
               @if (isCloud(node)) {
                 <ui-dropdown-item (clicked)="action.emit({ type: 'sync', node })">Sync</ui-dropdown-item>
               } @else {
-                <ui-dropdown-item (clicked)="action.emit({ type: 'export', node })">Export</ui-dropdown-item>
                 <ui-dropdown-item (clicked)="action.emit({ type: 'pushToCloud', node })">Push to Cloud...</ui-dropdown-item>
               }
               @if (canPublishTemplate()) {
