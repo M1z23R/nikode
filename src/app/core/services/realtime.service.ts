@@ -328,6 +328,16 @@ export class RealtimeService implements OnDestroy {
       return;
     }
 
+    // Skip if we already have this version locally (e.g., from our own save's HTTP response)
+    const eventVersion = message.data?.version;
+    if (eventVersion !== undefined) {
+      const localCollection = this.cloudWorkspace.collections().find(c => c.id === collectionId);
+      if (localCollection && localCollection.version >= eventVersion) {
+        // We already have this version or newer, skip processing
+        return;
+      }
+    }
+
     await this.unifiedCollection.handleRemoteCollectionUpdate(
       activeWs.id,
       collectionId
