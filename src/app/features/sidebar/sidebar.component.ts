@@ -9,7 +9,7 @@ import {
 import { CollectionService } from '../../core/services/collection.service';
 import { ApiService } from '../../core/services/api.service';
 import { isIpcError } from '@shared/ipc-types';
-import { Collection } from '../../core/models/collection.model';
+import { Collection, CollectionItem } from '../../core/models/collection.model';
 import { UnifiedCollectionService } from '../../core/services/unified-collection.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { WebSocketService } from '../../core/services/websocket.service';
@@ -21,7 +21,11 @@ import { NewFolderDialogComponent } from './dialogs/new-folder.dialog';
 import { NewRequestDialogComponent, NewRequestDialogResult } from './dialogs/new-request.dialog';
 import { InputDialogComponent, InputDialogData } from '../../shared/dialogs/input.dialog';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/dialogs/confirm.dialog';
-import { ExportCollectionDialogComponent, ExportFormat, ExportCollectionDialogData } from '../../shared/dialogs/export-collection.dialog';
+import {
+  ExportCollectionDialogComponent,
+  ExportCollectionDialogData,
+  ExportDialogResult
+} from '../../shared/dialogs/export-collection.dialog';
 import { RunnerDialogComponent, RunnerDialogData } from '../runner/runner.dialog';
 import { SchemaEditorDialogComponent, SchemaEditorDialogData } from '../schemas/schema-editor.dialog';
 import { PushToCloudDialogComponent, PushToCloudDialogData } from '../workspaces/push-to-cloud.dialog';
@@ -422,28 +426,115 @@ export class SidebarComponent {
     const col = this.unifiedCollectionService.getCollection(nodeData.collectionPath);
     if (!col) return;
 
-    // Cloud collections: export as JSON directly (no format dialog)
-    if (nodeData.source === 'cloud') {
-      await this.exportCloudCollection(col.name, col.collection);
+    // Cloud collections: sync instead of export
+    if (nodeData.collectionPath.startsWith('cloud://')) {
+      this.unifiedCollectionService.syncCloudCollection(nodeData.collectionPath);
       return;
     }
 
-    // Local collections: show format selection dialog
-    const ref = this.dialogService.open<ExportCollectionDialogComponent, ExportCollectionDialogData, ExportFormat | undefined>(
+    // Check if collection has scripts
+    const hasScripts = this.collectionHasScripts(col.collection);
+
+    const ref = this.dialogService.open<ExportCollectionDialogComponent, ExportCollectionDialogData, ExportDialogResult | undefined>(
       ExportCollectionDialogComponent,
-      { data: { collectionName: col.name } }
+      { data: { collectionName: col.name, hasScripts } }
     );
-    const format = await ref.afterClosed();
+    const result = await ref.afterClosed();
+    if (!result) return;
 
-    if (!format) {
-      return; // User cancelled
+    switch (result.format) {
+      case 'nikode':
+        await this.collectionService.exportCollection(nodeData.collectionPath, 'json');
+        break;
+      case 'openapi':
+        await this.collectionService.exportOpenApi(nodeData.collectionPath, result.options.openapiFormat);
+        break;
+      case 'postman':
+        await this.exportToPostman(nodeData.collectionPath, col.collection, result.options.includeEnvironments);
+        break;
+      case 'bruno':
+        await this.exportToBruno(nodeData.collectionPath, col.collection);
+        break;
+    }
+  }
+
+  private collectionHasScripts(collection: Collection): boolean {
+    const checkItems = (items: CollectionItem[]): boolean => {
+      for (const item of items) {
+        if (item.type === 'folder' && item.items) {
+          if (checkItems(item.items)) return true;
+        } else if (item.scripts?.pre || item.scripts?.post) {
+          return true;
+        }
+      }
+      return false;
+    };
+    return checkItems(collection.items || []);
+  }
+
+  private async exportToPostman(collectionPath: string, collection: Collection, includeEnv?: boolean): Promise<void> {
+    const defaultFileName = collection.name.toLowerCase().replace(/\s+/g, '-') + '.postman_collection.json';
+
+    const result = await this.api.showSaveDialog({
+      title: 'Export to Postman',
+      defaultPath: defaultFileName,
+      filters: [{ name: 'Postman Collection', extensions: ['json'] }]
+    });
+
+    if (isIpcError(result) || result.data.canceled || !result.data.filePath) return;
+
+    const exportResult = await this.api.exportPostman(collectionPath, result.data.filePath);
+    if (isIpcError(exportResult)) {
+      this.toastService.error('Export failed: ' + exportResult.error.userMessage);
+      return;
     }
 
-    if (format === 'openapi') {
-      await this.collectionService.exportOpenApi(nodeData.collectionPath);
-    } else {
-      await this.collectionService.exportCollection(nodeData.collectionPath, format);
+    // Export environments if requested
+    if (includeEnv && collection.environments?.length > 0) {
+      for (const env of collection.environments) {
+        const envFileName = env.name.toLowerCase().replace(/\s+/g, '-') + '.postman_environment.json';
+        const envResult = await this.api.showSaveDialog({
+          title: `Export Environment: ${env.name}`,
+          defaultPath: envFileName,
+          filters: [{ name: 'Postman Environment', extensions: ['json'] }]
+        });
+
+        if (!isIpcError(envResult) && !envResult.data.canceled && envResult.data.filePath) {
+          await this.api.exportPostmanEnv(collectionPath, env.id, envResult.data.filePath);
+        }
+      }
     }
+
+    this.toastService.success('Exported to Postman format');
+  }
+
+  private async exportToBruno(collectionPath: string, collection: Collection): Promise<void> {
+    const result = await this.api.showOpenDialog({
+      title: 'Select folder for Bruno export',
+      properties: ['openDirectory', 'createDirectory']
+    });
+
+    if (isIpcError(result) || result.data.canceled || !result.data.filePaths[0]) return;
+
+    const targetFolder = result.data.filePaths[0];
+    const brunoFolder = `${targetFolder}/${collection.name.replace(/\s+/g, '-')}`;
+
+    const exportResult = await this.api.exportBruno(collectionPath, brunoFolder);
+    if (isIpcError(exportResult)) {
+      this.toastService.error('Export failed: ' + exportResult.error.userMessage);
+      return;
+    }
+
+    const stats = exportResult.data.stats;
+    let message = `Exported ${stats.requests} requests, ${stats.folders} folders`;
+    if (stats.environments > 0) {
+      message += `, ${stats.environments} environments`;
+    }
+    if (stats.skipped.length > 0) {
+      message += `. ${stats.skipped.length} items skipped.`;
+    }
+
+    this.toastService.success(message);
   }
 
   private async exportCloudCollection(name: string, collection: Collection): Promise<void> {
