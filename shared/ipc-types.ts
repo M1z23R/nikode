@@ -65,6 +65,11 @@ export const IPC_CHANNELS = {
   // Bruno import
   IMPORT_BRUNO: 'import-bruno',
 
+  // Export to external formats
+  EXPORT_POSTMAN: 'export-postman',
+  EXPORT_POSTMAN_ENV: 'export-postman-env',
+  EXPORT_BRUNO: 'export-bruno',
+
   // File format detection
   DETECT_FILE_FORMAT: 'detect-file-format',
 
@@ -170,6 +175,10 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.EXPORT_OPENAPI]: { path: string; format: 'yaml' | 'json' };
   [IPC_CHANNELS.IMPORT_POSTMAN]: { sourcePath: string; targetPath: string };
   [IPC_CHANNELS.IMPORT_POSTMAN_ENV]: { sourcePath: string; collectionPath: string };
+  [IPC_CHANNELS.IMPORT_BRUNO]: { sourcePath: string; targetPath: string };
+  [IPC_CHANNELS.EXPORT_POSTMAN]: { collectionPath: string; targetPath: string };
+  [IPC_CHANNELS.EXPORT_POSTMAN_ENV]: { collectionPath: string; envId: string; targetPath: string };
+  [IPC_CHANNELS.EXPORT_BRUNO]: { collectionPath: string; targetPath: string };
   [IPC_CHANNELS.DETECT_FILE_FORMAT]: string; // path
   [IPC_CHANNELS.AUTH_GET_TOKENS]: void;
   [IPC_CHANNELS.AUTH_SAVE_TOKENS]: AuthTokens;
@@ -217,6 +226,9 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.IMPORT_POSTMAN]: { path: string; collection: Collection };
   [IPC_CHANNELS.IMPORT_POSTMAN_ENV]: { environment: Environment };
   [IPC_CHANNELS.IMPORT_BRUNO]: { path: string; collection: any };
+  [IPC_CHANNELS.EXPORT_POSTMAN]: ExportResult;
+  [IPC_CHANNELS.EXPORT_POSTMAN_ENV]: ExportResult;
+  [IPC_CHANNELS.EXPORT_BRUNO]: BrunoExportResult;
   [IPC_CHANNELS.DETECT_FILE_FORMAT]: FileFormat;
   [IPC_CHANNELS.AUTH_GET_TOKENS]: AuthTokens | null;
   [IPC_CHANNELS.AUTH_SAVE_TOKENS]: { status: 'ok' };
@@ -243,6 +255,21 @@ export interface UpdateCheckResult {
 
 // File format detection result
 export type FileFormat = 'nikode' | 'openapi' | 'postman' | 'postman-env' | 'unknown';
+
+// Export result types
+export interface ExportResult {
+  filePath: string;
+}
+
+export interface BrunoExportResult {
+  folderPath: string;
+  stats: {
+    requests: number;
+    folders: number;
+    environments: number;
+    skipped: Array<{ name: string; reason: string }>;
+  };
+}
 
 // Dialog options
 export interface OpenDialogOptions {
