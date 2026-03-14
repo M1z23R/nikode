@@ -8,6 +8,8 @@ import {
   CollectionChangedEvent,
   FileFormat,
   isIpcError,
+  ExportResult,
+  BrunoExportResult,
 } from '@shared/ipc-types';
 import { Environment } from '../models/collection.model';
 import {
@@ -89,6 +91,18 @@ export class ApiService {
 
   async importBruno(sourcePath: string, targetPath: string): Promise<IpcResult<{ path: string; collection: any }>> {
     return window.electronAPI.invoke(IPC_CHANNELS.IMPORT_BRUNO, { sourcePath, targetPath });
+  }
+
+  async exportPostman(collectionPath: string, targetPath: string): Promise<IpcResult<ExportResult>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_POSTMAN, { collectionPath, targetPath });
+  }
+
+  async exportPostmanEnv(collectionPath: string, envId: string, targetPath: string): Promise<IpcResult<ExportResult>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_POSTMAN_ENV, { collectionPath, envId, targetPath });
+  }
+
+  async exportBruno(collectionPath: string, targetPath: string): Promise<IpcResult<BrunoExportResult>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_BRUNO, { collectionPath, targetPath });
   }
 
   async detectFileFormat(path: string): Promise<IpcResult<FileFormat>> {
