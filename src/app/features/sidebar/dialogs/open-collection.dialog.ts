@@ -5,8 +5,6 @@ import {
   InputComponent,
   SelectComponent,
   OptionComponent,
-  RadioGroupComponent,
-  RadioComponent,
   AsyncSearchFn,
   DIALOG_REF,
   DialogRef
@@ -41,9 +39,7 @@ export interface AddCollectionDialogResult {
     ButtonComponent,
     InputComponent,
     SelectComponent,
-    OptionComponent,
-    RadioGroupComponent,
-    RadioComponent
+    OptionComponent
   ],
   template: `
     <ui-modal title="Add Collection" size="sm">
@@ -117,7 +113,9 @@ export interface AddCollectionDialogResult {
             <span class="format-label">Bruno</span>
           </button>
         </div>
-      } @else if (mode() === 'new') {
+      }
+
+      @if (mode() === 'new') {
         <!-- New Collection Form -->
         <div class="form-fields">
           <ui-input
@@ -143,18 +141,17 @@ export interface AddCollectionDialogResult {
             </ui-select>
           }
         </div>
+      }
 
-        <ng-container footer>
+      <!-- Footer buttons based on mode -->
+      <ng-container footer>
+        @if (mode() === 'select') {
+          <ui-button variant="ghost" (clicked)="cancel()">Cancel</ui-button>
+        } @else if (mode() === 'new') {
           <ui-button variant="ghost" (clicked)="backToSelect()">Back</ui-button>
           <ui-button color="primary" (clicked)="createNew()" [disabled]="!isNewValid()">Create</ui-button>
-        </ng-container>
-      }
-
-      @if (mode() === 'select') {
-        <ng-container footer>
-          <ui-button variant="ghost" (clicked)="cancel()">Cancel</ui-button>
-        </ng-container>
-      }
+        }
+      </ng-container>
     </ui-modal>
   `,
   styles: [`
