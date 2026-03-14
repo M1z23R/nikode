@@ -720,6 +720,34 @@ export class CollectionService implements OnDestroy {
     return true;
   }
 
+  /**
+   * Import a Bruno collection folder to target path
+   */
+  async importBruno(sourcePath: string, targetPath: string): Promise<boolean> {
+    const result = await this.api.importBruno(sourcePath, targetPath);
+
+    if (isIpcError(result)) {
+      this.toastService.error(`Failed to import Bruno collection: ${result.error.message}`);
+      return false;
+    }
+
+    this.openCollections.update(cols => [
+      ...cols,
+      {
+        path: result.data.path,
+        collection: normalizeCollection(result.data.collection),
+        expanded: true,
+        dirty: false
+      }
+    ]);
+
+    // Start file watcher for this collection
+    await this.api.watchCollection(targetPath);
+
+    this.toastService.success('Collection imported successfully');
+    return true;
+  }
+
   async exportOpenApi(path: string): Promise<boolean> {
     const result = await this.api.exportOpenApi(path);
     if (isIpcError(result)) {
