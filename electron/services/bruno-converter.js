@@ -413,6 +413,238 @@ class BrunoConverter {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
   }
+
+  /**
+   * Export collection to Bruno folder structure
+   * @param {object} collection - Nikode collection object
+   * @param {string} targetPath - Target folder path
+   * @returns {Promise<object>} Statistics about the export
+   */
+  async exportToBruno(collection, targetPath) {
+    const fs = require('fs/promises');
+    const stats = { requests: 0, folders: 0, environments: 0, skipped: [] };
+
+    await fs.mkdir(targetPath, { recursive: true });
+
+    const brunoJson = {
+      version: '1',
+      name: collection.name,
+      type: 'collection',
+    };
+    await fs.writeFile(
+      path.join(targetPath, 'bruno.json'),
+      JSON.stringify(brunoJson, null, 2)
+    );
+
+    await this.exportItemsToFolder(collection.items || [], targetPath, stats);
+
+    if (collection.environments?.length > 0) {
+      const envDir = path.join(targetPath, 'environments');
+      await fs.mkdir(envDir, { recursive: true });
+
+      for (const env of collection.environments) {
+        const envContent = this.generateEnvironmentBru(env);
+        const fileName = this.sanitizeFileName(env.name) + '.bru';
+        await fs.writeFile(path.join(envDir, fileName), envContent);
+        stats.environments++;
+      }
+    }
+
+    return stats;
+  }
+
+  /**
+   * Recursively export items to folder structure
+   * @param {array} items - Collection items (requests and folders)
+   * @param {string} folderPath - Current folder path
+   * @param {object} stats - Statistics object
+   * @param {number} seq - Sequence number for requests
+   */
+  async exportItemsToFolder(items, folderPath, stats, seq = 1) {
+    const fs = require('fs/promises');
+
+    for (const item of items) {
+      if (item.type === 'folder') {
+        const folderName = this.sanitizeFileName(item.name);
+        const subFolderPath = path.join(folderPath, folderName);
+        await fs.mkdir(subFolderPath, { recursive: true });
+
+        const folderBru = `meta {\n  name: ${item.name}\n}\n`;
+        await fs.writeFile(path.join(subFolderPath, 'folder.bru'), folderBru);
+
+        stats.folders++;
+        await this.exportItemsToFolder(item.items || [], subFolderPath, stats, 1);
+      } else if (item.type === 'websocket') {
+        stats.skipped.push({ name: item.name, reason: 'WebSocket not supported' });
+      } else {
+        const bruContent = this.generateRequestBru(item, seq++);
+        const fileName = this.sanitizeFileName(item.name) + '.bru';
+        await fs.writeFile(path.join(folderPath, fileName), bruContent);
+        stats.requests++;
+      }
+    }
+  }
+
+  /**
+   * Generate .bru file content for a request
+   * @param {object} item - Request item
+   * @param {number} seq - Sequence number
+   * @returns {string} .bru file content
+   */
+  generateRequestBru(item, seq) {
+    const parts = [];
+
+    parts.push(`meta {
+  name: ${item.name}
+  type: ${item.type === 'graphql' ? 'graphql' : 'http'}
+  seq: ${seq}
+}`);
+
+    const method = (item.method || 'get').toLowerCase();
+    parts.push(`\n${method} {
+  url: ${item.url || ''}
+}`);
+
+    if (item.params?.length > 0) {
+      const params = item.params
+        .filter(p => p.key)
+        .map(p => `  ${p.enabled === false ? '~' : ''}${p.key}: ${p.value || ''}`)
+        .join('\n');
+      if (params) {
+        parts.push(`\nquery {\n${params}\n}`);
+      }
+    }
+
+    if (item.headers?.length > 0) {
+      const headers = item.headers
+        .filter(h => h.key)
+        .map(h => `  ${h.enabled === false ? '~' : ''}${h.key}: ${h.value || ''}`)
+        .join('\n');
+      if (headers) {
+        parts.push(`\nheaders {\n${headers}\n}`);
+      }
+    }
+
+    if (item.auth && item.auth.type !== 'none') {
+      parts.push('\n' + this.generateAuthBlock(item.auth));
+    }
+
+    if (item.body && item.body.type !== 'none') {
+      parts.push('\n' + this.generateBodyBlock(item.body));
+    }
+
+    if (item.type === 'graphql' && item.gqlQuery) {
+      parts.push(`\nbody:graphql {\n${item.gqlQuery}\n}`);
+      if (item.gqlVariables) {
+        parts.push(`\nbody:graphql:vars {\n${item.gqlVariables}\n}`);
+      }
+    }
+
+    if (item.scripts?.pre) {
+      const WARNING = '// WARNING: This script uses Nikode (nk.*) API\n// Manual conversion to bru.* may be required\n\n';
+      parts.push(`\nscript:pre-request {\n${WARNING}${item.scripts.pre}\n}`);
+    }
+    if (item.scripts?.post) {
+      const WARNING = '// WARNING: This script uses Nikode (nk.*) API\n// Manual conversion to bru.* may be required\n\n';
+      parts.push(`\nscript:post-response {\n${WARNING}${item.scripts.post}\n}`);
+    }
+
+    if (item.docs) {
+      parts.push(`\ndocs {\n${item.docs}\n}`);
+    }
+
+    return parts.join('\n') + '\n';
+  }
+
+  /**
+   * Generate auth block for .bru file
+   * @param {object} auth - Auth configuration
+   * @returns {string} Auth block content
+   */
+  generateAuthBlock(auth) {
+    switch (auth.type) {
+      case 'bearer':
+        return `auth:bearer {\n  token: ${auth.token || ''}\n}`;
+      case 'basic':
+        return `auth:basic {\n  username: ${auth.username || ''}\n  password: ${auth.password || ''}\n}`;
+      case 'api-key':
+        return `auth:apikey {\n  key: ${auth.key || ''}\n  value: ${auth.value || ''}\n  placement: ${auth.addTo === 'query' ? 'queryparams' : 'header'}\n}`;
+      default:
+        return '';
+    }
+  }
+
+  /**
+   * Generate body block for .bru file
+   * @param {object} body - Body configuration
+   * @returns {string} Body block content
+   */
+  generateBodyBlock(body) {
+    switch (body.type) {
+      case 'json':
+        return `body:json {\n${body.content || ''}\n}`;
+      case 'raw':
+        return `body:text {\n${body.content || ''}\n}`;
+      case 'x-www-form-urlencoded':
+        const urlencoded = (body.entries || [])
+          .filter(e => e.key)
+          .map(e => `  ${e.enabled === false ? '~' : ''}${e.key}: ${e.value || ''}`)
+          .join('\n');
+        return `body:form-urlencoded {\n${urlencoded}\n}`;
+      case 'form-data':
+        const formdata = (body.entries || [])
+          .filter(e => e.key)
+          .map(e => `  ${e.enabled === false ? '~' : ''}${e.key}: ${e.value || ''}`)
+          .join('\n');
+        return `body:multipart-form {\n${formdata}\n}`;
+      default:
+        return '';
+    }
+  }
+
+  /**
+   * Generate environment .bru file content
+   * @param {object} env - Environment object
+   * @returns {string} Environment .bru file content
+   */
+  generateEnvironmentBru(env) {
+    const vars = [];
+    const secretVars = [];
+
+    for (const v of env.variables || []) {
+      if (!v.key) continue;
+      const line = `  ${v.enabled === false ? '~' : ''}${v.key}: ${v.secret ? '' : v.value || ''}`;
+      if (v.secret) {
+        secretVars.push(line + ' // SECRET: re-enter after import');
+      } else {
+        vars.push(line);
+      }
+    }
+
+    let content = '';
+    if (vars.length > 0) {
+      content += `vars {\n${vars.join('\n')}\n}\n`;
+    }
+    if (secretVars.length > 0) {
+      content += `\nvars:secret {\n${secretVars.join('\n')}\n}\n`;
+    }
+
+    return content || 'vars {\n}\n';
+  }
+
+  /**
+   * Sanitize a file name for safe use in file system
+   * @param {string} name - Original name
+   * @returns {string} Sanitized file name
+   */
+  sanitizeFileName(name) {
+    return (name || 'untitled')
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '-')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 100) || 'untitled';
+  }
 }
 
 module.exports = { BrunoConverter };
