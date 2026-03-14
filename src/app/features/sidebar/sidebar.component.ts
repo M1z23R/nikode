@@ -16,7 +16,7 @@ import { WebSocketService } from '../../core/services/websocket.service';
 import { GraphQLService } from '../../core/services/graphql.service';
 import { EnvironmentService } from '../../core/services/environment.service';
 import { AuthService } from '../../core/services/auth.service';
-import { NewCollectionDialogComponent, NewCollectionDialogResult } from './dialogs/new-collection.dialog';
+import { AddCollectionDialogComponent, AddCollectionDialogResult } from './dialogs/open-collection.dialog';
 import { NewFolderDialogComponent } from './dialogs/new-folder.dialog';
 import { NewRequestDialogComponent, NewRequestDialogResult } from './dialogs/new-request.dialog';
 import { InputDialogComponent, InputDialogData } from '../../shared/dialogs/input.dialog';
@@ -54,12 +54,7 @@ import { createOpenRequest } from '../../core/models/request.model';
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
           </ui-button>
-          <ui-button variant="ghost" size="sm" (clicked)="openCollection()" title="Open Collection">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            </svg>
-          </ui-button>
-          <ui-button variant="ghost" size="sm" (clicked)="openNewDialog()" title="New Collection">
+          <ui-button variant="ghost" size="sm" (clicked)="addCollection()" title="Add Collection">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="5" x2="12" y2="19"/>
               <line x1="5" y1="12" x2="19" y2="12"/>
@@ -289,17 +284,16 @@ export class SidebarComponent {
     );
   }
 
-  async openCollection(): Promise<void> {
-    await this.collectionService.openWithDialog();
-  }
-
-  async openNewDialog(): Promise<void> {
-    const ref = this.dialogService.open<NewCollectionDialogComponent, void, NewCollectionDialogResult | undefined>(
-      NewCollectionDialogComponent
+  async addCollection(): Promise<void> {
+    const ref = this.dialogService.open<AddCollectionDialogComponent, void, AddCollectionDialogResult | undefined>(
+      AddCollectionDialogComponent
     );
     const result = await ref.afterClosed();
-    if (result) {
-      // If a template was selected, fetch its data
+
+    if (!result) return;
+
+    if (result.action === 'new') {
+      // Handle new collection creation
       let templateData: any = null;
       if (result.templateId) {
         try {
@@ -311,10 +305,115 @@ export class SidebarComponent {
         }
       }
 
-      if (result.type === 'cloud' && result.workspaceId) {
-        await this.unifiedCollectionService.createCloudCollection(result.workspaceId, result.name, templateData);
+      if (result.storageType === 'cloud' && result.workspaceId) {
+        await this.unifiedCollectionService.createCloudCollection(result.workspaceId, result.name!, templateData);
       } else if (result.path) {
-        await this.collectionService.createCollection(result.path, result.name, templateData);
+        await this.collectionService.createCollection(result.path, result.name!, templateData);
+      }
+    } else if (result.action === 'import') {
+      // Handle import based on format
+      await this.handleImport(result);
+    }
+  }
+
+  private async handleImport(result: AddCollectionDialogResult): Promise<void> {
+    const format = result.format! as 'openapi' | 'postman' | 'bruno';
+    const isCloud = result.storageType === 'cloud';
+
+    // Show appropriate picker based on format
+    if (format === 'bruno') {
+      // Folder picker for Bruno
+      const folderResult = await this.api.showOpenDialog({
+        title: 'Select Bruno Collection Folder',
+        properties: ['openDirectory']
+      });
+
+      if (isIpcError(folderResult) || folderResult.data.canceled || folderResult.data.filePaths.length === 0) {
+        return;
+      }
+
+      const sourcePath = folderResult.data.filePaths[0];
+      await this.importWithDestination(sourcePath, 'bruno', isCloud, result.workspaceId);
+    } else {
+      // File picker for OpenAPI/Postman
+      const fileResult = await this.api.showOpenDialog({
+        title: `Select ${format === 'openapi' ? 'OpenAPI' : 'Postman'} File`,
+        properties: ['openFile'],
+        filters: [
+          { name: 'Collection Files', extensions: ['json', 'yaml', 'yml'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+
+      if (isIpcError(fileResult) || fileResult.data.canceled || fileResult.data.filePaths.length === 0) {
+        return;
+      }
+
+      const sourcePath = fileResult.data.filePaths[0];
+
+      // Auto-detect if it's actually a .nikode.json file
+      if (sourcePath.endsWith('.nikode.json')) {
+        await this.collectionService.openCollection(sourcePath);
+        return;
+      }
+
+      await this.importWithDestination(sourcePath, format, isCloud, result.workspaceId);
+    }
+  }
+
+  private async importWithDestination(
+    sourcePath: string,
+    format: 'openapi' | 'postman' | 'bruno',
+    isCloud: boolean,
+    workspaceId?: string
+  ): Promise<void> {
+    if (isCloud && workspaceId) {
+      // For cloud: import to temp, then upload
+      const tempPath = `/tmp/nikode-import-${Date.now()}.nikode.json`;
+
+      let success = false;
+      if (format === 'openapi') {
+        const result = await this.collectionService.importOpenApi(sourcePath, tempPath);
+        success = result.success;
+      } else if (format === 'postman') {
+        success = await this.collectionService.importPostman(sourcePath, tempPath);
+      } else if (format === 'bruno') {
+        success = await this.collectionService.importBruno(sourcePath, tempPath);
+      }
+
+      if (success) {
+        // Read the imported collection and push to cloud
+        const col = this.collectionService.getCollection(tempPath);
+        if (col) {
+          await this.unifiedCollectionService.createCloudCollection(workspaceId, col.collection.name, col.collection);
+          await this.collectionService.closeCollection(tempPath);
+        }
+      }
+    } else {
+      // For local: show save dialog
+      const targetResult = await this.api.showSaveDialog({
+        title: 'Save Imported Collection As',
+        defaultPath: 'imported.nikode.json',
+        filters: [
+          { name: 'Nikode Collections', extensions: ['nikode.json'] }
+        ]
+      });
+
+      if (isIpcError(targetResult) || targetResult.data.canceled || !targetResult.data.filePath) {
+        return;
+      }
+
+      const targetPath = targetResult.data.filePath;
+
+      if (format === 'openapi') {
+        const result = await this.collectionService.importOpenApi(sourcePath, targetPath);
+        if (result.success) {
+          await this.collectionService.offerSchemaImport(result.schemas, result.collectionPath);
+        }
+      } else if (format === 'postman') {
+        await this.collectionService.importPostman(sourcePath, targetPath);
+      } else if (format === 'bruno') {
+        await this.collectionService.importBruno(sourcePath, targetPath);
       }
     }
   }

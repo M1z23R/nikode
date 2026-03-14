@@ -3,7 +3,6 @@ import { DialogService, ToastService } from '@m1z23r/ngx-ui';
 import { isIpcError, CollectionChangedEvent } from '@shared/ipc-types';
 import { ApiService } from './api.service';
 import { Collection, CollectionItem, CollectionSchema, OpenCollection, normalizeCollection } from '../models/collection.model';
-import { OpenCollectionDialogComponent, OpenCollectionDialogResult } from '../../features/sidebar/dialogs/open-collection.dialog';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/dialogs/confirm.dialog';
 
 @Injectable({ providedIn: 'root' })
@@ -375,59 +374,6 @@ export class CollectionService implements OnDestroy {
     return undefined;
   }
 
-  // Unified open/import method
-
-  /**
-   * Shows the unified Open Collection dialog and handles the selected mode.
-   * For "Open Folder": shows directory picker and opens the collection.
-   * For "Import File": shows file picker, detects format, and imports appropriately.
-   */
-  async openWithDialog(): Promise<boolean> {
-    // Step 1: Show unified dialog to select mode
-    const ref = this.dialogService.open<OpenCollectionDialogComponent, void, OpenCollectionDialogResult | undefined>(
-      OpenCollectionDialogComponent
-    );
-    const result = await ref.afterClosed();
-
-    if (!result) {
-      return false; // User cancelled
-    }
-
-    if (result.mode === 'folder') {
-      // Open File mode: show file picker for .nikode.json files
-      const fileResult = await this.api.showOpenDialog({
-        title: 'Open Collection File',
-        properties: ['openFile'],
-        filters: [
-          { name: 'Nikode Collections', extensions: ['nikode.json'] },
-          { name: 'All Files', extensions: ['*'] }
-        ]
-      });
-
-      if (isIpcError(fileResult) || fileResult.data.canceled || fileResult.data.filePaths.length === 0) {
-        return false;
-      }
-
-      return this.openCollection(fileResult.data.filePaths[0]);
-    } else {
-      // Import File mode: show file picker, detect format, import
-      const fileResult = await this.api.showOpenDialog({
-        title: 'Select File to Import',
-        properties: ['openFile'],
-        filters: [
-          { name: 'Collection Files', extensions: ['json', 'yaml', 'yml'] },
-          { name: 'All Files', extensions: ['*'] }
-        ]
-      });
-
-      if (isIpcError(fileResult) || fileResult.data.canceled || fileResult.data.filePaths.length === 0) {
-        return false;
-      }
-
-      const sourcePath = fileResult.data.filePaths[0];
-      return this.detectAndImport(sourcePath);
-    }
-  }
 
   /**
    * Detects the format of a file and imports it appropriately.
@@ -635,7 +581,7 @@ export class CollectionService implements OnDestroy {
     return { success: true, schemas: result.data.schemas ?? [], collectionPath: result.data.path };
   }
 
-  private async offerSchemaImport(schemas: CollectionSchema[], collectionPath: string): Promise<void> {
+  async offerSchemaImport(schemas: CollectionSchema[], collectionPath: string): Promise<void> {
     if (!schemas.length) return;
 
     const ref = this.dialogService.open<ConfirmDialogComponent, ConfirmDialogData, boolean>(
