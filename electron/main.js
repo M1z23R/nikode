@@ -542,6 +542,78 @@ ipcMain.handle(
   }),
 );
 
+// Export to Postman collection
+ipcMain.handle(
+  'export-postman',
+  wrapHandler(async (event, args) => {
+    const { collectionPath, targetPath } = args;
+    const fs = require('fs/promises');
+
+    // Read the Nikode collection
+    const collection = await fileService.readCollection(collectionPath);
+
+    // Convert to Postman format
+    const postmanCollection = postmanConverter.exportToPostman(collection);
+
+    // Write the file
+    await fs.writeFile(targetPath, JSON.stringify(postmanCollection, null, 2), 'utf-8');
+
+    return { filePath: targetPath };
+  }),
+);
+
+// Export Postman environment
+ipcMain.handle(
+  'export-postman-env',
+  wrapHandler(async (event, args) => {
+    const { collectionPath, envId, targetPath } = args;
+    const fs = require('fs/promises');
+
+    // Read the Nikode collection
+    const collection = await fileService.readCollection(collectionPath);
+
+    // Find the environment
+    const env = collection.environments?.find(e => e.id === envId);
+    if (!env) {
+      throw new Error(`Environment not found: ${envId}`);
+    }
+
+    // Convert to Postman environment format
+    const postmanEnv = postmanConverter.exportEnvironment(env);
+
+    // Write the file
+    await fs.writeFile(targetPath, JSON.stringify(postmanEnv, null, 2), 'utf-8');
+
+    return { filePath: targetPath };
+  }),
+);
+
+// Export to Bruno folder
+ipcMain.handle(
+  'export-bruno',
+  wrapHandler(async (event, args) => {
+    const { collectionPath, targetPath } = args;
+    const fs = require('fs/promises');
+
+    // Read the Nikode collection
+    const collection = await fileService.readCollection(collectionPath);
+
+    // Check if target folder exists
+    try {
+      await fs.access(targetPath);
+      // Folder exists - remove it for clean export
+      await fs.rm(targetPath, { recursive: true, force: true });
+    } catch {
+      // Folder doesn't exist, good to go
+    }
+
+    // Export to Bruno format
+    const stats = await brunoConverter.exportToBruno(collection, targetPath);
+
+    return { folderPath: targetPath, stats };
+  }),
+);
+
 // Detect file format
 ipcMain.handle(
   'detect-file-format',
