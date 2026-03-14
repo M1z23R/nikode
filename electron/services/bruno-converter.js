@@ -293,6 +293,85 @@ class BrunoConverter {
   }
 
   /**
+   * Convert Bruno script (bru.* / res.* API) to Nikode script (nk.* API)
+   * @param {string} script - Bruno script content
+   * @param {boolean} isPostScript - Whether this is a post-response script
+   * @returns {string} Converted Nikode script
+   */
+  convertScript(script, isPostScript = false) {
+    if (!script || !script.trim()) {
+      return script;
+    }
+
+    let converted = script;
+
+    // Convert bru.setVar -> nk.setEnv (Bruno setVar persists like Nikode setEnv)
+    converted = converted.replace(/\bbru\.setVar\s*\(/g, 'nk.setEnv(');
+
+    // Convert bru.getVar -> nk.getEnv
+    converted = converted.replace(/\bbru\.getVar\s*\(/g, 'nk.getEnv(');
+
+    // Convert bru.setEnvVar -> nk.setEnv
+    converted = converted.replace(/\bbru\.setEnvVar\s*\(/g, 'nk.setEnv(');
+
+    // Convert bru.getEnvVar -> nk.getEnv
+    converted = converted.replace(/\bbru\.getEnvVar\s*\(/g, 'nk.getEnv(');
+
+    // Convert req.getUrl() -> nk.request.url
+    converted = converted.replace(/\breq\.getUrl\s*\(\s*\)/g, 'nk.request.url');
+
+    // Convert req.getMethod() -> nk.request.method
+    converted = converted.replace(/\breq\.getMethod\s*\(\s*\)/g, 'nk.request.method');
+
+    // Convert req.getBody() -> nk.request.body
+    converted = converted.replace(/\breq\.getBody\s*\(\s*\)/g, 'nk.request.body');
+
+    // Convert req.getHeader(name) -> nk.request.headers[name]
+    converted = converted.replace(/\breq\.getHeader\s*\(\s*(['"`])([^'"`]+)\1\s*\)/g,
+      'nk.request.headers["$2"]');
+
+    // Convert req.getHeaders() -> nk.request.headers
+    converted = converted.replace(/\breq\.getHeaders\s*\(\s*\)/g, 'nk.request.headers');
+
+    // For post-response scripts, handle response object conversions
+    if (isPostScript) {
+      // Convert res.status -> nk.response.statusCode
+      converted = converted.replace(/\bres\.status\b/g, 'nk.response.statusCode');
+
+      // Convert res.statusText -> nk.response.statusText
+      converted = converted.replace(/\bres\.statusText\b/g, 'nk.response.statusText');
+
+      // Convert res.headers -> nk.response.headers
+      converted = converted.replace(/\bres\.headers\b/g, 'nk.response.headers');
+
+      // Convert res.getHeader(name) -> nk.response.headers[name]
+      converted = converted.replace(/\bres\.getHeader\s*\(\s*(['"`])([^'"`]+)\1\s*\)/g,
+        'nk.response.headers["$2"]');
+
+      // Convert res.responseTime -> nk.response.time
+      converted = converted.replace(/\bres\.responseTime\b/g, 'nk.response.time');
+
+      // Handle res.body - in Bruno it's parsed, in Nikode it's a string
+      // Check if res.body is used with property access (res.body.something)
+      if (/\bres\.body\s*\./.test(converted) || /\bres\.body\s*\[/.test(converted)) {
+        // Add a helper variable at the top to parse the body once
+        const bodyParseHelper = '// Auto-converted: Bruno res.body is pre-parsed, Nikode nk.response.body is a string\nconst __brunoBody = JSON.parse(nk.response.body);\n';
+
+        // Replace res.body with __brunoBody
+        converted = converted.replace(/\bres\.body\b/g, '__brunoBody');
+
+        // Prepend the helper
+        converted = bodyParseHelper + converted;
+      } else {
+        // Simple res.body usage - just wrap in JSON.parse
+        converted = converted.replace(/\bres\.body\b/g, 'JSON.parse(nk.response.body)');
+      }
+    }
+
+    return converted;
+  }
+
+  /**
    * Convert a parsed .bru file to a Nikode request item
    */
   convertRequest(content, fileName) {
@@ -338,11 +417,11 @@ class BrunoConverter {
       request.auth = this.convertAuth(parsed.auth);
     }
 
-    // Scripts
+    // Scripts - convert Bruno API to Nikode API
     if (parsed.script.pre || parsed.script.post) {
       request.scripts = {
-        pre: parsed.script.pre,
-        post: parsed.script.post
+        pre: this.convertScript(parsed.script.pre, false),
+        post: this.convertScript(parsed.script.post, true)
       };
     }
 
