@@ -62,6 +62,9 @@ export const IPC_CHANNELS = {
   IMPORT_POSTMAN: 'import-postman',
   IMPORT_POSTMAN_ENV: 'import-postman-env',
 
+  // Bruno import
+  IMPORT_BRUNO: 'import-bruno',
+
   // File format detection
   DETECT_FILE_FORMAT: 'detect-file-format',
 
@@ -213,6 +216,7 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.EXPORT_OPENAPI]: { filePath: string | null };
   [IPC_CHANNELS.IMPORT_POSTMAN]: { path: string; collection: Collection };
   [IPC_CHANNELS.IMPORT_POSTMAN_ENV]: { environment: Environment };
+  [IPC_CHANNELS.IMPORT_BRUNO]: { path: string; collection: any };
   [IPC_CHANNELS.DETECT_FILE_FORMAT]: FileFormat;
   [IPC_CHANNELS.AUTH_GET_TOKENS]: AuthTokens | null;
   [IPC_CHANNELS.AUTH_SAVE_TOKENS]: { status: 'ok' };

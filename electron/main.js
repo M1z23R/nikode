@@ -9,6 +9,7 @@ const { GraphQLClient } = require('./services/graphql-client');
 const { FileWatcherService } = require('./services/file-watcher');
 const { OpenApiConverter } = require('./services/openapi-converter');
 const { PostmanConverter } = require('./services/postman-converter');
+const { BrunoConverter } = require('./services/bruno-converter');
 const { WebSocketClient } = require('./services/websocket-client');
 const { TunnelClient } = require('./services/tunnel-client');
 const { wrapHandler } = require('./utils/ipc-helpers');
@@ -22,6 +23,7 @@ const graphqlClient = new GraphQLClient();
 const fileWatcher = new FileWatcherService();
 const openApiConverter = new OpenApiConverter();
 const postmanConverter = new PostmanConverter();
+const brunoConverter = new BrunoConverter();
 const webSocketClient = new WebSocketClient();
 const tunnelClient = new TunnelClient();
 
@@ -519,6 +521,24 @@ ipcMain.handle(
     const { sourcePath } = args;
     const environment = await postmanConverter.importEnvironment(sourcePath);
     return { environment };
+  }),
+);
+
+// Import Bruno collection
+ipcMain.handle(
+  'import-bruno',
+  wrapHandler(async (event, args) => {
+    const { sourcePath, targetPath } = args;
+    const collection = await brunoConverter.importFromBruno(sourcePath);
+
+    // Ensure target directory exists
+    const fs = require('fs/promises');
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+
+    // Write the collection
+    await fileService.writeCollection(targetPath, collection);
+    await secretsService.addRecentPath(targetPath);
+    return { path: targetPath, collection };
   }),
 );
 
