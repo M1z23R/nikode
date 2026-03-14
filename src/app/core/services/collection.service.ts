@@ -694,8 +694,8 @@ export class CollectionService implements OnDestroy {
     return true;
   }
 
-  async exportOpenApi(path: string): Promise<boolean> {
-    const result = await this.api.exportOpenApi(path);
+  async exportOpenApi(path: string, format: 'yaml' | 'json' = 'yaml'): Promise<boolean> {
+    const result = await this.api.exportOpenApi(path, format);
     if (isIpcError(result)) {
       this.toastService.error(result.error.userMessage);
       return false;

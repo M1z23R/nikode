@@ -27,7 +27,7 @@ export interface NewRequestDialogResult {
   selector: 'app-new-request-dialog',
   imports: [ModalComponent, ButtonComponent, InputComponent, SelectComponent, OptionComponent, TextareaComponent],
   template: `
-    <ui-modal title="New Request" size="md">
+    <ui-modal title="New Request" size="lg">
       <div class="mode-tabs">
         <button
           class="mode-tab"

@@ -563,4 +563,10 @@ ui-split.ui-split--vertical > .ui-split__gutter {
   }
 }
 
+// TODO: @Dimi Fix later
+// ngx-ui modal size classes only set max-width but not width,
+// so modals shrink to content instead of using the size preset
+.ui-modal__container {
+  width: 100%;
+}
 

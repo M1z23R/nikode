@@ -14,7 +14,7 @@ import { AuthService } from '../../core/services/auth.service';
   selector: 'app-tunnel-dialog',
   imports: [ModalComponent, ButtonComponent, InputComponent, TooltipDirective],
   template: `
-    <ui-modal title="Webhook Tunnels" size="md">
+    <ui-modal title="Webhook Tunnels" size="lg">
       <div class="tunnel-content">
         @if (!authService.isAuthenticated()) {
           <div class="warning-banner">

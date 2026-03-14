@@ -21,7 +21,7 @@ export interface ExportEnvironmentResult {
   selector: 'app-export-environment-dialog',
   imports: [ModalComponent, ButtonComponent, CheckboxComponent],
   template: `
-    <ui-modal title="Export Environment" size="sm">
+    <ui-modal title="Export Environment" size="md">
       <p class="dialog-description">
         Export "{{ data.environmentName }}" to a file.
       </p>

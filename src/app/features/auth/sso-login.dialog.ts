@@ -20,7 +20,7 @@ export interface SsoLoginDialogData {
   selector: 'app-sso-login-dialog',
   imports: [ModalComponent, ButtonComponent, InputComponent, SpinnerComponent],
   template: `
-    <ui-modal [title]="'Sign in with ' + providerName()" size="sm">
+    <ui-modal [title]="'Sign in with ' + providerName()" size="lg">
       <div class="sso-content">
         <!-- Loading state -->
         <div class="loading-section">

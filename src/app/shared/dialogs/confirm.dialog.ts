@@ -19,7 +19,7 @@ export interface ConfirmDialogData {
   selector: 'app-confirm-dialog',
   imports: [ModalComponent, ButtonComponent],
   template: `
-    <ui-modal [title]="data.title" size="sm">
+    <ui-modal [title]="data.title" size="md">
       <p class="message">{{ data.message }}</p>
 
       <ng-container footer>

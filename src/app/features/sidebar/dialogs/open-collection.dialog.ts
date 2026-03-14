@@ -42,7 +42,7 @@ export interface AddCollectionDialogResult {
     OptionComponent
   ],
   template: `
-    <ui-modal title="Add Collection" size="sm">
+    <ui-modal title="Add Collection" size="md">
       <!-- Storage Type Toggle -->
       <div class="storage-toggle">
         <button

@@ -11,7 +11,7 @@ import {
   selector: 'app-new-folder-dialog',
   imports: [ModalComponent, ButtonComponent, InputComponent],
   template: `
-    <ui-modal title="New Folder" size="sm">
+    <ui-modal title="New Folder" size="md">
       <ui-input
         label="Folder Name"
         [(value)]="name"

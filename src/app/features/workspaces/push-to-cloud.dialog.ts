@@ -27,7 +27,7 @@ export interface PushToCloudDialogData {
   selector: 'app-push-to-cloud-dialog',
   imports: [ModalComponent, ButtonComponent, InputComponent, SelectComponent, OptionComponent],
   template: `
-    <ui-modal title="Push to Cloud" size="sm">
+    <ui-modal title="Push to Cloud" size="md">
       <div class="form-group">
         <ui-select label="Workspace" [(value)]="selectedWorkspaceId">
           @for (workspace of workspaces(); track workspace.id) {

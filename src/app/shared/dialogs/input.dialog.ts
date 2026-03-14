@@ -20,7 +20,7 @@ export interface InputDialogData {
   selector: 'app-input-dialog',
   imports: [ModalComponent, ButtonComponent, InputComponent],
   template: `
-    <ui-modal [title]="data.title" size="sm">
+    <ui-modal [title]="data.title" size="md">
       <ui-input
         [label]="data.label"
         [(value)]="value"

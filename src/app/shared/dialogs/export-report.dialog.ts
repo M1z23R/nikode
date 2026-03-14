@@ -20,7 +20,7 @@ export interface ExportReportResult {
   selector: 'app-export-report-dialog',
   imports: [ModalComponent, ButtonComponent, RadioGroupComponent, RadioComponent, CheckboxComponent],
   template: `
-    <ui-modal title="Export Report" size="sm">
+    <ui-modal title="Export Report" size="md">
       <p class="dialog-description">
         Export the test run results to a file.
       </p>

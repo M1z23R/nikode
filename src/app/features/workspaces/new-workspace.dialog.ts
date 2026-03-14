@@ -13,7 +13,7 @@ import { Workspace } from '../../core/models/cloud.model';
   selector: 'app-new-workspace-dialog',
   imports: [ModalComponent, ButtonComponent, InputComponent],
   template: `
-    <ui-modal title="New Workspace" size="sm">
+    <ui-modal title="New Workspace" size="md">
       <div class="form-group">
         <ui-input
           label="Workspace Name"

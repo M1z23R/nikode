@@ -24,7 +24,7 @@ export interface PublishTemplateDialogResult {
   selector: 'app-publish-template-dialog',
   imports: [ModalComponent, ButtonComponent, InputComponent],
   template: `
-    <ui-modal title="Publish as Template" size="sm">
+    <ui-modal title="Publish as Template" size="md">
       <p class="dialog-description">
         Publish "{{ data.collectionName }}" as a cloud template for all users.
       </p>
