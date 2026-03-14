@@ -28,6 +28,7 @@ const ALLOWED_CHANNELS = [
   'export-openapi',
   'import-postman',
   'import-postman-env',
+  'import-bruno',
   'detect-file-format',
   'auth-get-tokens',
   'auth-save-tokens',
