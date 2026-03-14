@@ -176,9 +176,9 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.IMPORT_POSTMAN]: { sourcePath: string; targetPath: string };
   [IPC_CHANNELS.IMPORT_POSTMAN_ENV]: { sourcePath: string; collectionPath: string };
   [IPC_CHANNELS.IMPORT_BRUNO]: { sourcePath: string; targetPath: string };
-  [IPC_CHANNELS.EXPORT_POSTMAN]: { collectionPath: string; targetPath: string };
-  [IPC_CHANNELS.EXPORT_POSTMAN_ENV]: { collectionPath: string; envId: string; targetPath: string };
-  [IPC_CHANNELS.EXPORT_BRUNO]: { collectionPath: string; targetPath: string };
+  [IPC_CHANNELS.EXPORT_POSTMAN]: { collection: Collection; targetPath: string };
+  [IPC_CHANNELS.EXPORT_POSTMAN_ENV]: { environment: Environment; targetPath: string };
+  [IPC_CHANNELS.EXPORT_BRUNO]: { collection: Collection; targetPath: string };
   [IPC_CHANNELS.DETECT_FILE_FORMAT]: string; // path
   [IPC_CHANNELS.AUTH_GET_TOKENS]: void;
   [IPC_CHANNELS.AUTH_SAVE_TOKENS]: AuthTokens;

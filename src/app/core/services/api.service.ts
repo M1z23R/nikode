@@ -93,16 +93,16 @@ export class ApiService {
     return window.electronAPI.invoke(IPC_CHANNELS.IMPORT_BRUNO, { sourcePath, targetPath });
   }
 
-  async exportPostman(collectionPath: string, targetPath: string): Promise<IpcResult<ExportResult>> {
-    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_POSTMAN, { collectionPath, targetPath });
+  async exportPostman(collection: Collection, targetPath: string): Promise<IpcResult<ExportResult>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_POSTMAN, { collection, targetPath });
   }
 
-  async exportPostmanEnv(collectionPath: string, envId: string, targetPath: string): Promise<IpcResult<ExportResult>> {
-    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_POSTMAN_ENV, { collectionPath, envId, targetPath });
+  async exportPostmanEnv(environment: Environment, targetPath: string): Promise<IpcResult<ExportResult>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_POSTMAN_ENV, { environment, targetPath });
   }
 
-  async exportBruno(collectionPath: string, targetPath: string): Promise<IpcResult<BrunoExportResult>> {
-    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_BRUNO, { collectionPath, targetPath });
+  async exportBruno(collection: Collection, targetPath: string): Promise<IpcResult<BrunoExportResult>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_BRUNO, { collection, targetPath });
   }
 
   async detectFileFormat(path: string): Promise<IpcResult<FileFormat>> {

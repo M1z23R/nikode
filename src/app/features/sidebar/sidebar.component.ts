@@ -450,10 +450,10 @@ export class SidebarComponent {
         await this.collectionService.exportOpenApi(nodeData.collectionPath, result.options.openapiFormat);
         break;
       case 'postman':
-        await this.exportToPostman(nodeData.collectionPath, col.collection, result.options.includeEnvironments);
+        await this.exportToPostman(col.collection, result.options.includeEnvironments);
         break;
       case 'bruno':
-        await this.exportToBruno(nodeData.collectionPath, col.collection);
+        await this.exportToBruno(col.collection);
         break;
     }
   }
@@ -472,7 +472,7 @@ export class SidebarComponent {
     return checkItems(collection.items || []);
   }
 
-  private async exportToPostman(collectionPath: string, collection: Collection, includeEnv?: boolean): Promise<void> {
+  private async exportToPostman(collection: Collection, includeEnv?: boolean): Promise<void> {
     const defaultFileName = collection.name.toLowerCase().replace(/\s+/g, '-') + '.postman_collection.json';
 
     const result = await this.api.showSaveDialog({
@@ -483,7 +483,7 @@ export class SidebarComponent {
 
     if (isIpcError(result) || result.data.canceled || !result.data.filePath) return;
 
-    const exportResult = await this.api.exportPostman(collectionPath, result.data.filePath);
+    const exportResult = await this.api.exportPostman(collection, result.data.filePath);
     if (isIpcError(exportResult)) {
       this.toastService.error('Export failed: ' + exportResult.error.userMessage);
       return;
@@ -500,7 +500,7 @@ export class SidebarComponent {
         });
 
         if (!isIpcError(envResult) && !envResult.data.canceled && envResult.data.filePath) {
-          await this.api.exportPostmanEnv(collectionPath, env.id, envResult.data.filePath);
+          await this.api.exportPostmanEnv(env, envResult.data.filePath);
         }
       }
     }
@@ -508,7 +508,7 @@ export class SidebarComponent {
     this.toastService.success('Exported to Postman format');
   }
 
-  private async exportToBruno(collectionPath: string, collection: Collection): Promise<void> {
+  private async exportToBruno(collection: Collection): Promise<void> {
     const result = await this.api.showOpenDialog({
       title: 'Select folder for Bruno export',
       properties: ['openDirectory', 'createDirectory']
@@ -519,7 +519,7 @@ export class SidebarComponent {
     const targetFolder = result.data.filePaths[0];
     const brunoFolder = `${targetFolder}/${collection.name.replace(/\s+/g, '-')}`;
 
-    const exportResult = await this.api.exportBruno(collectionPath, brunoFolder);
+    const exportResult = await this.api.exportBruno(collection, brunoFolder);
     if (isIpcError(exportResult)) {
       this.toastService.error('Export failed: ' + exportResult.error.userMessage);
       return;

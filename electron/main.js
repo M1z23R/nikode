@@ -546,11 +546,8 @@ ipcMain.handle(
 ipcMain.handle(
   'export-postman',
   wrapHandler(async (event, args) => {
-    const { collectionPath, targetPath } = args;
+    const { collection, targetPath } = args;
     const fs = require('fs/promises');
-
-    // Read the Nikode collection
-    const collection = await fileService.readCollection(collectionPath);
 
     // Convert to Postman format
     const postmanCollection = postmanConverter.exportToPostman(collection);
@@ -566,20 +563,11 @@ ipcMain.handle(
 ipcMain.handle(
   'export-postman-env',
   wrapHandler(async (event, args) => {
-    const { collectionPath, envId, targetPath } = args;
+    const { environment, targetPath } = args;
     const fs = require('fs/promises');
 
-    // Read the Nikode collection
-    const collection = await fileService.readCollection(collectionPath);
-
-    // Find the environment
-    const env = collection.environments?.find(e => e.id === envId);
-    if (!env) {
-      throw new Error(`Environment not found: ${envId}`);
-    }
-
     // Convert to Postman environment format
-    const postmanEnv = postmanConverter.exportEnvironment(env);
+    const postmanEnv = postmanConverter.exportEnvironment(environment);
 
     // Write the file
     await fs.writeFile(targetPath, JSON.stringify(postmanEnv, null, 2), 'utf-8');
@@ -592,11 +580,8 @@ ipcMain.handle(
 ipcMain.handle(
   'export-bruno',
   wrapHandler(async (event, args) => {
-    const { collectionPath, targetPath } = args;
+    const { collection, targetPath } = args;
     const fs = require('fs/promises');
-
-    // Read the Nikode collection
-    const collection = await fileService.readCollection(collectionPath);
 
     // Check if target folder exists
     try {
