@@ -309,13 +309,111 @@ class PostmanConverter {
         : (event.script?.exec || '');
 
       if (event.listen === 'prerequest') {
-        scripts.pre = source;
+        scripts.pre = this.convertScript(source, false);
       } else if (event.listen === 'test') {
-        scripts.post = source;
+        scripts.post = this.convertScript(source, true);
       }
     }
 
     return scripts;
+  }
+
+  /**
+   * Convert Postman script (pm.* API) to Nikode script (nk.* API)
+   * @param {string} script - Postman script content
+   * @param {boolean} isPostScript - Whether this is a post-response (test) script
+   * @returns {string} Converted Nikode script
+   */
+  convertScript(script, isPostScript = false) {
+    if (!script || !script.trim()) {
+      return script;
+    }
+
+    let converted = script;
+
+    // Convert pm.environment.set -> nk.setEnv
+    converted = converted.replace(/\bpm\.environment\.set\s*\(/g, 'nk.setEnv(');
+
+    // Convert pm.environment.get -> nk.getEnv
+    converted = converted.replace(/\bpm\.environment\.get\s*\(/g, 'nk.getEnv(');
+
+    // Convert pm.collectionVariables.set -> nk.setEnv
+    converted = converted.replace(/\bpm\.collectionVariables\.set\s*\(/g, 'nk.setEnv(');
+
+    // Convert pm.collectionVariables.get -> nk.getEnv
+    converted = converted.replace(/\bpm\.collectionVariables\.get\s*\(/g, 'nk.getEnv(');
+
+    // Convert pm.variables.set -> nk.setEnv
+    converted = converted.replace(/\bpm\.variables\.set\s*\(/g, 'nk.setEnv(');
+
+    // Convert pm.variables.get -> nk.getEnv
+    converted = converted.replace(/\bpm\.variables\.get\s*\(/g, 'nk.getEnv(');
+
+    // Convert pm.request.url -> nk.request.url
+    converted = converted.replace(/\bpm\.request\.url\b/g, 'nk.request.url');
+
+    // Convert pm.request.method -> nk.request.method
+    converted = converted.replace(/\bpm\.request\.method\b/g, 'nk.request.method');
+
+    // Convert pm.request.body -> nk.request.body
+    converted = converted.replace(/\bpm\.request\.body\b/g, 'nk.request.body');
+
+    // Convert pm.request.headers.get(name) -> nk.request.headers[name]
+    converted = converted.replace(/\bpm\.request\.headers\.get\s*\(\s*(['"`])([^'"`]+)\1\s*\)/g,
+      'nk.request.headers["$2"]');
+
+    // Convert pm.request.headers -> nk.request.headers
+    converted = converted.replace(/\bpm\.request\.headers\b/g, 'nk.request.headers');
+
+    // Convert pm.test -> nk.test
+    converted = converted.replace(/\bpm\.test\s*\(/g, 'nk.test(');
+
+    // For post-response scripts, handle response object conversions
+    if (isPostScript) {
+      // Convert pm.response.code -> nk.response.statusCode
+      converted = converted.replace(/\bpm\.response\.code\b/g, 'nk.response.statusCode');
+
+      // Convert pm.response.status -> nk.response.statusText
+      converted = converted.replace(/\bpm\.response\.status\b/g, 'nk.response.statusText');
+
+      // Convert pm.response.responseTime -> nk.response.time
+      converted = converted.replace(/\bpm\.response\.responseTime\b/g, 'nk.response.time');
+
+      // Convert pm.response.headers.get(name) -> nk.response.headers[name]
+      converted = converted.replace(/\bpm\.response\.headers\.get\s*\(\s*(['"`])([^'"`]+)\1\s*\)/g,
+        'nk.response.headers["$2"]');
+
+      // Convert pm.response.headers -> nk.response.headers
+      converted = converted.replace(/\bpm\.response\.headers\b/g, 'nk.response.headers');
+
+      // Convert pm.response.text() -> nk.response.body
+      converted = converted.replace(/\bpm\.response\.text\s*\(\s*\)/g, 'nk.response.body');
+
+      // Handle pm.response.json() - returns parsed body
+      // Check if it's used with property access or assigned
+      if (/\bpm\.response\.json\s*\(\s*\)/.test(converted)) {
+        // Add a helper variable at the top to parse the body once
+        const bodyParseHelper = '// Auto-converted: pm.response.json() returns parsed object\nconst __pmResponseJson = JSON.parse(nk.response.body);\n';
+
+        // Replace pm.response.json() with __pmResponseJson
+        converted = converted.replace(/\bpm\.response\.json\s*\(\s*\)/g, '__pmResponseJson');
+
+        // Prepend the helper
+        converted = bodyParseHelper + converted;
+      }
+    }
+
+    // Convert pm.expect to nk.assert - this is a partial conversion
+    // pm.expect uses Chai-style assertions which are more complex
+    // We'll add a comment noting manual review may be needed
+    if (/\bpm\.expect\s*\(/.test(converted)) {
+      const expectWarning = '// NOTE: pm.expect() uses Chai assertions. Review and convert to nk.assert() manually.\n';
+      if (!converted.includes(expectWarning)) {
+        converted = expectWarning + converted;
+      }
+    }
+
+    return converted;
   }
 
   /**
