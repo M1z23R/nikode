@@ -87,6 +87,10 @@ export class ApiService {
     return window.electronAPI.invoke(IPC_CHANNELS.IMPORT_POSTMAN_ENV, { sourcePath, collectionPath });
   }
 
+  async importBruno(sourcePath: string, targetPath: string): Promise<IpcResult<{ path: string; collection: any }>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.IMPORT_BRUNO, { sourcePath, targetPath });
+  }
+
   async detectFileFormat(path: string): Promise<IpcResult<FileFormat>> {
     return window.electronAPI.invoke(IPC_CHANNELS.DETECT_FILE_FORMAT, path);
   }
