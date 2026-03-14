@@ -8,8 +8,7 @@ Add export functionality for Postman and Bruno formats, plus bi-directional scri
 
 1. Export Nikode collections to Postman Collection v2.1 format
 2. Export Nikode collections to Bruno folder structure
-3. Improve existing OpenAPI export
-4. Bi-directional script conversion (common subset only, unsupported code commented out)
+3. Bi-directional script conversion (common subset only, unsupported code commented out)
 
 ## Non-Goals
 
@@ -19,8 +18,10 @@ Add export functionality for Postman and Bruno formats, plus bi-directional scri
 
 ## Phases
 
-- **Phase 1**: Export functionality with script passthrough (warning header)
-- **Phase 2**: Smart script conversion for common API subset
+- **Phase 1**: Export functionality with script passthrough (warning header) — shippable increment
+- **Phase 2**: Smart script conversion for common API subset — enhancement
+
+Each phase is independently valuable. Phase 1 enables exports immediately; Phase 2 improves script portability.
 
 ---
 
@@ -111,8 +112,10 @@ Add export functionality for Postman and Bruno formats, plus bi-directional scri
 **Layout:** Card-based grid (matching import dialog style)
 
 - **Nikode** card → File picker → Save `.nikode.json`
-- **Postman** card → File picker → Save `.postman_collection.json` + optional environment file
+- **Postman** card → File picker → Save `.postman_collection.json` + checkbox for environment file
 - **Bruno** card → Folder picker → Create folder with `.bru` files
+
+**Environment export:** All environments are exported automatically. For Postman, a checkbox allows creating a separate `.postman_environment.json` file. For Bruno, environments go in the `environments/` subfolder.
 - **OpenAPI** card → File picker (JSON/YAML option) → Save spec file
 
 **Script warning:** All formats show warning if scripts exist:
@@ -121,6 +124,10 @@ Add export functionality for Postman and Bruno formats, plus bi-directional scri
 ---
 
 ## Script Conversion (Phase 2)
+
+Script conversion is bi-directional. The mappings below work in both directions:
+- **Export**: `nk.*` → `pm.*` or `bru.*`
+- **Import**: `pm.*` or `bru.*` → `nk.*` (enhances existing import)
 
 ### Common Subset Mapping
 
@@ -164,7 +171,7 @@ When converting FROM `nk.*`:
 | Scenario | Handling |
 |----------|----------|
 | Invalid file path / no write permission | Error dialog, pick different location |
-| Bruno folder already exists | Prompt: overwrite / pick new location |
+| Bruno folder already exists | Prompt: overwrite (delete & recreate) / pick new location |
 | Empty collection | Allow export, create minimal valid structure |
 
 ### Data Edge Cases
