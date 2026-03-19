@@ -284,6 +284,18 @@ export class WebSocketService implements OnDestroy {
     );
   }
 
+  renameOpenItem(collectionPath: string, itemId: string, newName: string): void {
+    const connectionId = `${collectionPath}:${itemId}`;
+    const conn = this.openConnections().find(c => c.id === connectionId);
+    if (conn) {
+      this.openConnections.update(conns =>
+        conns.map(c => c.id === connectionId ? { ...c, name: newName } : c)
+      );
+      const label = conn.dirty ? `${newName} *` : newName;
+      this.tabsService.updateLabel(connectionId, label);
+    }
+  }
+
   saveConnection(connectionId: string): void {
     const conn = this.getConnection(connectionId);
     if (!conn) return;

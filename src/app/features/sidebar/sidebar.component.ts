@@ -671,6 +671,10 @@ export class SidebarComponent {
     const newName = await ref.afterClosed();
     if (newName && target.itemId) {
       this.unifiedCollectionService.updateItem(target.collectionPath, target.itemId, { name: newName });
+      // Sync the name to any open tab so saves don't revert the rename
+      this.workspace.renameOpenItem(target.collectionPath, target.itemId, newName);
+      this.webSocketService.renameOpenItem(target.collectionPath, target.itemId, newName);
+      this.graphqlService.renameOpenItem(target.collectionPath, target.itemId, newName);
     }
   }
 

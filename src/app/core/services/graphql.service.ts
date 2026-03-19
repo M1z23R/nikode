@@ -183,6 +183,18 @@ export class GraphQLService {
     );
   }
 
+  renameOpenItem(collectionPath: string, itemId: string, newName: string): void {
+    const requestId = `${collectionPath}:${itemId}`;
+    const request = this.openRequests().find(r => r.id === requestId);
+    if (request) {
+      this.openRequests.update(reqs =>
+        reqs.map(r => r.id === requestId ? { ...r, name: newName } : r)
+      );
+      const label = request.dirty ? `${newName} *` : newName;
+      this.tabsService.updateLabel(requestId, label);
+    }
+  }
+
   saveRequest(requestId: string): void {
     const request = this.getRequest(requestId);
     if (!request) return;

@@ -172,9 +172,20 @@ export class ResponseTabComponent {
     }
   });
 
+  contentDispositionFilename = computed(() => {
+    const headers = this.response().headers;
+    const cd = headers['content-disposition'] || headers['Content-Disposition'] || '';
+    if (!cd) return null;
+    // Match filename*= (RFC 5987) or filename=
+    const utf8Match = cd.match(/filename\*=(?:UTF-8''|utf-8'')([^;\s]+)/i);
+    if (utf8Match) return decodeURIComponent(utf8Match[1]);
+    const match = cd.match(/filename=["']?([^"';\s]+)["']?/i);
+    return match ? match[1] : null;
+  });
+
   showDownload = computed(() => {
     const category = this.contentCategory();
-    return category === 'binary' || category === 'image';
+    return category === 'binary' || category === 'image' || this.contentDispositionFilename() !== null;
   });
 
   copyBody(): void {
@@ -206,8 +217,13 @@ export class ResponseTabComponent {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const ext = ct.subtype || 'bin';
-    link.download = `response.${ext}`;
+    const cdFilename = this.contentDispositionFilename();
+    if (cdFilename) {
+      link.download = cdFilename;
+    } else {
+      const ext = ct.subtype || 'bin';
+      link.download = `response.${ext}`;
+    }
     link.click();
     URL.revokeObjectURL(url);
   }
