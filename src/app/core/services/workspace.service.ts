@@ -10,7 +10,7 @@ import { ScriptExecutorService, ScriptRequest } from './script-executor.service'
 import { OpenRequest, createOpenRequest, ProxyRequest, ProxyResponse } from '../models/request.model';
 import { CollectionItem, KeyValue, RequestAuth, RequestBody, Scripts } from '../models/collection.model';
 import { ResolvedVariables } from '../models/environment.model';
-import { resolveVariables } from '../utils/variable-resolver';
+import { resolveVariables, injectAuth } from '../utils/variable-resolver';
 import { RequestTabContentComponent, RequestTabData } from '../../features/request-editor/request-tab-content.component';
 import { SettingsService } from './settings.service';
 import { CookieJarService } from './cookie-jar.service';
@@ -471,42 +471,7 @@ export class WorkspaceService {
     }
 
     // Inject auth
-    if (request.auth && request.auth.type !== 'none') {
-      switch (request.auth.type) {
-        case 'basic': {
-          const username = resolveVariables(request.auth.basic?.username || '', variables);
-          const password = resolveVariables(request.auth.basic?.password || '', variables);
-          headers['Authorization'] = 'Basic ' + btoa(username + ':' + password);
-          break;
-        }
-        case 'bearer': {
-          const token = resolveVariables(request.auth.bearer?.token || '', variables);
-          const prefix = resolveVariables(request.auth.bearer?.prefix || 'Bearer', variables);
-          headers['Authorization'] = prefix + ' ' + token;
-          break;
-        }
-        case 'api-key': {
-          const key = resolveVariables(request.auth.apiKey?.key || '', variables);
-          const value = resolveVariables(request.auth.apiKey?.value || '', variables);
-          if (key) {
-            if (request.auth.apiKey?.addTo === 'query') {
-              const separator = resolvedUrl.includes('?') ? '&' : '?';
-              resolvedUrl = resolvedUrl + separator + encodeURIComponent(key) + '=' + encodeURIComponent(value);
-            } else {
-              headers[key] = value;
-            }
-          }
-          break;
-        }
-        case 'oauth2': {
-          const accessToken = resolveVariables(request.auth.oauth2?.accessToken || '', variables);
-          if (accessToken) {
-            headers['Authorization'] = 'Bearer ' + accessToken;
-          }
-          break;
-        }
-      }
-    }
+    resolvedUrl = injectAuth(request.auth, headers, resolvedUrl, variables);
 
     return {
       method: request.method,

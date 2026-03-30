@@ -18,7 +18,7 @@ import {
   AssertionResult,
   createDefaultConfig,
 } from '../models/runner.model';
-import { resolveVariables } from '../utils/variable-resolver';
+import { resolveVariables, injectAuth } from '../utils/variable-resolver';
 import { ResolvedVariables } from '../models/environment.model';
 import { GraphQLRequest } from '../models/graphql.model';
 
@@ -405,6 +405,9 @@ export class RunnerService {
         }
       }
 
+      // Inject auth
+      resolvedUrl = injectAuth(item.auth, headers, resolvedUrl, mergedVariables);
+
       // Build body
       let body: string | undefined;
       if (item.body) {
@@ -538,7 +541,7 @@ export class RunnerService {
     mergedVariables: ResolvedVariables,
     startTime: number
   ): Promise<RunnerRequestResult> {
-    const resolvedUrl = resolveVariables(item.url || '', mergedVariables);
+    let resolvedUrl = resolveVariables(item.url || '', mergedVariables);
 
     const headers: Record<string, string> = {};
     for (const h of (item.headers || [])) {
@@ -546,6 +549,9 @@ export class RunnerService {
         headers[h.key] = resolveVariables(h.value, mergedVariables);
       }
     }
+
+    // Inject auth
+    resolvedUrl = injectAuth(item.auth, headers, resolvedUrl, mergedVariables);
 
     const gqlRequest: GraphQLRequest = {
       url: resolvedUrl,
