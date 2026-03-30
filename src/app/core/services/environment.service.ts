@@ -202,6 +202,40 @@ export class EnvironmentService {
     });
   }
 
+  duplicateEnvironment(collectionPath: string, sourceEnvId: string, newName: string): string | undefined {
+    const col = this.getUnifiedCollection(collectionPath);
+    if (!col) return undefined;
+
+    const environments = col.collection.environments ?? [];
+    const sourceEnv = environments.find(e => e.id === sourceEnvId);
+    if (!sourceEnv) return undefined;
+
+    const newEnvId = `env-${Date.now()}`;
+    const newEnv: Environment = {
+      id: newEnvId,
+      name: newName,
+      variables: sourceEnv.variables.map(v => ({ ...v }))
+    };
+
+    this.unifiedCollectionService.updateCollection(collectionPath, {
+      ...col.collection,
+      environments: [...environments, newEnv]
+    });
+
+    // Copy secrets from source environment
+    const secrets = this.getSecrets(collectionPath);
+    const sourceSecrets = secrets?.[sourceEnvId];
+    if (sourceSecrets && Object.keys(sourceSecrets).length > 0) {
+      const updatedSecrets: Secrets = {
+        ...(secrets || {}),
+        [newEnvId]: { ...sourceSecrets }
+      };
+      this.saveSecrets(collectionPath, updatedSecrets);
+    }
+
+    return newEnvId;
+  }
+
   updateEnvironment(collectionPath: string, envId: string, updates: Partial<Environment>): void {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;

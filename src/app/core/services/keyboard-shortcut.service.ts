@@ -47,7 +47,7 @@ export class KeyboardShortcutService implements OnDestroy {
       const matchedShortcut = shortcuts.find(s => this.normalizeKeys(s.keys) === shortcutKey);
 
       // Only allow save, send, and close shortcuts in input elements
-      if (!matchedShortcut || !['saveRequest', 'sendRequest', 'closeTab', 'saveCollection'].includes(matchedShortcut.action)) {
+      if (!matchedShortcut || !['saveRequest', 'sendRequest', 'closeTab', 'saveCollection', 'nextTab', 'previousTab'].includes(matchedShortcut.action)) {
         return;
       }
     }

@@ -9,7 +9,9 @@ export type ShortcutAction =
   | 'openSettings'
   | 'toggleDarkMode'
   | 'closeTab'
-  | 'toggleLayout';
+  | 'toggleLayout'
+  | 'nextTab'
+  | 'previousTab';
 
 export type EditorLayout = 'horizontal' | 'vertical';
 
@@ -48,6 +50,8 @@ export const DEFAULT_SHORTCUTS: KeyboardShortcut[] = [
   { action: 'openSettings', keys: 'ctrl+,', label: 'Open Settings', description: 'Open the settings dialog' },
   { action: 'toggleDarkMode', keys: 'ctrl+shift+d', label: 'Toggle Dark Mode', description: 'Switch between light and dark theme' },
   { action: 'closeTab', keys: 'ctrl+w', label: 'Close Tab', description: 'Close the current tab' },
+  { action: 'nextTab', keys: 'ctrl+tab', label: 'Next Tab', description: 'Switch to the next tab' },
+  { action: 'previousTab', keys: 'ctrl+shift+tab', label: 'Previous Tab', description: 'Switch to the previous tab' },
 ];
 
 const DEFAULT_SETTINGS: AppSettings = {

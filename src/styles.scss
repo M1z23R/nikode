@@ -498,7 +498,16 @@ ui-dynamic-tabs {
 
   .ui-tabs__list {
     flex-shrink: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
+
+  .ui-tabs--default .ui-tabs__tab--active {
+    background-color: color-mix(in srgb, var(--ui-primary) 10%, transparent);
+    border-bottom-color: transparent !important;
+    color: var(--ui-text);
+  }
+
 
   .ui-tabs__panels {
     flex: 1;

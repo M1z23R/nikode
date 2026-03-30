@@ -4,6 +4,7 @@ import { CollectionService } from './core/services/collection.service';
 import { UnifiedCollectionService } from './core/services/unified-collection.service';
 import { WorkspaceService } from './core/services/workspace.service';
 import { KeyboardShortcutService } from './core/services/keyboard-shortcut.service';
+import { TabNavigationService } from './core/services/tab-navigation.service';
 import { SettingsService } from './core/services/settings.service';
 import { AuthService } from './core/services/auth.service';
 import { SidebarComponent } from './features/sidebar/sidebar.component';
@@ -152,6 +153,7 @@ export class App implements OnInit, OnDestroy {
   private keyboardShortcutService = inject(KeyboardShortcutService);
   private dialogService = inject(DialogService);
   private tabsService = inject(TabsService);
+  private tabNavigationService = inject(TabNavigationService);
   protected auth = inject(AuthService);
 
   consoleVisible = signal(false);
@@ -232,6 +234,14 @@ export class App implements OnInit, OnDestroy {
     this.keyboardShortcutService.registerHandler('toggleLayout', () => {
       this.settingsService.toggleEditorLayout();
     });
+
+    this.keyboardShortcutService.registerHandler('nextTab', () => {
+      this.tabNavigationService.goToNextTab();
+    });
+
+    this.keyboardShortcutService.registerHandler('previousTab', () => {
+      this.tabNavigationService.goToPreviousTab();
+    });
   }
 
   private unregisterKeyboardShortcuts(): void {
@@ -244,5 +254,7 @@ export class App implements OnInit, OnDestroy {
     this.keyboardShortcutService.unregisterHandler('toggleDarkMode');
     this.keyboardShortcutService.unregisterHandler('closeTab');
     this.keyboardShortcutService.unregisterHandler('toggleLayout');
+    this.keyboardShortcutService.unregisterHandler('nextTab');
+    this.keyboardShortcutService.unregisterHandler('previousTab');
   }
 }

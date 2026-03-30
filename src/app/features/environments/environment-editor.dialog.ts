@@ -62,6 +62,12 @@ export interface EnvironmentEditorDialogData {
                   (valueChange)="updateEnvName($event.toString())"
                   placeholder="Environment name" />
                 <div class="floating-buttons">
+                  <ui-button variant="ghost" size="sm" (clicked)="copyEnvironment()" title="Duplicate">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                  </ui-button>
                   <ui-button variant="ghost" size="sm" (clicked)="importEnvironment()" title="Import">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -226,7 +232,7 @@ export interface EnvironmentEditorDialogData {
       }
 
       ui-input ::ng-deep input {
-        padding-right: 7.5rem;
+        padding-right: 9.5rem;
       }
     }
 
@@ -389,6 +395,37 @@ export class EnvironmentEditorDialogComponent implements OnInit {
     const name = await ref.afterClosed();
     if (name) {
       this.environmentService.addEnvironment(this.data.collectionPath, name);
+    }
+  }
+
+  async copyEnvironment(): Promise<void> {
+    const env = this.selectedEnv();
+    if (!env) return;
+
+    const ref = this.dialogService.open<InputDialogComponent, InputDialogData, string | undefined>(
+      InputDialogComponent,
+      {
+        data: {
+          title: 'Duplicate Environment',
+          label: 'Environment name',
+          placeholder: env.name,
+          initialValue: `${env.name} (Copy)`,
+          submitLabel: 'Duplicate'
+        }
+      }
+    );
+    const name = await ref.afterClosed();
+    if (name) {
+      const sourceEnvId = this.selectedEnvId();
+      // Also copy locally tracked secrets
+      const localSecrets = this.allSecrets()[sourceEnvId];
+      const newEnvId = this.environmentService.duplicateEnvironment(this.data.collectionPath, sourceEnvId, name);
+      if (newEnvId) {
+        if (localSecrets) {
+          this.allSecrets.update(s => ({ ...s, [newEnvId]: { ...localSecrets } }));
+        }
+        this.selectEnvironment(newEnvId);
+      }
     }
   }
 
