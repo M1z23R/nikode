@@ -24,7 +24,8 @@ export class ReportGeneratorService {
     const resultsHtml = results.map((result, index) => {
       const statusClass = result.status;
       const statusIcon = result.status === 'passed' ? '✓' : result.status === 'failed' ? '✗' : '○';
-      const methodClass = result.method.toLowerCase();
+      const methodLabel = result.type === 'graphql' ? 'GQL' : result.method;
+      const methodClass = result.type === 'graphql' ? 'gql' : result.method.toLowerCase();
       const statusCode = result.response?.statusCode ?? '-';
       const duration = result.duration ?? '-';
 
@@ -70,7 +71,7 @@ export class ReportGeneratorService {
             <span class="status-icon status-${statusClass}">${statusIcon}</span>
           </td>
           <td class="method-cell">
-            <span class="method method-${methodClass}">${result.method}</span>
+            <span class="method method-${methodClass}">${methodLabel}</span>
           </td>
           <td class="name-cell">${this.escapeHtml(result.requestName)}</td>
           <td class="iteration-cell">${result.iteration + 1}</td>
@@ -257,6 +258,7 @@ export class ReportGeneratorService {
     .method-delete { background: #ffebee; color: #c62828; }
     .method-head { background: #f3e5f5; color: #7b1fa2; }
     .method-options { background: #e0f7fa; color: #00838f; }
+    .method-gql { background: #ede7f6; color: #6a1b9a; }
 
     .status-code {
       display: inline-block;

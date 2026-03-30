@@ -25,6 +25,7 @@ export interface DataFile {
 export interface RunnerRequestItem {
   id: string;
   name: string;
+  type: 'request' | 'graphql';
   method: HttpMethod;
   url: string;
   item: CollectionItem;
@@ -37,6 +38,7 @@ export type RunnerStatus = 'idle' | 'running' | 'paused' | 'completed' | 'stoppe
 export interface RunnerRequestResult {
   requestId: string;
   requestName: string;
+  type: 'request' | 'graphql';
   method: HttpMethod;
   iteration: number;
   status: 'pending' | 'running' | 'passed' | 'failed' | 'skipped';

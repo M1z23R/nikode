@@ -153,7 +153,11 @@ export interface RunnerDialogData {
               @for (request of requests(); track request.id) {
                 <div class="request-item" (click)="toggleRequest(request.id)">
                   <ui-checkbox [checked]="request.selected" />
-                  <span class="request-method method-{{ request.method.toLowerCase() }}">{{ request.method }}</span>
+                  @if (request.type === 'graphql') {
+                    <span class="request-method method-gql">GQL</span>
+                  } @else {
+                    <span class="request-method method-{{ request.method.toLowerCase() }}">{{ request.method }}</span>
+                  }
                   <span class="request-name">{{ request.name }}</span>
                   @if (request.path.length > 0) {
                     <span class="request-path">{{ request.path.join(' / ') }}</span>
@@ -223,7 +227,11 @@ export interface RunnerDialogData {
                         @default { ○ }
                       }
                     </span>
-                    <span class="request-method method-{{ result.method.toLowerCase() }}">{{ result.method }}</span>
+                    @if (result.type === 'graphql') {
+                      <span class="request-method method-gql">GQL</span>
+                    } @else {
+                      <span class="request-method method-{{ result.method.toLowerCase() }}">{{ result.method }}</span>
+                    }
                     <span class="result-name">{{ result.requestName }}</span>
                     @if (summary().iterations > 1) {
                       <span class="result-iteration">#{{ result.iteration + 1 }}</span>
@@ -428,6 +436,7 @@ export interface RunnerDialogData {
     .method-delete { background: #ffebee; color: #c62828; }
     .method-head { background: #f3e5f5; color: #7b1fa2; }
     .method-options { background: #e0f7fa; color: #00838f; }
+    .method-gql { background: #ede7f6; color: #6a1b9a; }
 
     .request-name {
       flex: 1;

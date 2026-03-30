@@ -20,6 +20,7 @@ import {
 } from '../models/runner.model';
 import { resolveVariables } from '../utils/variable-resolver';
 import { ResolvedVariables } from '../models/environment.model';
+import { GraphQLRequest } from '../models/graphql.model';
 
 @Injectable({ providedIn: 'root' })
 export class RunnerService {
@@ -90,8 +91,7 @@ export class RunnerService {
       } else if (targetType === 'request' && item.type === 'request') {
         items = [item];
       } else if (targetType === 'graphql' && item.type === 'graphql') {
-        // GraphQL items are not yet supported in runner - treat as empty for now
-        items = [];
+        items = [item];
       } else {
         return;
       }
@@ -377,6 +377,10 @@ export class RunnerService {
     try {
       const item = request.item;
 
+      if (request.type === 'graphql') {
+        return await this.executeGraphQLRequest(collectionPath, request, item, iteration, mergedVariables, startTime);
+      }
+
       // Resolve URL with variables
       let resolvedUrl = resolveVariables(item.url || '', mergedVariables);
 
@@ -453,6 +457,7 @@ export class RunnerService {
         return {
           requestId: request.id,
           requestName: request.name,
+          type: 'request',
           method: request.method,
           iteration,
           status: 'failed',
@@ -500,6 +505,7 @@ export class RunnerService {
       return {
         requestId: request.id,
         requestName: request.name,
+        type: 'request',
         method: request.method,
         iteration,
         status: passed ? 'passed' : 'failed',
@@ -514,6 +520,7 @@ export class RunnerService {
       return {
         requestId: request.id,
         requestName: request.name,
+        type: request.type,
         method: request.method,
         iteration,
         status: 'failed',
@@ -521,6 +528,114 @@ export class RunnerService {
         duration,
       };
     }
+  }
+
+  private async executeGraphQLRequest(
+    collectionPath: string,
+    request: RunnerRequestItem,
+    item: CollectionItem,
+    iteration: number,
+    mergedVariables: ResolvedVariables,
+    startTime: number
+  ): Promise<RunnerRequestResult> {
+    const resolvedUrl = resolveVariables(item.url || '', mergedVariables);
+
+    const headers: Record<string, string> = {};
+    for (const h of (item.headers || [])) {
+      if (h.enabled && h.key) {
+        headers[h.key] = resolveVariables(h.value, mergedVariables);
+      }
+    }
+
+    const gqlRequest: GraphQLRequest = {
+      url: resolvedUrl,
+      query: resolveVariables(item.gqlQuery || '', mergedVariables),
+      variables: item.gqlVariables ? resolveVariables(item.gqlVariables, mergedVariables) : undefined,
+      operationName: item.gqlOperationName || undefined,
+      headers,
+    };
+
+    const result = await this.api.executeGraphQL(gqlRequest);
+    const duration = Date.now() - startTime;
+
+    if (isIpcError(result)) {
+      return {
+        requestId: request.id,
+        requestName: request.name,
+        type: 'graphql',
+        method: 'POST',
+        iteration,
+        status: 'failed',
+        error: result.error.message,
+        duration,
+      };
+    }
+
+    const gqlResponse = result.data;
+
+    // Map GraphQLResponse to ProxyResponse for uniform result handling
+    const response: ProxyResponse = {
+      statusCode: gqlResponse.statusCode,
+      statusText: gqlResponse.statusText,
+      headers: gqlResponse.headers,
+      body: gqlResponse.rawBody,
+      bodyEncoding: 'text',
+      size: gqlResponse.size,
+      time: gqlResponse.time,
+      cookies: [],
+      sentRequest: {
+        method: 'POST',
+        url: resolvedUrl,
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({
+          query: gqlRequest.query,
+          variables: gqlRequest.variables,
+          operationName: gqlRequest.operationName,
+        }),
+      },
+    };
+
+    // Execute post-script and collect assertions
+    const postScript = item.scripts?.post;
+    let assertions: AssertionResult[] = [];
+
+    if (postScript?.trim()) {
+      const scriptResult = this.scriptExecutor.executePostScript(postScript, {
+        collectionPath,
+        request: {
+          method: 'POST',
+          url: resolvedUrl,
+          headers: response.sentRequest.headers,
+          body: response.sentRequest.body,
+        },
+        variables: mergedVariables,
+        response: {
+          statusCode: response.statusCode,
+          statusText: response.statusText,
+          headers: response.headers,
+          body: response.body,
+          time: response.time,
+          size: response.size,
+        },
+      });
+      assertions = scriptResult.assertions;
+    }
+
+    const statusCodePassed = response.statusCode >= 200 && response.statusCode < 300;
+    const assertionsPassed = assertions.every(a => a.passed);
+    const passed = statusCodePassed && assertionsPassed;
+
+    return {
+      requestId: request.id,
+      requestName: request.name,
+      type: 'graphql',
+      method: 'POST',
+      iteration,
+      status: passed ? 'passed' : 'failed',
+      response,
+      duration,
+      assertions,
+    };
   }
 
   private skipRemainingRequests(
@@ -537,6 +652,7 @@ export class RunnerService {
           {
             requestId: request.id,
             requestName: request.name,
+            type: request.type,
             method: request.method,
             iteration,
             status: 'skipped' as const,
@@ -557,7 +673,19 @@ export class RunnerService {
         requests.push({
           id: item.id,
           name: item.name,
+          type: 'request',
           method: item.method || 'GET',
+          url: item.url || '',
+          item,
+          selected: true,
+          path,
+        });
+      } else if (item.type === 'graphql') {
+        requests.push({
+          id: item.id,
+          name: item.name,
+          type: 'graphql',
+          method: 'POST',
           url: item.url || '',
           item,
           selected: true,
