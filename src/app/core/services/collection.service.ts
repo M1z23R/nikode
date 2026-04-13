@@ -472,8 +472,8 @@ export class CollectionService implements OnDestroy {
     return this.importCollection(sourcePath, targetPath);
   }
 
-  async exportCollection(path: string, format: 'json' | 'yaml'): Promise<boolean> {
-    const result = await this.api.exportCollection(path, format);
+  async exportCollection(path: string, format: 'json' | 'yaml', collection?: Collection): Promise<boolean> {
+    const result = await this.api.exportCollection(path, format, collection);
     if (isIpcError(result)) {
       this.toastService.error(result.error.userMessage);
       return false;
@@ -694,8 +694,8 @@ export class CollectionService implements OnDestroy {
     return true;
   }
 
-  async exportOpenApi(path: string, format: 'yaml' | 'json' = 'yaml'): Promise<boolean> {
-    const result = await this.api.exportOpenApi(path, format);
+  async exportOpenApi(path: string, format: 'yaml' | 'json' = 'yaml', collection?: Collection): Promise<boolean> {
+    const result = await this.api.exportOpenApi(path, format, collection);
     if (isIpcError(result)) {
       this.toastService.error(result.error.userMessage);
       return false;

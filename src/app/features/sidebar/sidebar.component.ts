@@ -426,11 +426,7 @@ export class SidebarComponent {
     const col = this.unifiedCollectionService.getCollection(nodeData.collectionPath);
     if (!col) return;
 
-    // Cloud collections: sync instead of export
-    if (nodeData.collectionPath.startsWith('cloud://')) {
-      this.unifiedCollectionService.syncCloudCollection(nodeData.collectionPath);
-      return;
-    }
+    const isCloud = this.unifiedCollectionService.isCloudId(nodeData.collectionPath);
 
     // Check if collection has scripts
     const hasScripts = this.collectionHasScripts(col.collection);
@@ -442,12 +438,15 @@ export class SidebarComponent {
     const result = await ref.afterClosed();
     if (!result) return;
 
+    // For cloud collections, pass the in-memory collection since there's no local file
+    const cloudCollection = isCloud ? col.collection : undefined;
+
     switch (result.format) {
       case 'nikode':
-        await this.collectionService.exportCollection(nodeData.collectionPath, 'json');
+        await this.collectionService.exportCollection(nodeData.collectionPath, 'json', cloudCollection);
         break;
       case 'openapi':
-        await this.collectionService.exportOpenApi(nodeData.collectionPath, result.options.openapiFormat);
+        await this.collectionService.exportOpenApi(nodeData.collectionPath, result.options.openapiFormat, cloudCollection);
         break;
       case 'postman':
         await this.exportToPostman(col.collection, result.options.includeEnvironments);
@@ -535,27 +534,6 @@ export class SidebarComponent {
     }
 
     this.toastService.success(message);
-  }
-
-  private async exportCloudCollection(name: string, collection: Collection): Promise<void> {
-    const result = await this.api.showSaveDialog({
-      defaultPath: `${name}.nikode.json`,
-      filters: [{ name: 'Nikode Collection', extensions: ['nikode.json'] }]
-    });
-
-    if (isIpcError(result) || result.data.canceled || !result.data.filePath) {
-      return; // User cancelled or error
-    }
-
-    const content = JSON.stringify(collection, null, 2);
-    const writeResult = await this.api.writeFile(result.data.filePath, content);
-
-    if (isIpcError(writeResult)) {
-      this.toastService.error('Failed to export collection');
-      return;
-    }
-
-    this.toastService.success('Collection exported successfully');
   }
 
   private manageSchemas(target: TreeNodeData): void {

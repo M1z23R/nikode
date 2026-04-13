@@ -155,7 +155,7 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.SAVE_COLLECTION]: { path: string; collection: Collection };
   [IPC_CHANNELS.DELETE_COLLECTION]: string; // path
   [IPC_CHANNELS.COLLECTION_EXISTS]: string; // path
-  [IPC_CHANNELS.EXPORT_COLLECTION]: { path: string; format: 'json' | 'yaml' };
+  [IPC_CHANNELS.EXPORT_COLLECTION]: { path: string; format: 'json' | 'yaml'; collection?: Collection };
   [IPC_CHANNELS.IMPORT_COLLECTION]: { sourcePath: string; targetPath: string };
   [IPC_CHANNELS.WATCH_COLLECTION]: string; // path
   [IPC_CHANNELS.UNWATCH_COLLECTION]: string; // path
@@ -172,7 +172,7 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.READ_FILE]: string; // path
   [IPC_CHANNELS.WRITE_FILE]: { path: string; content: string };
   [IPC_CHANNELS.IMPORT_OPENAPI]: { sourcePath: string; targetPath: string };
-  [IPC_CHANNELS.EXPORT_OPENAPI]: { path: string; format: 'yaml' | 'json' };
+  [IPC_CHANNELS.EXPORT_OPENAPI]: { path: string; format: 'yaml' | 'json'; collection?: Collection };
   [IPC_CHANNELS.IMPORT_POSTMAN]: { sourcePath: string; targetPath: string };
   [IPC_CHANNELS.IMPORT_POSTMAN_ENV]: { sourcePath: string; collectionPath: string };
   [IPC_CHANNELS.IMPORT_BRUNO]: { sourcePath: string; targetPath: string };

@@ -65,8 +65,8 @@ export class ApiService {
     return window.electronAPI.invoke(IPC_CHANNELS.DELETE_COLLECTION, path);
   }
 
-  async exportCollection(path: string, format: 'json' | 'yaml'): Promise<IpcResult<{ filePath: string }>> {
-    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_COLLECTION, { path, format });
+  async exportCollection(path: string, format: 'json' | 'yaml', collection?: Collection): Promise<IpcResult<{ filePath: string }>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_COLLECTION, { path, format, collection });
   }
 
   async importCollection(sourcePath: string, targetPath: string): Promise<IpcResult<{ path: string; collection: Collection }>> {
@@ -77,8 +77,8 @@ export class ApiService {
     return window.electronAPI.invoke(IPC_CHANNELS.IMPORT_OPENAPI, { sourcePath, targetPath });
   }
 
-  async exportOpenApi(path: string, format: 'yaml' | 'json' = 'yaml'): Promise<IpcResult<{ filePath: string | null }>> {
-    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_OPENAPI, { path, format });
+  async exportOpenApi(path: string, format: 'yaml' | 'json' = 'yaml', collection?: Collection): Promise<IpcResult<{ filePath: string | null }>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.EXPORT_OPENAPI, { path, format, collection });
   }
 
   async importPostman(sourcePath: string, targetPath: string): Promise<IpcResult<{ path: string; collection: Collection }>> {

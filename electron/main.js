@@ -281,12 +281,15 @@ ipcMain.handle(
 ipcMain.handle(
   'export-collection',
   wrapHandler(async (event, args) => {
-    const { path: collectionPath, format } = args;
+    const { path: collectionPath, format, collection: providedCollection } = args;
+
+    // Use provided collection (cloud) or read from disk (local)
+    const collection = providedCollection || await fileService.readCollection(collectionPath);
 
     // Show save dialog
     const result = await dialog.showSaveDialog(mainWindow, {
       title: 'Export Collection',
-      defaultPath: `collection.${format}`,
+      defaultPath: `${collection.name || 'collection'}.${format}`,
       filters: [
         format === 'json'
           ? { name: 'JSON Files', extensions: ['json'] }
@@ -298,7 +301,12 @@ ipcMain.handle(
       return { filePath: null };
     }
 
-    const content = await fileService.exportCollection(collectionPath, format);
+    let content;
+    if (format === 'yaml') {
+      content = fileService.toYaml(collection);
+    } else {
+      content = JSON.stringify(collection, null, 2);
+    }
     const fs = require('fs/promises');
     await fs.writeFile(result.filePath, content, 'utf-8');
 
@@ -700,10 +708,10 @@ ipcMain.handle(
 ipcMain.handle(
   'export-openapi',
   wrapHandler(async (event, args) => {
-    const { path: collectionPath, format } = args;
+    const { path: collectionPath, format, collection: providedCollection } = args;
 
-    // Read the collection
-    const collection = await fileService.readCollection(collectionPath);
+    // Use provided collection (cloud) or read from disk (local)
+    const collection = providedCollection || await fileService.readCollection(collectionPath);
 
     // Convert to OpenAPI
     const spec = openApiConverter.exportToOpenApi(collection);
