@@ -10,8 +10,9 @@ import { ScriptExecutorService, ScriptRequest } from './script-executor.service'
 import { OpenRequest, createOpenRequest, ProxyRequest, ProxyResponse } from '../models/request.model';
 import { CollectionItem, KeyValue, RequestAuth, RequestBody, Scripts } from '../models/collection.model';
 import { ResolvedVariables } from '../models/environment.model';
-import { resolveVariables, injectAuth } from '../utils/variable-resolver';
+import { resolveVariables, injectAuth, resolveAuthForRequest } from '../utils/variable-resolver';
 import { RequestTabContentComponent, RequestTabData } from '../../features/request-editor/request-tab-content.component';
+import { SettingsTabContentComponent, SettingsTabData } from '../../features/settings-tab/settings-tab-content.component';
 import { SettingsService } from './settings.service';
 import { CookieJarService } from './cookie-jar.service';
 
@@ -247,6 +248,66 @@ export class WorkspaceService {
     this.updateRequest(requestId, { auth });
   }
 
+  /**
+   * Open a settings tab for a collection (folderId === null) or folder. Edits
+   * inside the tab call the matching update*Auth mutator below, which marks
+   * the collection dirty so the existing autosave handles persistence.
+   */
+  openSettings(collectionPath: string, folderId: string | null): void {
+    // If targeting a folder, validate it exists and is actually a folder
+    if (folderId !== null) {
+      const item = this.unifiedCollectionService.findItem(collectionPath, folderId);
+      if (!item || item.type !== 'folder') return;
+    } else {
+      const unified = this.unifiedCollectionService.getCollection(collectionPath);
+      if (!unified) return;
+    }
+
+    const tabId = folderId === null
+      ? `${collectionPath}:settings`
+      : `${collectionPath}:settings:${folderId}`;
+
+    if (this.tabsService.getTab(tabId)) {
+      this.tabsService.activateById(tabId);
+      return;
+    }
+
+    const label = folderId === null
+      ? `${this.unifiedCollectionService.getCollection(collectionPath)!.collection.name} — Settings`
+      : `${this.unifiedCollectionService.findItem(collectionPath, folderId)!.name} — Settings`;
+
+    this.tabsService.open<SettingsTabContentComponent, SettingsTabData, void>(
+      SettingsTabContentComponent,
+      {
+        id: tabId,
+        label,
+        data: { collectionPath, folderId },
+        closable: true,
+        activate: true,
+      }
+    );
+  }
+
+  /**
+   * Update collection-level auth (inherited by all child requests/folders that
+   * have their own auth set to 'inherit' or undefined).
+   */
+  updateCollectionAuth(collectionPath: string, auth: RequestAuth): void {
+    const unified = this.unifiedCollectionService.getCollection(collectionPath);
+    if (!unified) return;
+    this.unifiedCollectionService.updateCollection(collectionPath, {
+      ...unified.collection,
+      auth,
+    });
+  }
+
+  /**
+   * Update folder-level auth on a CollectionItem of type 'folder'.
+   */
+  updateFolderAuth(collectionPath: string, folderId: string, auth: RequestAuth): void {
+    this.unifiedCollectionService.updateItem(collectionPath, folderId, { auth });
+  }
+
   updateRequestDocs(requestId: string, docs: string): void {
     this.updateRequest(requestId, { docs });
   }
@@ -470,8 +531,11 @@ export class WorkspaceService {
       }
     }
 
-    // Inject auth
-    resolvedUrl = injectAuth(request.auth, headers, resolvedUrl, variables);
+    // Resolve effective auth by walking the inheritance chain (request → folders → collection),
+    // then inject it. The request's own auth is treated as the in-memory override.
+    const collection = this.unifiedCollectionService.getCollection(request.collectionPath)?.collection;
+    const effectiveAuth = resolveAuthForRequest(collection, request.itemId, request.auth);
+    resolvedUrl = injectAuth(effectiveAuth, headers, resolvedUrl, variables);
 
     return {
       method: request.method,

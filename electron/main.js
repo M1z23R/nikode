@@ -12,6 +12,7 @@ const { PostmanConverter } = require('./services/postman-converter');
 const { BrunoConverter } = require('./services/bruno-converter');
 const { WebSocketClient } = require('./services/websocket-client');
 const { TunnelClient } = require('./services/tunnel-client');
+const { OAuth2Service } = require('./services/oauth2-service');
 const { wrapHandler } = require('./utils/ipc-helpers');
 
 const fileService = new FileService();
@@ -26,6 +27,7 @@ const postmanConverter = new PostmanConverter();
 const brunoConverter = new BrunoConverter();
 const webSocketClient = new WebSocketClient();
 const tunnelClient = new TunnelClient();
+const oauth2Service = new OAuth2Service();
 
 // Request single instance lock for deep link handling on Windows/Linux
 const gotTheLock = app.requestSingleInstanceLock();
@@ -390,6 +392,15 @@ ipcMain.handle(
   'execute-graphql',
   wrapHandler(async (event, request) => {
     return await graphqlClient.execute(request);
+  }),
+);
+
+// OAuth2 token acquisition (handles client_credentials, password, and authorization_code w/ PKCE)
+ipcMain.handle(
+  'oauth2-get-token',
+  wrapHandler(async (event, config) => {
+    const parentWindow = BrowserWindow.fromWebContents(event.sender);
+    return await oauth2Service.getToken(parentWindow, config);
   }),
 );
 

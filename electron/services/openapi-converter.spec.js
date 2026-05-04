@@ -693,4 +693,440 @@ describe('OpenApiConverter', () => {
       expect(converter.tryParseJson('not json')).toBe('not json');
     });
   });
+
+  describe('extractSecuritySchemes', () => {
+    it('should map OpenAPI 3.x http bearer to Nikode bearer', () => {
+      const api = {
+        components: {
+          securitySchemes: { BearerAuth: { type: 'http', scheme: 'bearer' } },
+        },
+      };
+      expect(converter.extractSecuritySchemes(api)).toEqual({
+        BearerAuth: { type: 'bearer', bearer: { token: '', prefix: 'Bearer' } },
+      });
+    });
+
+    it('should map OpenAPI 3.x http basic to Nikode basic', () => {
+      const api = {
+        components: {
+          securitySchemes: { BasicAuth: { type: 'http', scheme: 'basic' } },
+        },
+      };
+      expect(converter.extractSecuritySchemes(api)).toEqual({
+        BasicAuth: { type: 'basic', basic: { username: '', password: '' } },
+      });
+    });
+
+    it('should map apiKey schemes preserving header/query placement and name', () => {
+      const api = {
+        components: {
+          securitySchemes: {
+            HeaderKey: { type: 'apiKey', in: 'header', name: 'X-API-Key' },
+            QueryKey: { type: 'apiKey', in: 'query', name: 'apiKey' },
+          },
+        },
+      };
+      const schemes = converter.extractSecuritySchemes(api);
+      expect(schemes.HeaderKey).toEqual({
+        type: 'api-key',
+        apiKey: { key: 'X-API-Key', value: '', addTo: 'header' },
+      });
+      expect(schemes.QueryKey).toEqual({
+        type: 'api-key',
+        apiKey: { key: 'apiKey', value: '', addTo: 'query' },
+      });
+    });
+
+    it('should map OpenAPI 3.x oauth2 clientCredentials flow', () => {
+      const api = {
+        components: {
+          securitySchemes: {
+            OAuth: {
+              type: 'oauth2',
+              flows: {
+                clientCredentials: {
+                  tokenUrl: 'https://auth.example.com/token',
+                  scopes: { read: '', write: '' },
+                },
+              },
+            },
+          },
+        },
+      };
+      const schemes = converter.extractSecuritySchemes(api);
+      expect(schemes.OAuth.type).toBe('oauth2');
+      expect(schemes.OAuth.oauth2.grantType).toBe('client_credentials');
+      expect(schemes.OAuth.oauth2.tokenUrl).toBe('https://auth.example.com/token');
+      expect(schemes.OAuth.oauth2.scope).toBe('read write');
+    });
+
+    it('should map OpenAPI 3.x oauth2 authorizationCode flow', () => {
+      const api = {
+        components: {
+          securitySchemes: {
+            OAuth: {
+              type: 'oauth2',
+              flows: {
+                authorizationCode: {
+                  authorizationUrl: 'https://auth.example.com/auth',
+                  tokenUrl: 'https://auth.example.com/token',
+                  scopes: { openid: '' },
+                },
+              },
+            },
+          },
+        },
+      };
+      const schemes = converter.extractSecuritySchemes(api);
+      expect(schemes.OAuth.oauth2.grantType).toBe('authorization_code');
+      expect(schemes.OAuth.oauth2.authUrl).toBe('https://auth.example.com/auth');
+      expect(schemes.OAuth.oauth2.tokenUrl).toBe('https://auth.example.com/token');
+    });
+
+    it('should read Swagger 2.0 securityDefinitions and basic type', () => {
+      const api = {
+        securityDefinitions: {
+          basic_auth: { type: 'basic' },
+          api_key: { type: 'apiKey', in: 'header', name: 'api_key' },
+        },
+      };
+      const schemes = converter.extractSecuritySchemes(api);
+      expect(schemes.basic_auth.type).toBe('basic');
+      expect(schemes.api_key.type).toBe('api-key');
+      expect(schemes.api_key.apiKey.key).toBe('api_key');
+    });
+
+    it('should map Swagger 2.0 oauth2 with flow + tokenUrl + scopes', () => {
+      const api = {
+        securityDefinitions: {
+          petstore_oauth: {
+            type: 'oauth2',
+            flow: 'accessCode',
+            authorizationUrl: 'https://example.com/auth',
+            tokenUrl: 'https://example.com/token',
+            scopes: { 'read:pets': '', 'write:pets': '' },
+          },
+        },
+      };
+      const schemes = converter.extractSecuritySchemes(api);
+      expect(schemes.petstore_oauth.oauth2.grantType).toBe('authorization_code');
+      expect(schemes.petstore_oauth.oauth2.tokenUrl).toBe('https://example.com/token');
+      expect(schemes.petstore_oauth.oauth2.authUrl).toBe('https://example.com/auth');
+      expect(schemes.petstore_oauth.oauth2.scope).toBe('read:pets write:pets');
+    });
+
+    it('should skip unsupported schemes (openIdConnect)', () => {
+      const api = {
+        components: {
+          securitySchemes: {
+            OIDC: { type: 'openIdConnect', openIdConnectUrl: 'https://x' },
+          },
+        },
+      };
+      expect(converter.extractSecuritySchemes(api)).toEqual({});
+    });
+
+    it('should return empty object when no schemes are defined', () => {
+      expect(converter.extractSecuritySchemes({})).toEqual({});
+    });
+  });
+
+  describe('resolveOperationAuth', () => {
+    const schemes = {
+      BearerAuth: { type: 'bearer', bearer: { token: '', prefix: 'Bearer' } },
+      ApiKeyAuth: { type: 'api-key', apiKey: { key: 'X-API-Key', value: '', addTo: 'header' } },
+    };
+
+    it('should inherit global api.security when operation has none', () => {
+      const api = { security: [{ BearerAuth: [] }] };
+      const auth = converter.resolveOperationAuth({}, api, schemes);
+      expect(auth.type).toBe('bearer');
+    });
+
+    it('should treat operation.security = [] as explicit no-auth (overrides global)', () => {
+      const api = { security: [{ BearerAuth: [] }] };
+      expect(converter.resolveOperationAuth({ security: [] }, api, schemes)).toBeNull();
+    });
+
+    it('should let operation.security override global', () => {
+      const api = { security: [{ BearerAuth: [] }] };
+      const auth = converter.resolveOperationAuth({ security: [{ ApiKeyAuth: [] }] }, api, schemes);
+      expect(auth.type).toBe('api-key');
+    });
+
+    it('should pick the first OR-option when multiple security requirements are listed', () => {
+      const api = {};
+      const auth = converter.resolveOperationAuth(
+        { security: [{ BearerAuth: [] }, { ApiKeyAuth: [] }] },
+        api,
+        schemes
+      );
+      expect(auth.type).toBe('bearer');
+    });
+
+    it('should return null when no security is set anywhere', () => {
+      expect(converter.resolveOperationAuth({}, {}, schemes)).toBeNull();
+    });
+
+    it('should return null when referenced scheme is unknown', () => {
+      const api = { security: [{ MissingScheme: [] }] };
+      expect(converter.resolveOperationAuth({}, api, schemes)).toBeNull();
+    });
+
+    it('should deep-clone the auth template so requests do not share state', () => {
+      const api = { security: [{ BearerAuth: [] }] };
+      const a = converter.resolveOperationAuth({}, api, schemes);
+      const b = converter.resolveOperationAuth({}, api, schemes);
+      a.bearer.token = 'mutated';
+      expect(b.bearer.token).toBe('');
+      expect(schemes.BearerAuth.bearer.token).toBe('');
+    });
+  });
+
+  describe('exportToOpenApi auth', () => {
+    function makeCollection(items) {
+      return {
+        name: 'Test',
+        version: '1.0.0',
+        environments: [{ id: 'd', name: 'd', variables: [{ key: 'baseUrl', value: 'https://x' }] }],
+        activeEnvironmentId: 'd',
+        items,
+      };
+    }
+
+    function makeRequest(name, url, auth) {
+      return {
+        type: 'request', name, method: 'GET', url,
+        headers: [], params: [], body: { type: 'none' },
+        ...(auth ? { auth } : {}),
+      };
+    }
+
+    it('should emit components.securitySchemes only for auth types actually used', () => {
+      const spec = converter.exportToOpenApi(makeCollection([
+        makeRequest('A', '{{baseUrl}}/a', { type: 'bearer', bearer: { token: 't', prefix: 'Bearer' } }),
+      ]));
+      expect(Object.keys(spec.components.securitySchemes)).toEqual(['BearerAuth']);
+      expect(spec.paths['/a'].get.security).toEqual([{ BearerAuth: [] }]);
+    });
+
+    it('should not emit components.securitySchemes when no requests have auth', () => {
+      const spec = converter.exportToOpenApi(makeCollection([
+        makeRequest('A', '{{baseUrl}}/a'),
+      ]));
+      expect(spec.components).toBeUndefined();
+      expect(spec.paths['/a'].get.security).toBeUndefined();
+    });
+
+    it('should not leak credential values into the exported spec', () => {
+      const spec = converter.exportToOpenApi(makeCollection([
+        makeRequest('A', '{{baseUrl}}/a', {
+          type: 'basic', basic: { username: 'admin', password: 'super-secret' },
+        }),
+      ]));
+      const json = JSON.stringify(spec);
+      expect(json).not.toContain('admin');
+      expect(json).not.toContain('super-secret');
+    });
+
+    it('should treat auth.type === "none" as no auth requirement', () => {
+      const spec = converter.exportToOpenApi(makeCollection([
+        makeRequest('A', '{{baseUrl}}/a', { type: 'none' }),
+      ]));
+      expect(spec.paths['/a'].get.security).toBeUndefined();
+      expect(spec.components).toBeUndefined();
+    });
+  });
+
+  describe('import folder coalescing', () => {
+    it('hoists shared inline auth from a tag-folder when all operations match', () => {
+      const api = {
+        components: {
+          securitySchemes: {
+            BearerAuth: { type: 'http', scheme: 'bearer' },
+            ApiKeyAuth: { type: 'apiKey', in: 'header', name: 'X-Key' },
+          },
+        },
+        paths: {
+          '/admin/users': {
+            get: { tags: ['Admin'], security: [{ BearerAuth: [] }], responses: {} },
+          },
+          '/admin/groups': {
+            get: { tags: ['Admin'], security: [{ BearerAuth: [] }], responses: {} },
+          },
+          '/public/info': {
+            get: { tags: ['Public'], security: [{ ApiKeyAuth: [] }], responses: {} },
+          },
+        },
+      };
+      const securitySchemes = converter.extractSecuritySchemes(api);
+      const items = converter.convertPathsToItems(api, securitySchemes, null);
+
+      const adminFolder = items.find(i => i.name === 'Admin');
+      expect(adminFolder.auth?.type).toBe('bearer');
+      // Both admin requests should inherit
+      expect(adminFolder.items.every(r => r.auth?.type === 'inherit')).toBe(true);
+
+      // Public folder has only one request — coalescing should not kick in (single-item folders are skipped)
+      const publicFolder = items.find(i => i.name === 'Public');
+      expect(publicFolder.auth).toBeUndefined();
+      expect(publicFolder.items[0].auth?.type).toBe('api-key');
+    });
+
+    it('does not hoist to folder when operations have differing auth', () => {
+      const api = {
+        components: {
+          securitySchemes: {
+            BearerAuth: { type: 'http', scheme: 'bearer' },
+            BasicAuth: { type: 'http', scheme: 'basic' },
+          },
+        },
+        paths: {
+          '/a': { get: { tags: ['Mixed'], security: [{ BearerAuth: [] }], responses: {} } },
+          '/b': { get: { tags: ['Mixed'], security: [{ BasicAuth: [] }], responses: {} } },
+        },
+      };
+      const schemes = converter.extractSecuritySchemes(api);
+      const items = converter.convertPathsToItems(api, schemes, null);
+      const folder = items.find(i => i.name === 'Mixed');
+      expect(folder.auth).toBeUndefined();
+    });
+
+    it('does not hoist when shared auth would equal collection default', () => {
+      const api = {
+        components: { securitySchemes: { BearerAuth: { type: 'http', scheme: 'bearer' } } },
+        paths: {
+          '/a': { get: { tags: ['T'], security: [{ BearerAuth: [] }], responses: {} } },
+          '/b': { get: { tags: ['T'], security: [{ BearerAuth: [] }], responses: {} } },
+        },
+      };
+      const schemes = converter.extractSecuritySchemes(api);
+      const collectionAuth = { type: 'bearer', bearer: { token: '', prefix: 'Bearer' } };
+      const items = converter.convertPathsToItems(api, schemes, collectionAuth);
+      const folder = items.find(i => i.name === 'T');
+      // Folder auth should not be set — operations would just inherit from collection anyway
+      expect(folder.auth).toBeUndefined();
+    });
+  });
+
+  describe('export coalescing', () => {
+    function makeCollection(auth, items) {
+      return {
+        name: 'Test',
+        version: '1.0.0',
+        environments: [{ id: 'd', name: 'd', variables: [{ key: 'baseUrl', value: 'https://x' }] }],
+        activeEnvironmentId: 'd',
+        ...(auth ? { auth } : {}),
+        items,
+      };
+    }
+
+    function req(name, url, auth) {
+      return {
+        type: 'request', name, method: 'GET', url,
+        headers: [], params: [], body: { type: 'none' },
+        ...(auth ? { auth } : {}),
+      };
+    }
+
+    it('emits collection.auth as global security and omits per-op for inheriting requests', () => {
+      const spec = converter.exportToOpenApi(makeCollection(
+        { type: 'bearer', bearer: { token: 't', prefix: 'Bearer' } },
+        [
+          req('A', '{{baseUrl}}/a', { type: 'inherit' }),
+          req('B', '{{baseUrl}}/b', { type: 'inherit' }),
+        ]
+      ));
+      expect(spec.security).toEqual([{ BearerAuth: [] }]);
+      expect(spec.paths['/a'].get.security).toBeUndefined();
+      expect(spec.paths['/b'].get.security).toBeUndefined();
+      expect(Object.keys(spec.components.securitySchemes)).toEqual(['BearerAuth']);
+    });
+
+    it('emits per-op override when request auth differs from collection auth', () => {
+      const spec = converter.exportToOpenApi(makeCollection(
+        { type: 'bearer', bearer: { token: 't', prefix: 'Bearer' } },
+        [
+          req('A', '{{baseUrl}}/a', { type: 'inherit' }),
+          req('B', '{{baseUrl}}/b', { type: 'basic', basic: { username: 'u', password: 'p' } }),
+        ]
+      ));
+      expect(spec.security).toEqual([{ BearerAuth: [] }]);
+      expect(spec.paths['/a'].get.security).toBeUndefined();
+      expect(spec.paths['/b'].get.security).toEqual([{ BasicAuth: [] }]);
+      expect(Object.keys(spec.components.securitySchemes).sort()).toEqual(['BasicAuth', 'BearerAuth']);
+    });
+
+    it('emits security: [] for explicit none when collection has a global default', () => {
+      const spec = converter.exportToOpenApi(makeCollection(
+        { type: 'bearer', bearer: { token: 't', prefix: 'Bearer' } },
+        [
+          req('A', '{{baseUrl}}/a', { type: 'none' }),
+        ]
+      ));
+      expect(spec.paths['/a'].get.security).toEqual([]);
+    });
+
+    it('inherits auth from a folder with concrete auth', () => {
+      const spec = converter.exportToOpenApi(makeCollection(null, [
+        {
+          type: 'folder', name: 'Admin',
+          auth: { type: 'bearer', bearer: { token: 't', prefix: 'Bearer' } },
+          items: [
+            req('A', '{{baseUrl}}/admin/a', { type: 'inherit' }),
+            req('B', '{{baseUrl}}/admin/b', { type: 'inherit' }),
+          ]
+        }
+      ]));
+      // No global security (collection has no auth) — folder requests get per-op
+      expect(spec.security).toBeUndefined();
+      expect(spec.paths['/admin/a'].get.security).toEqual([{ BearerAuth: [] }]);
+      expect(spec.paths['/admin/b'].get.security).toEqual([{ BearerAuth: [] }]);
+    });
+
+    it('round-trips: collection-level auth → spec → import → still collection-level + inherit', () => {
+      const original = makeCollection(
+        { type: 'bearer', bearer: { token: 't', prefix: 'Bearer' } },
+        [
+          req('A', '{{baseUrl}}/a', { type: 'inherit' }),
+          req('B', '{{baseUrl}}/b', { type: 'inherit' }),
+        ]
+      );
+      const spec = converter.exportToOpenApi(original);
+      // Spec should look minimal: global security only
+      expect(spec.security).toEqual([{ BearerAuth: [] }]);
+      for (const path of Object.values(spec.paths)) {
+        for (const op of Object.values(path)) {
+          expect(op.security).toBeUndefined();
+        }
+      }
+    });
+  });
+
+  describe('authsAreEquivalent', () => {
+    it('returns false when types differ', () => {
+      expect(converter.authsAreEquivalent(
+        { type: 'bearer', bearer: { token: '', prefix: 'Bearer' } },
+        { type: 'basic', basic: { username: '', password: '' } }
+      )).toBe(false);
+    });
+
+    it('returns true when oauth2 configs match', () => {
+      const a = { type: 'oauth2', oauth2: { grantType: 'authorization_code', tokenUrl: 'x', scope: 's' } };
+      const b = { type: 'oauth2', oauth2: { grantType: 'authorization_code', tokenUrl: 'x', scope: 's' } };
+      expect(converter.authsAreEquivalent(a, b)).toBe(true);
+    });
+
+    it('returns false when oauth2 tokenUrls differ', () => {
+      const a = { type: 'oauth2', oauth2: { grantType: 'authorization_code', tokenUrl: 'x' } };
+      const b = { type: 'oauth2', oauth2: { grantType: 'authorization_code', tokenUrl: 'y' } };
+      expect(converter.authsAreEquivalent(a, b)).toBe(false);
+    });
+
+    it('handles api-key configs (uses apiKey config key)', () => {
+      const a = { type: 'api-key', apiKey: { key: 'X-Key', value: '', addTo: 'header' } };
+      const b = { type: 'api-key', apiKey: { key: 'X-Key', value: '', addTo: 'header' } };
+      expect(converter.authsAreEquivalent(a, b)).toBe(true);
+    });
+  });
 });

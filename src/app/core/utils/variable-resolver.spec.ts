@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { resolveVariables, extractVariableNames, hasVariables } from './variable-resolver';
+import {
+  resolveVariables,
+  extractVariableNames,
+  hasVariables,
+  resolveEffectiveAuth,
+  findItemWithAncestors,
+  resolveAuthForRequest,
+} from './variable-resolver';
+import { Collection, CollectionItem, RequestAuth } from '../models/collection.model';
 
 describe('variable-resolver', () => {
   describe('resolveVariables', () => {
@@ -182,6 +190,129 @@ describe('variable-resolver', () => {
 
     it('should return true for mixed regular and $-prefixed variables', () => {
       expect(hasVariables('{{host}} {{$randomInt}}')).toBe(true);
+    });
+  });
+
+  describe('resolveEffectiveAuth', () => {
+    const bearer: RequestAuth = { type: 'bearer', bearer: { token: 't', prefix: 'Bearer' } };
+    const basic: RequestAuth = { type: 'basic', basic: { username: 'u', password: 'p' } };
+
+    it('returns the request auth when it is concrete', () => {
+      expect(resolveEffectiveAuth(bearer, [], basic)).toBe(bearer);
+    });
+
+    it('falls through to folder when request auth is inherit', () => {
+      expect(resolveEffectiveAuth({ type: 'inherit' }, [bearer], basic)).toBe(bearer);
+    });
+
+    it('falls through to collection when request and all folders inherit', () => {
+      expect(resolveEffectiveAuth({ type: 'inherit' }, [{ type: 'inherit' }, { type: 'inherit' }], basic)).toBe(basic);
+    });
+
+    it('treats undefined as inherit', () => {
+      expect(resolveEffectiveAuth(undefined, [undefined], bearer)).toBe(bearer);
+    });
+
+    it('returns explicit none even when collection has auth (no inheritance)', () => {
+      const none: RequestAuth = { type: 'none' };
+      expect(resolveEffectiveAuth(none, [], bearer)).toBe(none);
+    });
+
+    it('returns undefined when nothing concrete in chain', () => {
+      expect(resolveEffectiveAuth({ type: 'inherit' }, [{ type: 'inherit' }], { type: 'inherit' })).toBeUndefined();
+    });
+
+    it('walks folders in order (nearest first wins)', () => {
+      const nearer: RequestAuth = { type: 'bearer', bearer: { token: 'near', prefix: 'Bearer' } };
+      const further: RequestAuth = { type: 'bearer', bearer: { token: 'far', prefix: 'Bearer' } };
+      // chain order: itemAuth, ...folderChainAuth (nearest first), collectionAuth
+      expect(resolveEffectiveAuth({ type: 'inherit' }, [nearer, further], basic)).toBe(nearer);
+    });
+  });
+
+  describe('findItemWithAncestors', () => {
+    const tree: CollectionItem[] = [
+      {
+        id: 'f1',
+        type: 'folder',
+        name: 'Outer',
+        items: [
+          {
+            id: 'f2',
+            type: 'folder',
+            name: 'Inner',
+            items: [
+              { id: 'r1', type: 'request', name: 'Req A' }
+            ]
+          },
+          { id: 'r2', type: 'request', name: 'Req B' }
+        ]
+      }
+    ];
+
+    it('locates a deeply nested request and returns nearest-first folder chain', () => {
+      const found = findItemWithAncestors(tree, 'r1');
+      expect(found).not.toBeNull();
+      expect(found!.item.id).toBe('r1');
+      expect(found!.folderChain.map(f => f.id)).toEqual(['f2', 'f1']);
+    });
+
+    it('returns empty folderChain for top-level item', () => {
+      const found = findItemWithAncestors(tree, 'f1');
+      expect(found!.folderChain).toEqual([]);
+    });
+
+    it('returns null for missing id', () => {
+      expect(findItemWithAncestors(tree, 'nope')).toBeNull();
+    });
+  });
+
+  describe('resolveAuthForRequest', () => {
+    const collectionBearer: RequestAuth = { type: 'bearer', bearer: { token: 'col', prefix: 'Bearer' } };
+    const folderBasic: RequestAuth = { type: 'basic', basic: { username: 'u', password: 'p' } };
+
+    function makeCollection(): Collection {
+      return {
+        name: 'X',
+        version: '1.0.0',
+        environments: [],
+        activeEnvironmentId: '',
+        auth: collectionBearer,
+        items: [
+          {
+            id: 'folder1',
+            type: 'folder',
+            name: 'F',
+            auth: folderBasic,
+            items: [
+              { id: 'req-a', type: 'request', name: 'A', auth: { type: 'inherit' } },
+              { id: 'req-b', type: 'request', name: 'B', auth: { type: 'none' } },
+            ]
+          },
+          { id: 'req-c', type: 'request', name: 'C', auth: { type: 'inherit' } },
+        ],
+      };
+    }
+
+    it('inherits from nearest folder for nested requests', () => {
+      const auth = resolveAuthForRequest(makeCollection(), 'req-a');
+      expect(auth).toBe(folderBasic);
+    });
+
+    it('honors explicit none on the request (no inheritance)', () => {
+      const auth = resolveAuthForRequest(makeCollection(), 'req-b');
+      expect(auth?.type).toBe('none');
+    });
+
+    it('inherits from collection when no folder has concrete auth', () => {
+      const auth = resolveAuthForRequest(makeCollection(), 'req-c');
+      expect(auth).toBe(collectionBearer);
+    });
+
+    it('uses inline override over the stored item.auth', () => {
+      const override: RequestAuth = { type: 'bearer', bearer: { token: 'override', prefix: 'Bearer' } };
+      const auth = resolveAuthForRequest(makeCollection(), 'req-a', override);
+      expect(auth).toBe(override);
     });
   });
 });

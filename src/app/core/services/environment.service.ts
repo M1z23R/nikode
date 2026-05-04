@@ -45,6 +45,11 @@ export class EnvironmentService {
     return col?.collection.environments ?? [];
   }
 
+  // Public accessor for components that need to enumerate environments (e.g. env pickers)
+  listEnvironments(collectionPath: string): Environment[] {
+    return this.getEnvironments(collectionPath);
+  }
+
   async loadSecrets(collectionPath: string): Promise<void> {
     const result = await this.api.getSecrets(collectionPath);
     if (isIpcError(result)) {

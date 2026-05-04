@@ -5,6 +5,9 @@ export interface Collection {
   activeEnvironmentId: string;
   items: CollectionItem[];
   schemas?: CollectionSchema[];
+  // Collection-level default auth. Inherited by any request/folder whose own auth
+  // is undefined or has type 'inherit'. Folders may override.
+  auth?: RequestAuth;
 }
 
 export interface Environment {
@@ -91,7 +94,7 @@ export type SchemaType = 'json' | 'xml';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
 
-export type RequestAuthType = 'none' | 'basic' | 'bearer' | 'api-key' | 'oauth2';
+export type RequestAuthType = 'none' | 'inherit' | 'basic' | 'bearer' | 'api-key' | 'oauth2';
 export type OAuth2GrantType = 'client_credentials' | 'password' | 'authorization_code';
 export type ApiKeyLocation = 'header' | 'query';
 
@@ -111,6 +114,12 @@ export interface RequestAuth {
     password: string;
     callbackUrl: string;
     scope: string;
+    usePkce?: boolean;
+    // Persist the access token to an environment variable on successful fetch.
+    // The variable is created as a secret if it doesn't already exist.
+    saveToEnv?: boolean;
+    saveToEnvId?: string;
+    saveToVarName?: string;
   };
 }
 

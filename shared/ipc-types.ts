@@ -37,6 +37,9 @@ export const IPC_CHANNELS = {
   // GraphQL
   EXECUTE_GRAPHQL: 'execute-graphql',
 
+  // OAuth2 token acquisition
+  OAUTH2_GET_TOKEN: 'oauth2-get-token',
+
   // Secrets
   GET_SECRETS: 'get-secrets',
   SAVE_SECRETS: 'save-secrets',
@@ -162,6 +165,7 @@ export interface IpcRequestMap {
   [IPC_CHANNELS.COLLECTION_CHANGED]: void; // Not invokable
   [IPC_CHANNELS.EXECUTE_REQUEST]: ProxyRequest;
   [IPC_CHANNELS.EXECUTE_GRAPHQL]: GraphQLRequest;
+  [IPC_CHANNELS.OAUTH2_GET_TOKEN]: OAuth2TokenRequest;
   [IPC_CHANNELS.GET_SECRETS]: string; // path
   [IPC_CHANNELS.SAVE_SECRETS]: { path: string; secrets: Secrets };
   [IPC_CHANNELS.GET_COOKIES]: string; // collectionPath
@@ -212,6 +216,7 @@ export interface IpcResponseMap {
   [IPC_CHANNELS.COLLECTION_CHANGED]: { path: string };
   [IPC_CHANNELS.EXECUTE_REQUEST]: ProxyResponse;
   [IPC_CHANNELS.EXECUTE_GRAPHQL]: GraphQLResponse;
+  [IPC_CHANNELS.OAUTH2_GET_TOKEN]: OAuth2TokenResponse;
   [IPC_CHANNELS.GET_SECRETS]: Secrets;
   [IPC_CHANNELS.SAVE_SECRETS]: { status: 'ok' };
   [IPC_CHANNELS.GET_COOKIES]: Cookie[];
@@ -313,4 +318,29 @@ export interface AuthCallbackData {
 
 export interface AuthErrorData {
   message: string;
+}
+
+// OAuth2 token acquisition (driven by main process to avoid renderer CORS)
+export interface OAuth2TokenRequest {
+  grantType: 'client_credentials' | 'password' | 'authorization_code';
+  tokenUrl: string;
+  authUrl?: string;
+  clientId: string;
+  clientSecret?: string;
+  username?: string;
+  password?: string;
+  callbackUrl?: string;
+  scope?: string;
+  usePkce?: boolean;
+}
+
+// Standard OAuth2 token response shape — additional fields are passed through
+export interface OAuth2TokenResponse {
+  access_token: string;
+  token_type?: string;
+  expires_in?: number;
+  refresh_token?: string;
+  scope?: string;
+  id_token?: string;
+  [key: string]: unknown;
 }

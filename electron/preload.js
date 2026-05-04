@@ -18,6 +18,7 @@ const ALLOWED_CHANNELS = [
   'unwatch-collection',
   'execute-request',
   'execute-graphql',
+  'oauth2-get-token',
   'get-secrets',
   'save-secrets',
   'show-open-dialog',

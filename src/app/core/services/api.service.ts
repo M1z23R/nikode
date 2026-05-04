@@ -10,6 +10,8 @@ import {
   isIpcError,
   ExportResult,
   BrunoExportResult,
+  OAuth2TokenRequest,
+  OAuth2TokenResponse,
 } from '@shared/ipc-types';
 import { Environment } from '../models/collection.model';
 import {
@@ -134,6 +136,12 @@ export class ApiService {
   // GraphQL
   async executeGraphQL(request: GraphQLRequest): Promise<IpcResult<GraphQLResponse>> {
     return window.electronAPI.invoke(IPC_CHANNELS.EXECUTE_GRAPHQL, request);
+  }
+
+  // OAuth2 token acquisition (runs in main process to bypass CORS and drive
+  // the authorization_code popup flow with PKCE).
+  async getOAuth2Token(request: OAuth2TokenRequest): Promise<IpcResult<OAuth2TokenResponse>> {
+    return window.electronAPI.invoke(IPC_CHANNELS.OAUTH2_GET_TOKEN, request);
   }
 
   // Secrets

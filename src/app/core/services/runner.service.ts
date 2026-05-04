@@ -18,7 +18,7 @@ import {
   AssertionResult,
   createDefaultConfig,
 } from '../models/runner.model';
-import { resolveVariables, injectAuth } from '../utils/variable-resolver';
+import { resolveVariables, injectAuth, resolveAuthForRequest } from '../utils/variable-resolver';
 import { ResolvedVariables } from '../models/environment.model';
 import { GraphQLRequest } from '../models/graphql.model';
 
@@ -405,8 +405,10 @@ export class RunnerService {
         }
       }
 
-      // Inject auth
-      resolvedUrl = injectAuth(item.auth, headers, resolvedUrl, mergedVariables);
+      // Resolve effective auth (request → folder ancestors → collection) before injecting
+      const collection = this.unifiedCollectionService.getCollection(collectionPath)?.collection;
+      const effectiveAuth = resolveAuthForRequest(collection, item.id, item.auth);
+      resolvedUrl = injectAuth(effectiveAuth, headers, resolvedUrl, mergedVariables);
 
       // Build body
       let body: string | undefined;
@@ -550,8 +552,10 @@ export class RunnerService {
       }
     }
 
-    // Inject auth
-    resolvedUrl = injectAuth(item.auth, headers, resolvedUrl, mergedVariables);
+    // Resolve effective auth (request → folder ancestors → collection) before injecting
+    const gqlCollection = this.unifiedCollectionService.getCollection(collectionPath)?.collection;
+    const gqlEffectiveAuth = resolveAuthForRequest(gqlCollection, item.id, item.auth);
+    resolvedUrl = injectAuth(gqlEffectiveAuth, headers, resolvedUrl, mergedVariables);
 
     const gqlRequest: GraphQLRequest = {
       url: resolvedUrl,

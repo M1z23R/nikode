@@ -91,6 +91,7 @@ const dragState = {
             }
             @if (getNodeType(node) === 'collection') {
               <ui-dropdown-item (clicked)="action.emit({ type: 'manageSchemas', node })">Manage Schemas</ui-dropdown-item>
+              <ui-dropdown-item (clicked)="action.emit({ type: 'openSettings', node })">Settings</ui-dropdown-item>
               <ui-dropdown-divider />
               <ui-dropdown-item (clicked)="action.emit({ type: 'save', node })">Save</ui-dropdown-item>
               <ui-dropdown-item (clicked)="action.emit({ type: 'export', node })">Export</ui-dropdown-item>
@@ -106,6 +107,10 @@ const dragState = {
               <ui-dropdown-divider />
               <ui-dropdown-item (clicked)="action.emit({ type: 'deleteCollection', node })">Delete Collection</ui-dropdown-item>
             } @else if (!isReadOnly(node)) {
+              @if (getNodeType(node) === 'folder') {
+                <ui-dropdown-item (clicked)="action.emit({ type: 'openSettings', node })">Settings</ui-dropdown-item>
+                <ui-dropdown-divider />
+              }
               <ui-dropdown-item (clicked)="action.emit({ type: 'duplicate', node })">Duplicate</ui-dropdown-item>
               <ui-dropdown-item (clicked)="action.emit({ type: 'rename', node })">Rename</ui-dropdown-item>
               <ui-dropdown-item (clicked)="action.emit({ type: 'delete', node })">Delete</ui-dropdown-item>

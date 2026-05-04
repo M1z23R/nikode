@@ -1,5 +1,5 @@
 import { ResolvedVariables } from '../models/environment.model';
-import { RequestAuth } from '../models/collection.model';
+import { RequestAuth, CollectionItem, Collection } from '../models/collection.model';
 import { resolveDynamicVariable } from './dynamic-variables';
 
 const VARIABLE_PATTERN = /\{\{(\$?\w+)\}\}/g;
@@ -80,4 +80,64 @@ export function injectAuth(
   }
 
   return url;
+}
+
+/**
+ * Walk the inheritance chain (item → folder ancestors, nearest first → collection)
+ * and return the first concrete (non-inherit, non-undefined) auth found.
+ *
+ * `undefined` and `{ type: 'inherit' }` both signal "look further up the chain".
+ * `{ type: 'none' }` is an explicit override that stops inheritance.
+ */
+export function resolveEffectiveAuth(
+  itemAuth: RequestAuth | undefined,
+  folderChainAuth: Array<RequestAuth | undefined>,
+  collectionAuth: RequestAuth | undefined,
+): RequestAuth | undefined {
+  const chain = [itemAuth, ...folderChainAuth, collectionAuth];
+  for (const a of chain) {
+    if (!a) continue;
+    if (a.type === 'inherit') continue;
+    return a;
+  }
+  return undefined;
+}
+
+/**
+ * Locate an item by id within a tree, returning the item itself plus the chain
+ * of folder ancestors ordered nearest-first. Returns null if not found.
+ */
+export function findItemWithAncestors(
+  items: CollectionItem[],
+  itemId: string,
+): { item: CollectionItem; folderChain: CollectionItem[] } | null {
+  function walk(nodes: CollectionItem[], chain: CollectionItem[]): { item: CollectionItem; folderChain: CollectionItem[] } | null {
+    for (const node of nodes) {
+      if (node.id === itemId) {
+        // chain is built top-down; reverse so nearest folder comes first
+        return { item: node, folderChain: [...chain].reverse() };
+      }
+      if (node.type === 'folder' && node.items?.length) {
+        const found = walk(node.items, [...chain, node]);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  return walk(items, []);
+}
+
+/**
+ * Convenience: resolve the effective auth for a request id within a collection.
+ */
+export function resolveAuthForRequest(
+  collection: Collection | undefined,
+  requestId: string,
+  inlineAuthOverride?: RequestAuth,
+): RequestAuth | undefined {
+  if (!collection) return inlineAuthOverride;
+  const found = findItemWithAncestors(collection.items, requestId);
+  const itemAuth = inlineAuthOverride ?? found?.item.auth;
+  const folderAuths = (found?.folderChain ?? []).map(f => f.auth);
+  return resolveEffectiveAuth(itemAuth, folderAuths, collection.auth);
 }
