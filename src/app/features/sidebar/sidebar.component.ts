@@ -345,6 +345,10 @@ export class SidebarComponent {
     } else if (result.action === 'import') {
       // Handle import based on format
       await this.handleImport(result);
+    } else if (result.action === 'open') {
+      if (result.sourcePath) {
+        await this.collectionService.openCollection(result.sourcePath);
+      }
     }
   }
 
