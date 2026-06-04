@@ -88,6 +88,7 @@ import { createOpenRequest } from '../../core/models/request.model';
             [nodes]="unifiedCollectionService.collections() | collectionsToTree:expandedFolders():searchQuery()"
             [indent]="16"
             (nodeClick)="onNodeClick($event)"
+            (nodeDblClick)="onNodeDblClick($event)"
             (action)="onTreeAction($event)"
             (nodeDrop)="onNodeDrop($event)"
           />
@@ -189,20 +190,9 @@ export class SidebarComponent {
     const nodeData = node.data as TreeNodeData;
 
     if (nodeData.type === 'collection') {
-      // Open the settings tab on expand (transition collapsed → expanded).
-      // Collapsing is left alone — user is just tidying up the tree.
-      const unified = this.unifiedCollectionService.getCollection(nodeData.collectionPath);
-      const wasExpanded = unified?.expanded ?? false;
       this.unifiedCollectionService.toggleExpanded(nodeData.collectionPath);
-      if (!wasExpanded) {
-        this.workspace.openSettings(nodeData.collectionPath, null);
-      }
     } else if (nodeData.type === 'folder') {
-      const wasExpanded = this.expandedFolders().has(nodeData.itemId!);
       this.toggleFolder(nodeData.itemId!);
-      if (!wasExpanded) {
-        this.workspace.openSettings(nodeData.collectionPath, nodeData.itemId!);
-      }
     } else if (nodeData.type === 'request') {
       this.workspace.openRequest(nodeData.collectionPath, nodeData.itemId!);
       this.closeSearch();
@@ -212,6 +202,16 @@ export class SidebarComponent {
     } else if (nodeData.type === 'graphql') {
       this.graphqlService.openGraphQL(nodeData.collectionPath, nodeData.itemId!);
       this.closeSearch();
+    }
+  }
+
+  onNodeDblClick(node: TreeNode): void {
+    const nodeData = node.data as TreeNodeData;
+
+    if (nodeData.type === 'collection') {
+      this.workspace.openSettings(nodeData.collectionPath, null);
+    } else if (nodeData.type === 'folder') {
+      this.workspace.openSettings(nodeData.collectionPath, nodeData.itemId!);
     }
   }
 

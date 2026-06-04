@@ -32,7 +32,7 @@ export interface SettingsTabData {
 
         <ui-tabs class="settings-body">
           <ui-tab label="Auth">
-            <div class="panel">
+            <div class="settings-panel">
               <app-auth-form
                 [auth]="t.auth"
                 [collectionPath]="data.collectionPath"
@@ -89,12 +89,44 @@ export interface SettingsTabData {
     .settings-body {
       flex: 1;
       min-height: 0;
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
     }
 
-    .panel {
+    .settings-body ::ng-deep .ui-tabs {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .settings-body ::ng-deep .ui-tabs__list {
+      flex-shrink: 0;
+      padding: 0 1.25rem;
+    }
+
+    .settings-body ::ng-deep .ui-tabs__panels {
+      flex: 1;
+      min-height: 0;
+      margin-top: 0;
+      overflow-y: auto;
+    }
+
+    .settings-panel {
       padding: 1rem 1.25rem;
-      max-width: 720px;
+    }
+
+    .settings-body ::ng-deep .auth-form {
+      max-width: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+      align-items: start;
+      gap: 1rem 1.5rem;
+    }
+
+    .settings-body ::ng-deep .token-actions {
+      grid-column: 1 / -1;
     }
 
     .settings-missing {

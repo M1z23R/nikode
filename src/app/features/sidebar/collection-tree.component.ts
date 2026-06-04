@@ -30,6 +30,7 @@ const dragState = {
           [class.dragging]="isDragging(node)"
           [attr.draggable]="isDraggable(node)"
           (click)="onNodeClick(node)"
+          (dblclick)="onNodeDblClick(node)"
           (dragstart)="onDragStart($event, node)"
           (dragend)="onDragEnd()"
           (dragover)="onDragOver($event, node)"
@@ -124,6 +125,7 @@ const dragState = {
               [level]="level() + 1"
               [indent]="indent()"
               (nodeClick)="nodeClick.emit($event)"
+              (nodeDblClick)="nodeDblClick.emit($event)"
               (action)="action.emit($event)"
               (nodeDrop)="nodeDrop.emit($event)"
             />
@@ -286,6 +288,7 @@ export class CollectionTreeComponent {
   indent = input(16);
 
   nodeClick = output<TreeNode>();
+  nodeDblClick = output<TreeNode>();
   action = output<{ type: string; node: TreeNode }>();
   nodeDrop = output<NodeDropEvent>();
 
@@ -422,6 +425,10 @@ export class CollectionTreeComponent {
 
   onNodeClick(node: TreeNode): void {
     this.nodeClick.emit(node);
+  }
+
+  onNodeDblClick(node: TreeNode): void {
+    this.nodeDblClick.emit(node);
   }
 
   onActionsClick(event: MouseEvent): void {
