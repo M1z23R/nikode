@@ -164,3 +164,51 @@ describe('WebhookService — request capture', () => {
     expect(JSON.parse(ws.sent[0]).subdomain).toMatch(/^wh-[a-z0-9]{8}$/);
   });
 });
+
+describe('WebhookService — reconnect & logout', () => {
+  beforeEach(() => {
+    MockWebSocket.instances = [];
+    logoutCb = null;
+    vi.useFakeTimers();
+    vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    TestBed.resetTestingModule();
+  });
+
+  it('re-registers endpoints after an unexpected close', () => {
+    const { service } = setup();
+    service.registerWebhook('wh-abc');
+    const ws1 = MockWebSocket.instances[0];
+    ws1.simulateOpen();
+    ws1.simulateMessage({ type: 'registered', subdomain: 'wh-abc', url: 'https://wh-abc.dev' });
+
+    ws1.readyState = MockWebSocket.CLOSED;
+    ws1.onclose?.();
+    expect(service.connectionState()).toBe('reconnecting');
+
+    vi.runOnlyPendingTimers();
+    const ws2 = MockWebSocket.instances[1];
+    expect(ws2).toBeDefined();
+    ws2.simulateOpen();
+    expect(JSON.parse(ws2.sent[0])).toMatchObject({ action: 'register', subdomain: 'wh-abc' });
+  });
+
+  it('clears all state on logout', () => {
+    const { service } = setup();
+    service.registerWebhook('wh-abc');
+    const ws = MockWebSocket.instances[0];
+    ws.simulateOpen();
+    ws.simulateMessage({ type: 'registered', subdomain: 'wh-abc', url: 'https://wh-abc.dev' });
+    ws.simulateMessage({ type: 'webhook_request', id: 'r1', subdomain: 'wh-abc', method: 'GET', path: '/' });
+
+    expect(logoutCb).toBeTypeOf('function');
+    logoutCb!();
+
+    expect(service.endpoints()).toEqual([]);
+    expect(service.requests()).toEqual([]);
+    expect(service.connectionState()).toBe('disconnected');
+  });
+});
