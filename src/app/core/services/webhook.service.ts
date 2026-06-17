@@ -1,6 +1,8 @@
 import { Injectable, inject, signal, computed, NgZone } from '@angular/core';
+import { TabsService } from '@m1z23r/ngx-ui';
 import { AuthService } from './auth.service';
 import { environment } from '../../../environments/environment';
+import { WebhookTabContentComponent } from '../../features/webhook/webhook-tab-content.component';
 
 export interface IWebhookEndpoint {
   subdomain: string;
@@ -22,11 +24,13 @@ export interface IWebhookRequest {
 export type WebhookConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
 const MAX_REQUESTS = 500;
+const WEBHOOK_TAB_ID = 'webhooks';
 
 @Injectable({ providedIn: 'root' })
 export class WebhookService {
   private ngZone = inject(NgZone);
   private authService = inject(AuthService);
+  private tabsService = inject(TabsService);
 
   private socket: WebSocket | null = null;
   private pingInterval: ReturnType<typeof setInterval> | null = null;
@@ -155,6 +159,20 @@ export class WebhookService {
     } else {
       this.requests.set([]);
     }
+  }
+
+  openTab(): void {
+    if (this.tabsService.getTab(WEBHOOK_TAB_ID)) {
+      this.tabsService.activateById(WEBHOOK_TAB_ID);
+      return;
+    }
+    if (this.endpoints().length === 0 && this.pendingEndpoints.length === 0) {
+      this.connect();
+    }
+    this.tabsService.open<WebhookTabContentComponent, void, void>(
+      WebhookTabContentComponent,
+      { id: WEBHOOK_TAB_ID, label: 'Webhooks', closable: true, activate: true }
+    );
   }
 
   private randomSubdomain(): string {

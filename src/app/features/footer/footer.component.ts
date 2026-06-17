@@ -17,6 +17,7 @@ import { TunnelDialogComponent } from '../tunnel/tunnel.dialog';
 import { CookieJarService } from '../../core/services/cookie-jar.service';
 import { VaultService } from '../../core/services/vault.service';
 import { TunnelService } from '../../core/services/tunnel.service';
+import { WebhookService } from '../../core/services/webhook.service';
 
 @Component({
   selector: 'app-footer',
@@ -73,6 +74,18 @@ import { TunnelService } from '../../core/services/tunnel.service';
           [uiTooltip]="tunnelTooltip()">
           <svg [class.tunnel-active]="tunnelService.hasTunnels()" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </ui-button>
+        <ui-button
+          variant="ghost"
+          size="sm"
+          (clicked)="openWebhooks()"
+          [uiTooltip]="webhookTooltip()">
+          <svg [class.webhook-active]="webhookService.hasWebhooks()" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 16.98h-5.99c-1.66 0-3.01-1.34-3.01-3s1.34-3 3.01-3H18"/>
+            <path d="M9 6.98h6c1.66 0 3 1.34 3 3"/>
+            <circle cx="6" cy="17" r="3"/>
+            <circle cx="18" cy="7" r="3"/>
           </svg>
         </ui-button>
       </div>
@@ -350,6 +363,8 @@ import { TunnelService } from '../../core/services/tunnel.service';
     .tunnel-active {
       color: var(--ui-success, #22c55e);
     }
+
+    .webhook-active { color: var(--ui-success); }
   `]
 })
 export class FooterComponent implements OnDestroy {
@@ -361,6 +376,7 @@ export class FooterComponent implements OnDestroy {
   protected chatService = inject(ChatService);
   protected cloudWorkspace = inject(CloudWorkspaceService);
   protected tunnelService = inject(TunnelService);
+  protected webhookService = inject(WebhookService);
   private dialogService = inject(DialogService);
   private unifiedCollectionService = inject(UnifiedCollectionService);
   private vaultService = inject(VaultService);
@@ -442,6 +458,14 @@ export class FooterComponent implements OnDestroy {
     return 'Webhook Tunnels';
   });
 
+  protected webhookTooltip = computed(() => {
+    const count = this.webhookService.endpoints().length;
+    if (count > 0) {
+      return `${count} webhook${count > 1 ? 's' : ''} active`;
+    }
+    return 'Webhooks';
+  });
+
   protected openSettings(): void {
     this.dialogService.open<SettingsDialogComponent, void, void>(SettingsDialogComponent, {});
   }
@@ -488,6 +512,10 @@ export class FooterComponent implements OnDestroy {
 
   protected openTunnel(): void {
     this.dialogService.open<TunnelDialogComponent, void, void>(TunnelDialogComponent, {});
+  }
+
+  protected openWebhooks(): void {
+    this.webhookService.openTab();
   }
 
   private async checkForUpdates(): Promise<void> {
