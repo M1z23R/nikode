@@ -99,3 +99,68 @@ describe('WebhookService — connection & registration', () => {
     await expect(p).resolves.toBe(true);
   });
 });
+
+describe('WebhookService — request capture', () => {
+  beforeEach(() => {
+    MockWebSocket.instances = [];
+    logoutCb = null;
+    vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    TestBed.resetTestingModule();
+  });
+
+  function connected(): { service: WebhookService; ws: MockWebSocket } {
+    const { service } = setup();
+    service.registerWebhook('wh-abc');
+    const ws = MockWebSocket.instances[0];
+    ws.simulateOpen();
+    ws.simulateMessage({ type: 'registered', subdomain: 'wh-abc', url: 'https://wh-abc.dev' });
+    return { service, ws };
+  }
+
+  it('stores an incoming request newest-first', () => {
+    const { service, ws } = connected();
+    ws.simulateMessage({
+      type: 'webhook_request', id: 'r1', subdomain: 'wh-abc',
+      method: 'POST', path: '/hook', query: { a: '1' },
+      headers: { 'content-type': 'application/json' }, body: '{"x":1}',
+      remote_addr: '1.2.3.4', received_at: 1000,
+    });
+    expect(service.requests().length).toBe(1);
+    expect(service.requests()[0]).toMatchObject({
+      id: 'r1', method: 'POST', path: '/hook', remoteAddr: '1.2.3.4', receivedAt: 1000,
+    });
+  });
+
+  it('auto-replies 200 to each captured request', () => {
+    const { ws } = connected();
+    ws.simulateMessage({ type: 'webhook_request', id: 'r9', subdomain: 'wh-abc', method: 'GET', path: '/' });
+    expect(ws.lastSent()).toMatchObject({ action: 'response', request_id: 'r9', status_code: 200 });
+  });
+
+  it('caps the request list at 500', () => {
+    const { service, ws } = connected();
+    for (let i = 0; i < 510; i++) {
+      ws.simulateMessage({ type: 'webhook_request', id: 'r' + i, subdomain: 'wh-abc', method: 'GET', path: '/' + i });
+    }
+    expect(service.requests().length).toBe(500);
+    expect(service.requests()[0].id).toBe('r509');
+  });
+
+  it('clearRequests() empties all', () => {
+    const { service, ws } = connected();
+    ws.simulateMessage({ type: 'webhook_request', id: 'r1', subdomain: 'wh-abc', method: 'GET', path: '/' });
+    service.clearRequests();
+    expect(service.requests()).toEqual([]);
+  });
+
+  it('createSample registers a wh- prefixed subdomain', () => {
+    const { service } = setup();
+    service.createSample();
+    const ws = MockWebSocket.instances[0];
+    ws.simulateOpen();
+    expect(JSON.parse(ws.sent[0]).subdomain).toMatch(/^wh-[a-z0-9]{8}$/);
+  });
+});
