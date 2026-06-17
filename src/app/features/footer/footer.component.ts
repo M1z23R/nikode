@@ -364,7 +364,7 @@ import { WebhookService } from '../../core/services/webhook.service';
       color: var(--ui-success, #22c55e);
     }
 
-    .webhook-active { color: var(--ui-success); }
+    .webhook-active { color: var(--ui-success, #22c55e); }
   `]
 })
 export class FooterComponent implements OnDestroy {

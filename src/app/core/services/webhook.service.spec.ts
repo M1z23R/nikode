@@ -98,6 +98,17 @@ describe('WebhookService — connection & registration', () => {
     MockWebSocket.instances[0].simulateMessage({ type: 'check_result', subdomain: 'wh-x', available: true });
     await expect(p).resolves.toBe(true);
   });
+
+  it('defers check frame until socket is open', async () => {
+    const { service } = setup();
+    const p = service.checkSubdomain('wh-x');
+    const ws = MockWebSocket.instances[0];
+    expect(ws.sent.length).toBe(0);
+    ws.simulateOpen();
+    expect(ws.sent.map((s: string) => JSON.parse(s)).some((m: { action: string; subdomain: string }) => m.action === 'check' && m.subdomain === 'wh-x')).toBe(true);
+    ws.simulateMessage({ type: 'check_result', subdomain: 'wh-x', available: true });
+    await expect(p).resolves.toBe(true);
+  });
 });
 
 describe('WebhookService — request capture', () => {

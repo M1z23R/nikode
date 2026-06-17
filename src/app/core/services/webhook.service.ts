@@ -43,6 +43,7 @@ export class WebhookService {
   private intentionalClose = false;
 
   private pendingEndpoints: IWebhookEndpoint[] = [];
+  private pendingChecks: string[] = [];
 
   readonly endpoints = signal<IWebhookEndpoint[]>([]);
   readonly requests = signal<IWebhookRequest[]>([]);
@@ -77,6 +78,7 @@ export class WebhookService {
         this.connectionState.set('connected');
         this.startPing();
         this.reregisterEndpoints();
+        this.flushPendingChecks();
       });
     };
 
@@ -110,6 +112,7 @@ export class WebhookService {
     this.stopPing();
     this.reconnectAttempts = 0;
     this.pendingEndpoints = [];
+    this.pendingChecks = [];
     this.endpoints.set([]);
     this.requests.set([]);
     if (this.socket) {
@@ -140,10 +143,14 @@ export class WebhookService {
   }
 
   checkSubdomain(subdomain: string): Promise<boolean> {
-    this.connect();
     return new Promise((resolve) => {
       this.checkCallbacks.set(subdomain, resolve);
-      this.send({ action: 'check', subdomain });
+      if (this.socket?.readyState === WebSocket.OPEN) {
+        this.send({ action: 'check', subdomain });
+      } else {
+        this.pendingChecks.push(subdomain);
+        this.connect();
+      }
       setTimeout(() => {
         if (this.checkCallbacks.has(subdomain)) {
           this.checkCallbacks.delete(subdomain);
@@ -295,6 +302,15 @@ export class WebhookService {
     this.pendingEndpoints = [];
     for (const ep of pending) {
       this.send({ action: 'register', subdomain: ep.subdomain });
+    }
+  }
+
+  private flushPendingChecks(): void {
+    if (this.pendingChecks.length === 0) return;
+    const pending = this.pendingChecks;
+    this.pendingChecks = [];
+    for (const subdomain of pending) {
+      this.send({ action: 'check', subdomain });
     }
   }
 }
