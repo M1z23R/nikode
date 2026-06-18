@@ -329,6 +329,32 @@ export class EnvironmentService {
     return true;
   }
 
+  /**
+   * Sets a variable's value, creating it if missing or updating it if it already
+   * exists. Secret variables are written to the secret store, never overwritten in
+   * the variables array. Used by the inline hover editor.
+   */
+  setVariableValue(collectionPath: string, envId: string, key: string, value: string): boolean {
+    const col = this.getUnifiedCollection(collectionPath);
+    if (!col) return false;
+
+    const environments = col.collection.environments ?? [];
+    const env = environments.find(e => e.id === envId);
+    if (!env) return false;
+
+    const index = env.variables.findIndex(v => v.key === key);
+    if (index === -1) {
+      return this.addVariable(collectionPath, envId, { key, value, enabled: true });
+    }
+
+    if (env.variables[index].secret) {
+      this.updateSecret(collectionPath, envId, key, value);
+      return true;
+    }
+
+    return this.updateVariable(collectionPath, envId, index, { value });
+  }
+
   deleteVariable(collectionPath: string, envId: string, index: number): void {
     const col = this.getUnifiedCollection(collectionPath);
     if (!col) return;

@@ -181,11 +181,7 @@ export class BodyPanelComponent {
     onSave: (name: string, value: string): void => {
       const env = this.environmentService.getActiveEnvironment(this.request().collectionPath);
       if (env) {
-        this.environmentService.addVariable(this.request().collectionPath, env.id, {
-          key: name,
-          value,
-          enabled: true
-        });
+        this.environmentService.setVariableValue(this.request().collectionPath, env.id, name, value);
       }
     }
   };
