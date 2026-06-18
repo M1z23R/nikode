@@ -89,26 +89,6 @@ describe('WebhookService — connection & registration', () => {
     ws.simulateMessage({ type: 'unregistered', subdomain: 'wh-abc' });
     expect(service.endpoints()).toEqual([]);
   });
-
-  it('resolves checkSubdomain on check_result', async () => {
-    const { service } = setup();
-    service.connect();
-    MockWebSocket.instances[0].simulateOpen();
-    const p = service.checkSubdomain('wh-x');
-    MockWebSocket.instances[0].simulateMessage({ type: 'check_result', subdomain: 'wh-x', available: true });
-    await expect(p).resolves.toBe(true);
-  });
-
-  it('defers check frame until socket is open', async () => {
-    const { service } = setup();
-    const p = service.checkSubdomain('wh-x');
-    const ws = MockWebSocket.instances[0];
-    expect(ws.sent.length).toBe(0);
-    ws.simulateOpen();
-    expect(ws.sent.map((s: string) => JSON.parse(s)).some((m: { action: string; subdomain: string }) => m.action === 'check' && m.subdomain === 'wh-x')).toBe(true);
-    ws.simulateMessage({ type: 'check_result', subdomain: 'wh-x', available: true });
-    await expect(p).resolves.toBe(true);
-  });
 });
 
 describe('WebhookService — request capture', () => {
@@ -173,6 +153,35 @@ describe('WebhookService — request capture', () => {
     const ws = MockWebSocket.instances[0];
     ws.simulateOpen();
     expect(JSON.parse(ws.sent[0]).subdomain).toMatch(/^wh-[a-z0-9]{8}$/);
+  });
+
+  it('base64-decodes the request body', () => {
+    const { service, ws } = connected();
+    ws.simulateMessage({
+      type: 'webhook_request', id: 'rb', subdomain: 'wh-abc',
+      method: 'POST', path: '/hook', headers: {}, body: 'eyJ4IjoxfQ==',
+    });
+    expect(service.requests()[0].body).toBe('{"x":1}');
+  });
+
+  it('returns the raw body when it is not valid base64', () => {
+    const { service, ws } = connected();
+    ws.simulateMessage({
+      type: 'webhook_request', id: 'rr', subdomain: 'wh-abc',
+      method: 'POST', path: '/hook', headers: {}, body: '{"x":1}',
+    });
+    expect(service.requests()[0].body).toBe('{"x":1}');
+  });
+
+  it('splits query params out of the path', () => {
+    const { service, ws } = connected();
+    ws.simulateMessage({
+      type: 'webhook_request', id: 'rq', subdomain: 'wh-abc',
+      method: 'GET', path: '/hook?event=test&id=123',
+    });
+    const r = service.requests()[0];
+    expect(r.path).toBe('/hook');
+    expect(r.query).toEqual({ event: 'test', id: '123' });
   });
 });
 

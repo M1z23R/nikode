@@ -1,7 +1,6 @@
 import { Component, inject, signal, computed } from '@angular/core';
 import {
   ButtonComponent,
-  InputComponent,
   SelectComponent,
   OptionComponent,
   TooltipDirective,
@@ -18,7 +17,6 @@ import { WebhookService } from '../../core/services/webhook.service';
   selector: 'app-webhook-tab-content',
   imports: [
     ButtonComponent,
-    InputComponent,
     SelectComponent,
     OptionComponent,
     TooltipDirective,
@@ -32,12 +30,6 @@ import { WebhookService } from '../../core/services/webhook.service';
     <div class="webhook-tab">
       <div class="toolbar">
         <ui-button size="sm" color="primary" (clicked)="createSample()">Create sample webhook</ui-button>
-        <div class="custom">
-          <ui-input size="sm" placeholder="custom-subdomain" [(value)]="customSubdomain" />
-          <ui-button size="sm" variant="outline" (clicked)="createCustom()" [disabled]="!canCreateCustom()">
-            Create
-          </ui-button>
-        </div>
         @if (endpoints().length > 0) {
           <ui-select size="sm" [(value)]="selectedFilter">
             <ui-option [value]="'all'">All endpoints</ui-option>
@@ -202,7 +194,6 @@ export class WebhookTabContentComponent {
   protected selectedFilter = signal<string>('all');
   protected selectedId = signal<string | null>(null);
   protected detailTab = signal<string>('headers');
-  protected customSubdomain = signal<string>('');
 
   protected filteredRequests = computed(() => {
     const f = this.selectedFilter();
@@ -214,14 +205,12 @@ export class WebhookTabContentComponent {
     const f = this.selectedFilter();
     const eps = this.endpoints();
     if (f !== 'all') return eps.find(e => e.subdomain === f) ?? null;
-    return eps[0] ?? null;
+    return eps.length === 1 ? eps[0] : null;
   });
 
   protected selectedRequest = computed(() =>
     this.filteredRequests().find(r => r.id === this.selectedId()) ?? null
   );
-
-  protected canCreateCustom = computed(() => /^[a-z0-9-]{3,63}$/.test(this.customSubdomain().trim()));
 
   protected parsedJson = computed<unknown>(() => {
     const req = this.selectedRequest();
@@ -239,18 +228,6 @@ export class WebhookTabContentComponent {
 
   protected createSample(): void {
     this.webhookService.createSample();
-  }
-
-  protected async createCustom(): Promise<void> {
-    const s = this.customSubdomain().trim();
-    if (!this.canCreateCustom()) return;
-    const available = await this.webhookService.checkSubdomain(s);
-    if (!available) {
-      this.toast.error('Subdomain not available');
-      return;
-    }
-    this.webhookService.registerWebhook(s);
-    this.customSubdomain.set('');
   }
 
   protected clear(): void {

@@ -43,7 +43,6 @@ export class WebhookService {
   private intentionalClose = false;
 
   private pendingEndpoints: IWebhookEndpoint[] = [];
-  private pendingChecks: string[] = [];
 
   readonly endpoints = signal<IWebhookEndpoint[]>([]);
   readonly requests = signal<IWebhookRequest[]>([]);
@@ -51,8 +50,6 @@ export class WebhookService {
   readonly hasWebhooks = computed(() => this.endpoints().length > 0 || this.pendingEndpoints.length > 0);
   readonly isConnected = computed(() => this.connectionState() === 'connected');
   readonly isReconnecting = computed(() => this.connectionState() === 'reconnecting');
-
-  private checkCallbacks = new Map<string, (available: boolean) => void>();
 
   constructor() {
     this.authService.onLogout(() => this.disconnect());
@@ -78,7 +75,6 @@ export class WebhookService {
         this.connectionState.set('connected');
         this.startPing();
         this.reregisterEndpoints();
-        this.flushPendingChecks();
       });
     };
 
@@ -112,7 +108,6 @@ export class WebhookService {
     this.stopPing();
     this.reconnectAttempts = 0;
     this.pendingEndpoints = [];
-    this.pendingChecks = [];
     this.endpoints.set([]);
     this.requests.set([]);
     if (this.socket) {
@@ -140,24 +135,6 @@ export class WebhookService {
 
   createSample(): void {
     this.registerWebhook(this.randomSubdomain());
-  }
-
-  checkSubdomain(subdomain: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      this.checkCallbacks.set(subdomain, resolve);
-      if (this.socket?.readyState === WebSocket.OPEN) {
-        this.send({ action: 'check', subdomain });
-      } else {
-        this.pendingChecks.push(subdomain);
-        this.connect();
-      }
-      setTimeout(() => {
-        if (this.checkCallbacks.has(subdomain)) {
-          this.checkCallbacks.delete(subdomain);
-          resolve(false);
-        }
-      }, 5000);
-    });
   }
 
   clearRequests(subdomain?: string): void {
@@ -211,14 +188,6 @@ export class WebhookService {
         case 'unregistered':
           this.endpoints.update(eps => eps.filter(e => e.subdomain !== message.subdomain));
           break;
-        case 'check_result': {
-          const cb = this.checkCallbacks.get(message.subdomain);
-          if (cb) {
-            cb(message.available);
-            this.checkCallbacks.delete(message.subdomain);
-          }
-          break;
-        }
         case 'webhook_request':
           this.handleWebhookRequest(message);
           break;
@@ -236,14 +205,26 @@ export class WebhookService {
   }
 
   private handleWebhookRequest(msg: Record<string, unknown>): void {
+    const rawPath = String(msg['path'] ?? '/');
+    const queryIndex = rawPath.indexOf('?');
+    const path = queryIndex >= 0 ? rawPath.slice(0, queryIndex) : rawPath;
+
+    let query = (msg['query'] as Record<string, string>) ?? {};
+    if (Object.keys(query).length === 0 && queryIndex >= 0) {
+      query = {};
+      new URLSearchParams(rawPath.slice(queryIndex + 1)).forEach((value, key) => {
+        query[key] = value;
+      });
+    }
+
     const request: IWebhookRequest = {
       id: String(msg['id']),
       subdomain: String(msg['subdomain']),
       method: String(msg['method'] ?? 'GET'),
-      path: String(msg['path'] ?? '/'),
-      query: (msg['query'] as Record<string, string>) ?? {},
+      path,
+      query,
       headers: (msg['headers'] as Record<string, string>) ?? {},
-      body: String(msg['body'] ?? ''),
+      body: this.decodeBody(String(msg['body'] ?? '')),
       remoteAddr: String(msg['remote_addr'] ?? ''),
       receivedAt: typeof msg['received_at'] === 'number' ? (msg['received_at'] as number) : Date.now(),
     };
@@ -258,6 +239,16 @@ export class WebhookService {
       },
       resp_body: '{"ok":true}',
     });
+  }
+
+  private decodeBody(raw: string): string {
+    if (!raw) return '';
+    try {
+      const bytes = Uint8Array.from(atob(raw), c => c.charCodeAt(0));
+      return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+    } catch {
+      return raw;
+    }
   }
 
   private startPing(): void {
@@ -302,15 +293,6 @@ export class WebhookService {
     this.pendingEndpoints = [];
     for (const ep of pending) {
       this.send({ action: 'register', subdomain: ep.subdomain });
-    }
-  }
-
-  private flushPendingChecks(): void {
-    if (this.pendingChecks.length === 0) return;
-    const pending = this.pendingChecks;
-    this.pendingChecks = [];
-    for (const subdomain of pending) {
-      this.send({ action: 'check', subdomain });
     }
   }
 }
