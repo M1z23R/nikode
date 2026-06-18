@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   test: {
@@ -15,7 +16,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@shared': '/home/dimitrije/projects/dimitrije/nikode/shared',
+      '@shared': fileURLToPath(new URL('./shared', import.meta.url)),
     },
   },
 });
